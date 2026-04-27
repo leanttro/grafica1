@@ -18,34 +18,26 @@
             padding: 0;
         }
 
-       body {
+      body {
             background-color: var(--cor-fundo);
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100vw;
-            height: 50vw;
+            height: 100vh; /* Agora ele estica até a altura que o editor mandar */
             margin: 0;
             font-family: Arial, Helvetica, sans-serif;
             overflow: hidden;
         }
         
         .lacre-container {
-            width: 96vw;
-            height: 48vw;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
             background-color: var(--cor-fundo);
             border: var(--border-width) solid var(--cor-texto);
         }
-        /* ── Linha superior (logo + coluna 26/27/28) ── */
-        .row-top {
-            display: flex;
-            height: 70%;
-            width: 100%;
-            border-bottom: var(--border-width) solid var(--cor-texto);
-        }
-
         .area-logo {
             flex: 1;
             display: flex;
@@ -74,7 +66,8 @@
             align-items: center;
             color: var(--cor-destaque);
             font-weight: 900;
-            font-size: 7vw; /* Números gigantes e grossos */
+            font-size: 7vw; 
+            line-height: 0.85; /* Remove o espaço extra embaixo da fonte */
         }
 
         .cell-destaque:not(:last-child) {
