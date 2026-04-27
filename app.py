@@ -174,6 +174,10 @@ def logout():
 def index():
     return send_from_directory(BASE_DIR, ENTRY)
 
+@app.route("/serigrafia")
+@login_required
+def serigrafia():
+    return send_from_directory(BASE_DIR, "editor_serigrafia.html")
 
 @app.route("/api/templates")
 @login_required
