@@ -14,8 +14,10 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     const ln = (x1, y, x2) => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
     const lv = (x, ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
 
-    ln(0, 0, W); ln(0, H, W);
-    lv(0, 0, H); lv(W, 0, H);
+    // Borda externa: usa rect em vez de 4 linhas separadas —
+    // garante que os cantos fechem perfeitamente (linhas individuais
+    // deixam lacunas com o cap padrão "butt" do jsPDF)
+    pdf.rect(ox, oy, W, H, 'S');
 
     const topH = H * 0.70;
     const botH = H * 0.30;
@@ -29,7 +31,8 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     ln(lW, hDest, W);
     ln(lW, hDest * 2, W);
 
-    const hInfo = botH * (1 / 2.2);
+    // hInfo atualizado para flex 1.4 / (1.4 + 1.2) = 1.4/2.6
+    const hInfo = botH * (1.4 / 2.6);
     const yInfo = topH + hInfo;
     ln(0, yInfo, W);
 
@@ -83,16 +86,21 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     const topH = H * 0.70, botH = H * 0.30;
     const rW = W * 0.15, lW = W - rW;
     const hDest = topH / 3;
-    const hInfo = botH * (1 / 2.2), yInfo = topH + hInfo;
+    // hInfo atualizado para flex 1.4 / (1.4 + 1.2) = 1.4/2.6
+    const hInfo = botH * (1.4 / 2.6), yInfo = topH + hInfo;
     const wMes = W / 12;
 
     const f = state.fundo, t = state.texto, d = state.destaque;
+
     let s = `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
+
+    // Borda externa: <rect> com stroke em vez de 4 linhas separadas —
+    // os cantos fecham perfeitamente com miter join
+    s += `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="none" stroke="${t}" stroke-width="${r4(bw)}" stroke-linejoin="miter"/>`;
 
     const sw = `stroke="${t}" stroke-width="${r4(bw)}" stroke-linecap="square"`;
     const line = (x1,y1,x2,y2) => `<line x1="${r4(ox+x1)}" y1="${r4(oy+y1)}" x2="${r4(ox+x2)}" y2="${r4(oy+y2)}" ${sw}/>`;
 
-    s += line(0,0, W,0) + line(0,H, W,H) + line(0,0, 0,H) + line(W,0, W,H);
     s += line(0,topH, W,topH) + line(0,yInfo, W,yInfo);
     
     s += line(lW,0, lW,topH);
