@@ -10,8 +10,18 @@ HOST       = "0.0.0.0"
 PORT       = int(os.environ.get("PORT", 5000))
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 ENTRY      = "editor.html"
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-troque-em-producao")
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+
+# Extensões de arquivo que podem ser servidas ao cliente
+ALLOWED_EXTENSIONS = {".html", ".js", ".css", ".png", ".jpg", ".jpeg",
+                      ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
 # ──────────────────────────────────────────────────────────────────────────────
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "Variável de ambiente SECRET_KEY não definida. "
+        "Defina-a antes de iniciar o servidor."
+    )
 
 app = Flask(__name__, static_folder=BASE_DIR)
 app.secret_key = SECRET_KEY
@@ -181,7 +191,8 @@ def list_templates():
                 "order": sufixo
             })
 
-    templates.sort(key=lambda t: t["order"])
+    # Ordenação numérica correta (evita lacre2 > lacre10 na ordem lexicográfica)
+    templates.sort(key=lambda t: (len(t["order"]), t["order"]))
     for t in templates:
         del t["order"]
 
@@ -191,6 +202,13 @@ def list_templates():
 @app.route("/<path:filename>")
 @login_required
 def static_files(filename):
+    # Bloqueia qualquer arquivo fora das extensões permitidas
+    # (impede servir app.py, .env, arquivos de config, etc.)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return Response("Acesso negado.", status=403)
+
+    # send_from_directory já usa safe_join internamente e rejeita path traversal
     return send_from_directory(BASE_DIR, filename)
 
 
