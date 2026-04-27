@@ -305,8 +305,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
  <div>
     <div class="section-title">Template</div>
     <div class="template-list" id="template-list">
-      <!-- preenchido dinamicamente via /api/templates -->
-    </div>
+      </div>
     <div class="fetch-error" id="fetch-error">
       ⚠️ Não foi possível carregar o template. Abra o editor via servidor local (ex: <code>python app.py</code>) ou certifique-se que o arquivo está na mesma pasta.
     </div>
@@ -469,7 +468,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   <div class="preview-note" id="preview-note" style="display:none">lacre1.html</div>
 </div>
 
-<!-- Modal Preview Montagem -->
 <div class="modal-overlay" id="modal-montagem">
   <div class="modal-box">
     <div class="modal-header">
@@ -508,12 +506,45 @@ const state = {
   templateFile: 'lacre1.html',
 };
 
+// ── Dimensões das folhas em mm [largura, altura] ──────────────────────────────
+const FOLHAS = {
+  A4:     [210, 297],
+  A3:     [297, 420],
+  letter: [216, 279],
+};
+
+async function loadTemplate(filename) {
+  document.getElementById('fetch-error').style.display = 'none';
+  document.getElementById('preview-frame').style.display = 'none';
+  document.getElementById('preview-loading').style.display = 'flex';
+  document.getElementById('preview-note').style.display = 'none';
+
+  try {
+    const res = await fetch(filename);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.templateSrc = await res.text();
+    state.templateFile = filename;
+
+    buildDynamicPanel();
+
+    document.getElementById('preview-loading').style.display = 'none';
+    document.getElementById('preview-frame').style.display = 'block';
+    document.getElementById('preview-note').style.display = 'block';
+    document.getElementById('preview-note').textContent = `${filename}`;
+
+    updatePreview();
+  } catch (e) {
+    document.getElementById('preview-loading').style.display = 'none';
+    document.getElementById('fetch-error').style.display = 'block';
+    console.error('Erro ao carregar template:', e);
+  }
+}
+
 // ── Extrai CHAVEs do template e reconstrói o painel ───────────────────────────
 function buildDynamicPanel() {
   const keys = [...new Set(
     (state.templateSrc.match(/CHAVE_[A-Z0-9_]+/g) || [])
   )];
-
   // Inicializa state.vars com defaults para novas chaves
   keys.forEach(k => {
     if (!(k in state.vars)) {
@@ -547,7 +578,6 @@ function buildDynamicPanel() {
           <input type="text" class="color-hex" id="hex-${key}" value="${val}"
             oninput="dynHex('${key}', this.value)">
         </div>`;
-
     } else if (key === 'CHAVE_LOGO') {
       // Logo upload
       const src = state.vars[key] || '';
@@ -572,7 +602,6 @@ function buildDynamicPanel() {
           Upload de imagem
           <input type="file" accept="image/*" onchange="handleLogo(this)">
         </label>`;
-
     } else {
       // Texto genérico
       const val = state.vars[key] || '';
@@ -581,7 +610,6 @@ function buildDynamicPanel() {
         <input type="text" class="color-hex" value="${val}" placeholder="${key}"
           oninput="dynText('${key}', this.value)">`;
     }
-
     container.appendChild(fg);
   });
 }
@@ -639,39 +667,6 @@ function handleLogo(input) {
     updatePreview();
   };
   reader.readAsDataURL(file);
-}
-
-// ── Dimensões das folhas em mm [largura, altura] ──────────────────────────────
-const FOLHAS = {
-  A4:     [210, 297],
-  A3:     [297, 420],
-  letter: [216, 279],
-};
-
-async function loadTemplate(filename) {
-  document.getElementById('fetch-error').style.display = 'none';
-  document.getElementById('preview-frame').style.display = 'none';
-  document.getElementById('preview-loading').style.display = 'flex';
-  document.getElementById('preview-note').style.display = 'none';
-
-  try {
-    const res = await fetch(filename);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.templateSrc = await res.text();
-    state.templateFile = filename;
-    buildDynamicPanel();
-
-    document.getElementById('preview-loading').style.display = 'none';
-    document.getElementById('preview-frame').style.display = 'block';
-    document.getElementById('preview-note').style.display = 'block';
-    document.getElementById('preview-note').textContent = `${filename}`;
-
-    updatePreview();
-  } catch (e) {
-    document.getElementById('preview-loading').style.display = 'none';
-    document.getElementById('fetch-error').style.display = 'block';
-    console.error('Erro ao carregar template:', e);
-  }
 }
 
 function selectTemplate(el) {
