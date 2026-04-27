@@ -829,6 +829,12 @@ async function baixarSerigrafiaPDF() {
       // Monta o state desta cor
       const stateCorr = buildStateParaCor(pg);
 
+      // Se tem SVG, rasteriza para PNG em alta res antes de desenhar (garante cores no jsPDF)
+      if (stateCorr._svgParaRasterizar) {
+        const resPx = Math.round(Math.max(W, H) * 20); // ~20px por mm = ~508dpi
+        stateCorr.logoDataUrl = await svgParaPngDataUrl(stateCorr._svgParaRasterizar, resPx, resPx);
+      }
+
       // Grade de lacres com tudo em preto puro nesta cor
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -860,6 +866,24 @@ async function baixarSerigrafiaPDF() {
   }
 }
 
+// Rasteriza SVG string para PNG data URL via canvas (resolve problema de cores no jsPDF addImage)
+async function svgParaPngDataUrl(svgString, wPx, hPx) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = wPx; canvas.height = hPx;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, wPx, hPx);
+      ctx.drawImage(img, 0, 0, wPx, hPx);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 // Monta o state para uma página de cor específica.
 // Tudo vira preto onde aparece; branco onde não aparece (invisível sobre papel branco).
 function buildStateParaCor(pg) {
@@ -873,14 +897,19 @@ function buildStateParaCor(pg) {
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
 
-  // SVG: recoloriza para preto na camada correta, preservando cores vetoriais
+  // SVG: recoloriza para preto na camada correta
+  // logoDataUrl continua sendo o SVG recolorizado — o drawPDF do template usa addImage
+  // Para garantir que as cores aparecem, a rasterizacao e feita via svgParaPngDataUrl (async)
+  // Por ora passa o dataUrl SVG recolorizado; a conversao PNG e feita em baixarSerigrafiaPDF
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
-    s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
     s.logoSVGString = svgPreto;
+    s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
+    s._svgParaRasterizar = svgPreto; // flag para rasterizar antes do drawPDF
   } else {
     s.logoDataUrl = '';
     s.logoSVGString = '';
+    s._svgParaRasterizar = null;
   }
 
   return s;
@@ -918,25 +947,40 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   pdf.setLineWidth(sw);
   pdf.setLineDash([1, 1], 0);
 
-  // 1 traco vertical por gap de coluna — fica na margem (acima e abaixo da grade), alinhado ao meio do gap
+  const xE = oxGrade;           // borda esquerda da grade
+  const xD = oxGrade + gradeW;  // borda direita da grade
+  const yT = oyGrade;           // borda superior da grade
+  const yB = oyGrade + gradeH;  // borda inferior da grade
+
+  // 4 cantos da grade — tracos em L (horizontal + vertical) em cada canto
+  // Canto superior-esquerdo
+  pdf.line(xE - gap - len, yT, xE - gap, yT);
+  pdf.line(xE, yT - gap - len, xE, yT - gap);
+  // Canto superior-direito
+  pdf.line(xD + gap, yT, xD + gap + len, yT);
+  pdf.line(xD, yT - gap - len, xD, yT - gap);
+  // Canto inferior-esquerdo
+  pdf.line(xE - gap - len, yB, xE - gap, yB);
+  pdf.line(xE, yB + gap, xE, yB + gap + len);
+  // Canto inferior-direito
+  pdf.line(xD + gap, yB, xD + gap + len, yB);
+  pdf.line(xD, yB + gap, xD, yB + gap + len);
+
+  // 1 traco vertical por gap de coluna — na margem acima e abaixo, alinhado ao meio do gap
   if (gapH > 0) {
     for (let c = 0; c < cols - 1; c++) {
       const xGap = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
-      // acima da grade
-      pdf.line(xGap, oyGrade - gap - len, xGap, oyGrade - gap);
-      // abaixo da grade
-      pdf.line(xGap, oyGrade + gradeH + gap, xGap, oyGrade + gradeH + gap + len);
+      pdf.line(xGap, yT - gap - len, xGap, yT - gap);
+      pdf.line(xGap, yB + gap, xGap, yB + gap + len);
     }
   }
 
-  // 1 traco horizontal por gap de linha — fica na margem (esquerda e direita da grade), alinhado ao meio do gap
+  // 1 traco horizontal por gap de linha — na margem esquerda e direita, alinhado ao meio do gap
   if (gapV > 0) {
     for (let r = 0; r < rows - 1; r++) {
       const yGap = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
-      // esquerda da grade
-      pdf.line(oxGrade - gap - len, yGap, oxGrade - gap, yGap);
-      // direita da grade
-      pdf.line(oxGrade + gradeW + gap, yGap, oxGrade + gradeW + gap + len, yGap);
+      pdf.line(xE - gap - len, yGap, xE - gap, yGap);
+      pdf.line(xD + gap, yGap, xD + gap + len, yGap);
     }
   }
 
