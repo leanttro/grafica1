@@ -754,10 +754,60 @@ async function baixarSerigrafiaPDF() {
     const folhaKey = document.getElementById('mont-folha').value;
     const ori      = document.getElementById('mont-orientacao').value;
 
-    const pdf = new jsPDF({
+    const pdfRaw = new jsPDF({
       unit: 'mm',
       format: (folhaKey === 'letter' || folhaKey === 'custom') ? [fw, fh] : folhaKey,
       orientation: ori,
+    });
+
+    // Proxy CMYK: intercepta setFillColor e setDrawColor
+    // Preto RGB (0,0,0) → CMYK (0,0,0,100) — tinta preta 100% pura, sem mistura CMY
+    // Branco RGB (255,255,255) → CMYK (0,0,0,0) — papel limpo
+    // Qualquer outro escuro próximo de preto → também vira 100K
+    function rgbParaCmyk(r, g, b) {
+      if (r === 255 && g === 255 && b === 255) return [0, 0, 0, 0];
+      const c = 1 - r / 255, m = 1 - g / 255, y = 1 - b / 255;
+      const k = Math.min(c, m, y);
+      if (k >= 0.95) return [0, 0, 0, 100]; // preto puro 100K
+      return [
+        Math.round(((c - k) / (1 - k)) * 100),
+        Math.round(((m - k) / (1 - k)) * 100),
+        Math.round(((y - k) / (1 - k)) * 100),
+        Math.round(k * 100),
+      ];
+    }
+    const pdf = new Proxy(pdfRaw, {
+      get(target, prop) {
+        if (prop === 'setFillColor') {
+          return function(...args) {
+            if (args.length === 3) {
+              const [c, m, y, k] = rgbParaCmyk(...args);
+              return target.setFillColor(c, m, y, k);
+            }
+            return target.setFillColor(...args);
+          };
+        }
+        if (prop === 'setDrawColor') {
+          return function(...args) {
+            if (args.length === 3) {
+              const [c, m, y, k] = rgbParaCmyk(...args);
+              return target.setDrawColor(c, m, y, k);
+            }
+            return target.setDrawColor(...args);
+          };
+        }
+        if (prop === 'setTextColor') {
+          return function(...args) {
+            if (args.length === 3) {
+              const [c, m, y, k] = rgbParaCmyk(...args);
+              return target.setTextColor(c, m, y, k);
+            }
+            return target.setTextColor(...args);
+          };
+        }
+        const val = target[prop];
+        return typeof val === 'function' ? val.bind(target) : val;
+      }
     });
 
     const paginas = calcPaginasCores();
@@ -868,22 +918,24 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   pdf.setLineWidth(sw);
   pdf.setLineDash([1, 1], 0);
 
-  // Marcas horizontais — 1 por coluna, acima e abaixo da grade
-  for (let c = 0; c < cols; c++) {
-    const cx = oxGrade + c * (W + gapH) + W / 2; // centro da coluna
-    // Acima da grade
-    pdf.line(cx, oyGrade - gap - len, cx, oyGrade - gap);
-    // Abaixo da grade
-    pdf.line(cx, oyGrade + gradeH + gap, cx, oyGrade + gradeH + gap + len);
+  // Traco vertical no gap entre colunas — centrado no gap, na altura de cada lacre
+  for (let c = 0; c < cols - 1; c++) {
+    const xGap = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
+    for (let r = 0; r < rows; r++) {
+      const cy = oyGrade + r * (H + gapV) + H / 2;
+      const m = Math.min(len / 2, gapH / 2 - 0.1);
+      pdf.line(xGap - m, cy, xGap + m, cy);
+    }
   }
 
-  // Marcas verticais — 1 por linha, à esquerda e à direita da grade
-  for (let r = 0; r < rows; r++) {
-    const cy = oyGrade + r * (H + gapV) + H / 2; // centro da linha
-    // Esquerda da grade
-    pdf.line(oxGrade - gap - len, cy, oxGrade - gap, cy);
-    // Direita da grade
-    pdf.line(oxGrade + gradeW + gap, cy, oxGrade + gradeW + gap + len, cy);
+  // Traco horizontal no gap entre linhas — centrado no gap, na largura de cada lacre
+  for (let r = 0; r < rows - 1; r++) {
+    const yGap = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
+    for (let c = 0; c < cols; c++) {
+      const cx = oxGrade + c * (W + gapH) + W / 2;
+      const m = Math.min(len / 2, gapV / 2 - 0.1);
+      pdf.line(cx, yGap - m, cx, yGap + m);
+    }
   }
 
   pdf.setLineDash([], 0);
