@@ -79,8 +79,11 @@
             align-items: center;
             color: var(--cor-destaque);
             font-weight: 900;
-            font-size: 7vw;
-            line-height: 0.85;
+            /* min() garante que a fonte respeite tanto largura quanto altura,
+               evitando overflow em lacres com proporção 3:1 ou mais largos */
+            font-size: min(7vw, 14vh);
+            line-height: 1;
+            overflow: hidden;
         }
 
         .cell-destaque:not(:last-child) {
@@ -95,14 +98,15 @@
         }
 
         .area-info {
-            flex: 1;
+            /* Aumentado de flex:1 para flex:1.4 — mais espaço para o texto não encostar nas bordas */
+            flex: 1.4;
             display: flex;
             align-items: center;
             padding: 0 2vw;
             justify-content: center;
             border-bottom: var(--border-width) solid var(--cor-texto);
             color: var(--cor-texto);
-            font-size: 4vw;
+            font-size: min(4vw, 7vh);
             font-weight: 900;
             white-space: nowrap;
             overflow: hidden;
@@ -119,8 +123,9 @@
             justify-content: center;
             align-items: center;
             font-weight: 900;
-            font-size: 4.5vw;
+            font-size: min(4.5vw, 11vh);
             color: var(--cor-texto);
+            overflow: hidden;
         }
 
         .cell-mes:not(:last-child) {
