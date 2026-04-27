@@ -301,16 +301,10 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
 <div class="panel">
 
-  <div>
+ <div>
     <div class="section-title">Template</div>
     <div class="template-list" id="template-list">
-      <div class="template-option active" data-file="lacre1.html" onclick="selectTemplate(this)">
-        <div class="dot"></div>
-        <div class="tpl-meta">
-          <div class="tpl-name">Lacre 1 — Grade 5×5</div>
-          <div class="tpl-file">lacre1.html</div>
-        </div>
-      </div>
+      <!-- preenchido dinamicamente via /api/templates -->
     </div>
     <div class="fetch-error" id="fetch-error">
       ⚠️ Não foi possível carregar o template. Abra o editor via servidor local (ex: <code>python app.py</code>) ou certifique-se que o arquivo está na mesma pasta.
@@ -1409,8 +1403,36 @@ document.getElementById('mont-margem').value = 5;
 document.getElementById('mont-gap-h').value = 0;
 document.getElementById('mont-gap-v').value = 0;
 carregarMedidasSalvas();
-loadTemplate('lacre1.html');
 atualizarInfoMontagem();
+
+// Carrega lista de templates dinamicamente do servidor
+(async () => {
+  try {
+    const res = await fetch('/api/templates');
+    if (!res.ok) throw new Error('Falha ao buscar templates');
+    const templates = await res.json();
+    const list = document.getElementById('template-list');
+    list.innerHTML = '';
+    templates.forEach((tpl, i) => {
+      const div = document.createElement('div');
+      div.className = 'template-option' + (i === 0 ? ' active' : '');
+      div.dataset.file = tpl.file;
+      div.onclick = function() { selectTemplate(this); };
+      div.innerHTML = `
+        <div class="dot"></div>
+        <div class="tpl-meta">
+          <div class="tpl-name">${tpl.name}</div>
+          <div class="tpl-file">${tpl.file}</div>
+        </div>`;
+      list.appendChild(div);
+    });
+    if (templates.length > 0) loadTemplate(templates[0].file);
+  } catch (e) {
+    console.error('Erro ao carregar templates:', e);
+    // Fallback: tenta lacre1.html direto
+    loadTemplate('lacre1.html');
+  }
+})();
 </script>
 </body>
 </html>
