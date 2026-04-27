@@ -53,7 +53,8 @@ window.TemplateEngines['lacre2x1-1.html'] = {
 
     pdf.setTextColor(tr,tg,tb);
     const infoText = state.vars['CHAVE_INFO'] || 'INFO';
-    const fsInfo = W * 0.045 * 2.835;
+    // Fonte proporcional à altura da barra (65%) em vez da largura
+    const fsInfo = hInfo * 0.65 * 2.835;
     pdf.setFontSize(fsInfo);
     pdf.text(infoText, ox + W/2, oy + topH + hInfo/2 + (fsInfo/2.835)*0.35, { align:'center' });
 
@@ -110,7 +111,8 @@ window.TemplateEngines['lacre2x1-1.html'] = {
 
     const txt = (label, cx, cy, col, fs) => `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${col}">${label}</text>`;
 
-    const fsDest = W * 0.08, fsInfo = W * 0.045, fsMes = W * 0.05;
+    // fsInfo: proporcional à altura da barra (65%) em vez da largura
+    const fsDest = W * 0.08, fsInfo = hInfo * 0.65, fsMes = W * 0.05;
     s += txt('26', lW+rW/2, hDest/2, d, fsDest);
     s += txt('27', lW+rW/2, hDest + hDest/2, d, fsDest);
     s += txt('28', lW+rW/2, hDest*2 + hDest/2, d, fsDest);
