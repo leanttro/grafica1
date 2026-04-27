@@ -314,61 +314,8 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
   <div>
     <div class="section-title">Variáveis</div>
-    <div class="fields">
-
-      <div class="field-group">
-        <label>CHAVE_COR_FUNDO</label>
-        <div class="color-row">
-          <div class="color-swatch" id="swatch-fundo" style="background:#18181b">
-            <input type="color" id="picker-fundo" value="#18181b" oninput="syncColor('fundo', this.value)">
-          </div>
-          <input type="text" class="color-hex" id="hex-fundo" value="#18181b" oninput="syncHex('fundo', this.value)">
-        </div>
-      </div>
-
-      <div class="field-group">
-        <label>CHAVE_COR_TEXTO</label>
-        <div class="color-row">
-          <div class="color-swatch" id="swatch-texto" style="background:#ffffff">
-            <input type="color" id="picker-texto" value="#ffffff" oninput="syncColor('texto', this.value)">
-          </div>
-          <input type="text" class="color-hex" id="hex-texto" value="#ffffff" oninput="syncHex('texto', this.value)">
-        </div>
-      </div>
-
-      <div class="field-group">
-        <label>CHAVE_COR_DESTAQUE</label>
-        <div class="color-row">
-          <div class="color-swatch" id="swatch-destaque" style="background:#2563eb">
-            <input type="color" id="picker-destaque" value="#2563eb" oninput="syncColor('destaque', this.value)">
-          </div>
-          <input type="text" class="color-hex" id="hex-destaque" value="#2563eb" oninput="syncHex('destaque', this.value)">
-        </div>
-      </div>
-
-      <div class="field-group">
-        <label>CHAVE_LOGO</label>
-        <div class="logo-preview-box" id="logo-box">
-          <div class="logo-placeholder" id="logo-placeholder">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <span>Sem logo</span>
-          </div>
-          <img id="logo-img" src="" alt="" style="display:none">
-        </div>
-        <label class="btn-upload" style="margin-top:8px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Upload de imagem
-          <input type="file" accept="image/*" onchange="handleLogo(this)">
-        </label>
-      </div>
-
+    <div class="fields" id="dynamic-fields">
+      <div style="color:var(--muted);font-size:12px;">Carregando template…</div>
     </div>
   </div>
 
@@ -556,12 +503,143 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
 <script>
 const state = {
-  fundo:       '#18181b',
-  texto:       '#ffffff',
-  destaque:    '#2563eb',
-  logoDataUrl: '',
+  vars: {},          // { CHAVE_COR_FUNDO: '#18181b', CHAVE_LOGO: 'data:...', ... }
   templateSrc: '',
   templateFile: 'lacre1.html',
+};
+
+// ── Extrai CHAVEs do template e reconstrói o painel ───────────────────────────
+function buildDynamicPanel() {
+  const keys = [...new Set(
+    (state.templateSrc.match(/CHAVE_[A-Z0-9_]+/g) || [])
+  )];
+
+  // Inicializa state.vars com defaults para novas chaves
+  keys.forEach(k => {
+    if (!(k in state.vars)) {
+      state.vars[k] = k.startsWith('CHAVE_COR_') ? '#000000' : '';
+    }
+  });
+
+  const container = document.getElementById('dynamic-fields');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (keys.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:12px;">Nenhuma CHAVE encontrada neste template.</div>';
+    return;
+  }
+
+  keys.forEach(key => {
+    const fg = document.createElement('div');
+    fg.className = 'field-group';
+
+    if (key.startsWith('CHAVE_COR_')) {
+      // Color picker
+      const val = state.vars[key];
+      fg.innerHTML = `
+        <label>${key}</label>
+        <div class="color-row">
+          <div class="color-swatch" id="swatch-${key}" style="background:${val}">
+            <input type="color" id="picker-${key}" value="${val}"
+              oninput="dynColor('${key}', this.value)">
+          </div>
+          <input type="text" class="color-hex" id="hex-${key}" value="${val}"
+            oninput="dynHex('${key}', this.value)">
+        </div>`;
+
+    } else if (key === 'CHAVE_LOGO') {
+      // Logo upload
+      const src = state.vars[key] || '';
+      fg.innerHTML = `
+        <label>${key}</label>
+        <div class="logo-preview-box" id="logo-box">
+          <div class="logo-placeholder" id="logo-placeholder" style="${src ? 'display:none' : ''}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Sem logo</span>
+          </div>
+          <img id="logo-img" src="${src}" alt="" style="${src ? '' : 'display:none'}">
+        </div>
+        <label class="btn-upload" style="margin-top:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload de imagem
+          <input type="file" accept="image/*" onchange="handleLogo(this)">
+        </label>`;
+
+    } else {
+      // Texto genérico
+      const val = state.vars[key] || '';
+      fg.innerHTML = `
+        <label>${key}</label>
+        <input type="text" class="color-hex" value="${val}" placeholder="${key}"
+          oninput="dynText('${key}', this.value)">`;
+    }
+
+    container.appendChild(fg);
+  });
+}
+
+function buildHTML() {
+  let html = state.templateSrc;
+  for (const [key, val] of Object.entries(state.vars)) {
+    html = html.replaceAll(key, val);
+  }
+  return html;
+}
+
+function updatePreview() {
+  if (!state.templateSrc) return;
+  const iframe = document.getElementById('preview-iframe');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(buildHTML()); doc.close();
+}
+
+// ── Handlers dinâmicos ────────────────────────────────────────────────────────
+function dynColor(key, val) {
+  state.vars[key] = val;
+  const swatch = document.getElementById(`swatch-${key}`);
+  const hex    = document.getElementById(`hex-${key}`);
+  if (swatch) swatch.style.background = val;
+  if (hex)    hex.value = val;
+  updatePreview();
+}
+
+function dynHex(key, val) {
+  const clean = val.startsWith('#') ? val : '#' + val;
+  state.vars[key] = clean;
+  const swatch = document.getElementById(`swatch-${key}`);
+  const picker = document.getElementById(`picker-${key}`);
+  if (swatch) swatch.style.background = clean;
+  if (clean.length === 7 && picker) picker.value = clean;
+  updatePreview();
+}
+
+function dynText(key, val) {
+  state.vars[key] = val;
+  updatePreview();
+}
+
+function handleLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.vars['CHAVE_LOGO'] = e.target.result;
+    const img = document.getElementById('logo-img');
+    const ph  = document.getElementById('logo-placeholder');
+    if (img) { img.src = e.target.result; img.style.display = 'block'; }
+    if (ph)  ph.style.display = 'none';
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+}
 };
 
 // ── Dimensões das folhas em mm [largura, altura] ──────────────────────────────
@@ -580,7 +658,7 @@ async function loadTemplate(filename) {
   try {
     const res = await fetch(filename);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.templateSrc = await res.text();
+    buildDynamicPanel();
     state.templateFile = filename;
 
     document.getElementById('preview-loading').style.display = 'none';
