@@ -918,18 +918,28 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   pdf.setLineWidth(sw);
   pdf.setLineDash([1, 1], 0);
 
-  // 1 traco vertical por coluna — acima e abaixo da grade, fora da area impressa
-  for (let c = 0; c < cols; c++) {
-    const cx = oxGrade + c * (W + gapH) + W / 2;
-    pdf.line(cx, oyGrade - gap - len, cx, oyGrade - gap);
-    pdf.line(cx, oyGrade + gradeH + gap, cx, oyGrade + gradeH + gap + len);
+  // Tracinho vertical no MEIO do gap horizontal entre colunas (so quando gapH > 0)
+  if (gapH > 0) {
+    for (let c = 0; c < cols - 1; c++) {
+      const xGapMeio = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
+      const mV = Math.min(len / 2, gapH / 2 - 0.1);
+      for (let r = 0; r < rows; r++) {
+        const cy = oyGrade + r * (H + gapV) + H / 2;
+        pdf.line(xGapMeio, cy - mV, xGapMeio, cy + mV);
+      }
+    }
   }
 
-  // 1 traco horizontal por linha — esquerda e direita da grade, fora da area impressa
-  for (let r = 0; r < rows; r++) {
-    const cy = oyGrade + r * (H + gapV) + H / 2;
-    pdf.line(oxGrade - gap - len, cy, oxGrade - gap, cy);
-    pdf.line(oxGrade + gradeW + gap, cy, oxGrade + gradeW + gap + len, cy);
+  // Tracinho horizontal no MEIO do gap vertical entre linhas (so quando gapV > 0)
+  if (gapV > 0) {
+    for (let r = 0; r < rows - 1; r++) {
+      const yGapMeio = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
+      const mH = Math.min(len / 2, gapV / 2 - 0.1);
+      for (let c = 0; c < cols; c++) {
+        const cx = oxGrade + c * (W + gapH) + W / 2;
+        pdf.line(cx - mH, yGapMeio, cx + mH, yGapMeio);
+      }
+    }
   }
 
   pdf.setLineDash([], 0);
