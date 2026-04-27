@@ -24,22 +24,20 @@
             justify-content: center;
             align-items: center;
             width: 100vw;
-            height: 50vw; /* Força o body a ser exatamente 2:1 para o exportador não pegar borda branca inútil */
+            height: 100vh;
             margin: 0;
             font-family: Arial, Helvetica, sans-serif;
             overflow: hidden;
         }
-
-        /* Container 2:1 cravado */
+        
         .lacre-container {
             width: 96vw;
-            height: 48vw; /* Borda externa apertada e uniforme */
+            height: 96vh;
             display: flex;
             flex-direction: column;
             background-color: var(--cor-fundo);
             border: var(--border-width) solid var(--cor-texto);
         }
-
         /* ── Linha superior (logo + coluna 26/27/28) ── */
         .row-top {
             display: flex;
