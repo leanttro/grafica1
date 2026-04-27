@@ -1,20 +1,3 @@
-"""
-app.py — Servidor do Editor de Lacre (Leanttro Tecnologia)
-
-Desenvolvimento:
-  python app.py
-
-Produção (via Docker / Dokploy):
-  gunicorn app:app --bind 0.0.0.0:8000
-
-Variáveis de ambiente (.env ou Dokploy):
-  SECRET_KEY=uma_chave_secreta_longa
-  USER1=senha1
-  USER2=senha2
-  USER_fulano=minhaSenha
-  (qualquer variável que comece com USER seguido de letra/número vira um usuário)
-"""
-
 import os
 import re
 from flask import (
@@ -185,18 +168,18 @@ def index():
 @app.route("/api/templates")
 @login_required
 def list_templates():
-    """
-    Varre a pasta do projeto e retorna todos os arquivos lacre*.html
-    em ordem numérica.
-    """
-    pattern = re.compile(r'^lacre(\d+)\.html$', re.IGNORECASE)
+    pattern = re.compile(r'^lacre(.*)\.html$', re.IGNORECASE)
     templates = []
 
     for fname in os.listdir(BASE_DIR):
         m = pattern.match(fname)
         if m:
-            num = int(m.group(1))
-            templates.append({"file": fname, "name": f"Lacre {num}", "order": num})
+            sufixo = m.group(1)
+            templates.append({
+                "file": fname,
+                "name": f"Lacre {sufixo}",
+                "order": sufixo
+            })
 
     templates.sort(key=lambda t: t["order"])
     for t in templates:
