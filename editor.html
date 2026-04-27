@@ -161,7 +161,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 }
 .btn-secondary:hover { border-color: #555; }
 
-/* Montagem config box */
 .montagem-config {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -245,13 +244,11 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-/* Folha personalizada */
 .custom-sheet-row {
   display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;
 }
 .custom-sheet-row.visible { display: grid; }
 
-/* Modal de preview de montagem */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
   display: none; align-items: center; justify-content: center;
@@ -308,7 +305,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     <div class="template-list" id="template-list">
       </div>
     <div class="fetch-error" id="fetch-error">
-      ⚠️ Não foi possível carregar o template. Abra o editor via servidor local (ex: <code>python app.py</code>) ou certifique-se que o arquivo está na mesma pasta.
+      ⚠️ Não foi possível carregar o template.
     </div>
   </div>
 
@@ -502,12 +499,11 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
 <script>
 const state = {
-  vars: {},          // { CHAVE_COR_FUNDO: '#18181b', CHAVE_LOGO: 'data:...', ... }
+  vars: {},
   templateSrc: '',
   templateFile: 'lacre1.html',
 };
 
-// ── Dimensões das folhas em mm [largura, altura] ──────────────────────────────
 const FOLHAS = {
   A4:     [210, 297],
   A3:     [297, 420],
@@ -541,12 +537,10 @@ async function loadTemplate(filename) {
   }
 }
 
-// ── Extrai CHAVEs do template e reconstrói o painel ───────────────────────────
 function buildDynamicPanel() {
   const keys = [...new Set(
     (state.templateSrc.match(/CHAVE_[A-Z0-9_]+/g) || [])
   )];
-  // Inicializa state.vars com defaults para novas chaves
   keys.forEach(k => {
     if (!(k in state.vars)) {
       state.vars[k] = k.startsWith('CHAVE_COR_') ? '#000000' : '';
@@ -558,7 +552,7 @@ function buildDynamicPanel() {
   container.innerHTML = '';
 
   if (keys.length === 0) {
-    container.innerHTML = '<div style="color:var(--muted);font-size:12px;">Nenhuma CHAVE encontrada neste template.</div>';
+    container.innerHTML = '<div style="color:var(--muted);font-size:12px;">Nenhuma CHAVE encontrada.</div>';
     return;
   }
 
@@ -567,7 +561,6 @@ function buildDynamicPanel() {
     fg.className = 'field-group';
 
     if (key.startsWith('CHAVE_COR_')) {
-      // Color picker
       const val = state.vars[key];
       fg.innerHTML = `
         <label>${key}</label>
@@ -580,7 +573,6 @@ function buildDynamicPanel() {
             oninput="dynHex('${key}', this.value)">
         </div>`;
     } else if (key === 'CHAVE_LOGO') {
-      // Logo upload
       const src = state.vars[key] || '';
       fg.innerHTML = `
         <label>${key}</label>
@@ -604,7 +596,6 @@ function buildDynamicPanel() {
           <input type="file" accept="image/*" onchange="handleLogo(this)">
         </label>`;
     } else {
-      // Texto genérico
       const val = state.vars[key] || '';
       fg.innerHTML = `
         <label>${key}</label>
@@ -625,7 +616,6 @@ function buildHTML() {
 
 function updatePreview() {
   if (!state.templateSrc) return;
-  
   state.fundo = state.vars['CHAVE_COR_FUNDO'] || '#ffffff';
   state.texto = state.vars['CHAVE_COR_TEXTO'] || '#000000';
   state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
@@ -636,7 +626,6 @@ function updatePreview() {
   doc.open(); doc.write(buildHTML()); doc.close();
 }
 
-// ── Handlers dinâmicos ────────────────────────────────────────────────────────
 function dynColor(key, val) {
   state.vars[key] = val;
   const swatch = document.getElementById(`swatch-${key}`);
@@ -711,7 +700,6 @@ function carregarMedida(val) {
   atualizarInfoMontagem();
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function hexToRgb(hex) {
   const h = hex.replace('#','');
   return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
@@ -755,11 +743,8 @@ function calcMontagem() {
 
 function atualizarInfoMontagem() {
   const { wCm, hCm, cols, rows, total } = calcMontagem();
-  
   const frame = document.getElementById('preview-frame');
-  if (frame) {
-    frame.style.aspectRatio = `${wCm} / ${hCm}`;
-  }
+  if (frame) frame.style.aspectRatio = `${wCm} / ${hCm}`;
 
   const el = document.getElementById('mont-info');
   if (cols <= 0 || rows <= 0) {
@@ -768,7 +753,7 @@ function atualizarInfoMontagem() {
     el.textContent = `${cols} colunas × ${rows} linhas = ${total} lacres por folha`;
   }
 }
-// ── PNG 400 DPI ───────────────────────────────────────────────────────────────
+
 async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
@@ -814,9 +799,6 @@ async function baixarFotoPNG() {
   finally { lbl.textContent = 'Baixar PNG (400 DPI)'; }
 }
 
-// ── Núcleo do desenho vetorial de um lacre ────────────────────────────────────
-// ox, oy = offset de origem dentro do PDF (em mm)
-// W, H   = largura e altura do lacre (em mm)
 async function desenharLacre(pdf, ox, oy, W, H) {
   const bw = Math.max((7 / 500) * W, 0.1);
   pdf.setLineWidth(bw);
@@ -829,50 +811,38 @@ async function desenharLacre(pdf, ox, oy, W, H) {
   const [tr,tg,tb] = hexToRgb(state.texto);
   const [dr,dg,db] = hexToRgb(state.destaque);
 
-  // Fundo do lacre
   pdf.setFillColor(fr,fg,fb);
   pdf.rect(ox, oy, W, H, 'F');
-
-  // Borda externa e linhas internas — tudo via pdf.line() para garantir vetorial uniforme
   pdf.setDrawColor(tr,tg,tb);
 
   const ln = (x1, y, x2) => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
   const lv = (x, ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
 
-  // Borda externa: 4 linhas individuais (mesma primitiva das internas)
-  ln(0, 0, W); ln(0, H, W);   // topo e base
-  lv(0, 0, H); lv(W, 0, H);   // esquerda e direita
+  ln(0, 0, W); ln(0, H, W);
+  lv(0, 0, H); lv(W, 0, H);
 
-  // Linhas horizontais que separam as 3 faixas (topo, meio, base) — de ponta a ponta
   ln(0, y1, W);
   ln(0, y2, W);
 
-  // Linhas verticais que separam col-left e col-right do centro — só na faixa do meio
   lv(lW,   y1, y2);
   lv(W-rW, y1, y2);
 
-  // Divisões verticais na faixa do TOPO: células [1 | 26 | 27 | 28]
-  // 1=20%, 26=30%, 27=30%, 28=20%  →  cortes em 20%, 50%, 80%
   lv(W*0.20, 0, y1);
   lv(W*0.50, 0, y1);
   lv(W*0.80, 0, y1);
 
-  // Divisões verticais na faixa da BASE: células [5 | 6 | 7 | 8 | 9] — 5×20%
   lv(W*0.20, y2, H);
   lv(W*0.40, y2, H);
   lv(W*0.60, y2, H);
   lv(W*0.80, y2, H);
 
-  // Divisões horizontais na col-left (células 2, 3, 4) — de 0 até lW
   const mh1 = y1 + midH/3, mh2 = y1 + 2*midH/3;
   ln(0,   mh1, lW);
   ln(0,   mh2, lW);
 
-  // Divisões horizontais na col-right (células 12, 11, 10) — de W-rW até W
   ln(W-rW, mh1, W);
   ln(W-rW, mh2, W);
 
-  // Texto
   const fs = W * 0.11 * 2.835;
   pdf.setFont('helvetica','bold');
 
@@ -900,7 +870,6 @@ async function desenharLacre(pdf, ox, oy, W, H) {
   txt('8',  W*0.60,  y2, W*0.20, botH, T);
   txt('9',  W*0.80,  y2, W*0.20, botH, T);
 
-  // Logo
   if (state.logoDataUrl) {
     const pad = bw * 2;
     const lx  = ox + lW + pad, ly = oy + y1 + pad;
@@ -917,7 +886,92 @@ async function desenharLacre(pdf, ox, oy, W, H) {
   }
 }
 
-// ── PDF VETORIAL individual ───────────────────────────────────────────────────
+async function desenharLacre2x1(pdf, ox, oy, W, H) {
+  const bw = Math.max((7 / 500) * W, 0.1);
+  pdf.setLineWidth(bw);
+
+  const [fr,fg,fb] = hexToRgb(state.fundo);
+  const [tr,tg,tb] = hexToRgb(state.texto);
+  const [dr,dg,db] = hexToRgb(state.destaque);
+
+  pdf.setFillColor(fr,fg,fb);
+  pdf.rect(ox, oy, W, H, 'F');
+  pdf.setDrawColor(tr,tg,tb);
+
+  const ln = (x1, y, x2) => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
+  const lv = (x, ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
+
+  ln(0, 0, W); ln(0, H, W);
+  lv(0, 0, H); lv(W, 0, H);
+
+  const topH = H * 0.70;
+  const botH = H * 0.30;
+  ln(0, topH, W);
+
+  const rW = W * 0.15;
+  const lW = W - rW;
+  lv(lW, 0, topH);
+
+  const hDest = topH / 3;
+  ln(lW, hDest, W);
+  ln(lW, hDest * 2, W);
+
+  const hInfo = botH * (1 / 2.2);
+  const yInfo = topH + hInfo;
+  ln(0, yInfo, W);
+
+  const wMes = W / 12;
+  for (let i = 1; i < 12; i++) {
+    lv(wMes * i, yInfo, H);
+  }
+
+  pdf.setFont('helvetica','bold');
+  
+  pdf.setTextColor(dr,dg,db);
+  const fsDest = W * 0.08 * 2.835;
+  pdf.setFontSize(fsDest);
+  const cyOffset = (fsDest/2.835)*0.35;
+  pdf.text('26', ox + lW + rW/2, oy + hDest/2 + cyOffset, { align:'center' });
+  pdf.text('27', ox + lW + rW/2, oy + hDest + hDest/2 + cyOffset, { align:'center' });
+  pdf.text('28', ox + lW + rW/2, oy + hDest*2 + hDest/2 + cyOffset, { align:'center' });
+
+  pdf.setTextColor(tr,tg,tb);
+  const infoText = state.vars['CHAVE_INFO'] || 'INFO';
+  const fsInfo = W * 0.045 * 2.835;
+  pdf.setFontSize(fsInfo);
+  pdf.text(infoText, ox + W/2, oy + topH + hInfo/2 + (fsInfo/2.835)*0.35, { align:'center' });
+
+  const meses = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const fsMes = W * 0.05 * 2.835;
+  pdf.setFontSize(fsMes);
+  for (let i = 0; i < 12; i++) {
+    pdf.text(meses[i], ox + wMes*i + wMes/2, oy + yInfo + (H-yInfo)/2 + (fsMes/2.835)*0.35, { align:'center' });
+  }
+
+  if (state.logoDataUrl) {
+    const pad = bw * 2;
+    const lx  = ox + pad, ly = oy + pad;
+    const lw  = lW - pad*2, lh = topH - pad*2;
+    const img = new Image();
+    img.src = state.logoDataUrl;
+    await new Promise(r => { img.onload=r; img.onerror=r; });
+    const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
+    let dw, dh;
+    if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
+    const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
+    const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
+    pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
+  }
+}
+
+async function desenharLacreDinamico(pdf, ox, oy, W, H) {
+  if (state.templateFile.includes('lacre2x1')) {
+    await desenharLacre2x1(pdf, ox, oy, W, H);
+  } else {
+    await desenharLacre(pdf, ox, oy, W, H);
+  }
+}
+
 async function gerarPDFVetor(wCm, hCm) {
   const { jsPDF } = window.jspdf;
   const M = 0.7;
@@ -927,11 +981,10 @@ async function gerarPDFVetor(wCm, hCm) {
   const pdf = new jsPDF({ unit:'mm', format:[PW, PH],
     orientation: PW >= PH ? 'landscape' : 'portrait' });
 
-  // Fundo branco da página
   pdf.setFillColor(255,255,255);
   pdf.rect(0, 0, PW, PH, 'F');
 
-  await desenharLacre(pdf, M, M, W, H);
+  await desenharLacreDinamico(pdf, M, M, W, H);
   return pdf;
 }
 
@@ -948,7 +1001,6 @@ async function baixarFotoPDF() {
   finally { lbl.textContent = 'Baixar PDF (vetor)'; }
 }
 
-// ── PDF MONTAGEM + GABARITO ───────────────────────────────────────────────────
 async function baixarMontagemPDF() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-mont-label');
@@ -976,42 +1028,35 @@ async function baixarMontagemPDF() {
       orientation: ori,
     });
 
-    // Fundo branco
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, fw, fh, 'F');
 
-    // ── Calcula posição centralizada da grade ─────────────────────────────────
     const gradeW = cols * W + (cols - 1) * gapH;
     const gradeH = rows * H + (rows - 1) * gapV;
     const oxGrade = (fw - gradeW) / 2;
     const oyGrade = (fh - gradeH) / 2;
 
-    // ── Desenha todos os lacres ───────────────────────────────────────────────
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
         const oy = oyGrade + r * (H + gapV);
-        await desenharLacre(pdf, ox, oy, W, H);
+        await desenharLacreDinamico(pdf, ox, oy, W, H);
       }
     }
 
-    // ── Gabarito ──────────────────────────────────────────────────────────────
     pdf.setDrawColor(gr, gg, gb);
     pdf.setLineWidth(lwGabarito);
 
-    // Linhas externas do gabarito: no meio do gap externo (mesmo espaçamento das internas)
     const xEsq = oxGrade - gapH / 2;
     const xDir = oxGrade + gradeW + gapH / 2;
     const yTop = oyGrade - gapV / 2;
     const yBot = oyGrade + gradeH + gapV / 2;
 
-    // As 4 linhas externas
-    pdf.line(xEsq, yTop, xDir, yTop); // topo
-    pdf.line(xEsq, yBot, xDir, yBot); // base
-    pdf.line(xEsq, yTop, xEsq, yBot); // esquerda
-    pdf.line(xDir, yTop, xDir, yBot); // direita
+    pdf.line(xEsq, yTop, xDir, yTop);
+    pdf.line(xEsq, yBot, xDir, yBot);
+    pdf.line(xEsq, yTop, xEsq, yBot);
+    pdf.line(xDir, yTop, xDir, yBot);
 
-    // Linhas HORIZONTAIS internas: no meio do gap entre linhas
     for (let r = 0; r < rows - 1; r++) {
       const yFim  = oyGrade + (r + 1) * H + r * gapV;
       const yProx = oyGrade + (r + 1) * (H + gapV);
@@ -1019,7 +1064,6 @@ async function baixarMontagemPDF() {
       pdf.line(xEsq, y, xDir, y);
     }
 
-    // Linhas VERTICAIS internas: no meio do gap entre colunas
     for (let c = 0; c < cols - 1; c++) {
       const xFim  = oxGrade + (c + 1) * W + c * gapH;
       const xProx = oxGrade + (c + 1) * (W + gapH);
@@ -1034,11 +1078,10 @@ async function baixarMontagemPDF() {
     alert('Erro na montagem: ' + e.message);
     console.error(e);
   } finally {
-    lbl.textContent = 'Baixar Montagem + Gabarito';
+    lbl.textContent = 'Baixar Montagem PDF + Gabarito';
   }
 }
 
-// ── SVG builder: gera o SVG de um lacre (unidade = mm, viewBox em mm) ─────────
 function buildLacreSVG(W, H, ox, oy) {
   const bw = Math.max((7 / 500) * W, 0.1);
   const topH = H * 0.20, midH = H * 0.60, botH = H * 0.20;
@@ -1047,81 +1090,45 @@ function buildLacreSVG(W, H, ox, oy) {
   const mh1 = y1 + midH / 3, mh2 = y1 + 2 * midH / 3;
 
   const f = state.fundo, t = state.texto, d = state.destaque;
-
-  // Helpers
   const r4 = v => Math.round(v * 10000) / 10000;
-  const x  = v => r4(ox + v);
-  const y  = v => r4(oy + v);
 
-  let s = '';
-
-  // Fundo
-  s += `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
-
-  // Todas as linhas (stroke uniforme, sem fill)
+  let s = `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
   const sw = `stroke="${t}" stroke-width="${r4(bw)}" stroke-linecap="square"`;
-  const line = (x1,y1,x2,y2) => `<line x1="${r4(x1)}" y1="${r4(y1)}" x2="${r4(x2)}" y2="${r4(y2)}" ${sw}/>`;
+  const line = (x1,y1,x2,y2) => `<line x1="${r4(ox+x1)}" y1="${r4(oy+y1)}" x2="${r4(ox+x2)}" y2="${r4(oy+y2)}" ${sw}/>`;
 
-  // Borda externa
-  s += line(ox,      oy,      ox+W,    oy);
-  s += line(ox,      oy+H,    ox+W,    oy+H);
-  s += line(ox,      oy,      ox,      oy+H);
-  s += line(ox+W,    oy,      ox+W,    oy+H);
+  s += line(0,0,W,0) + line(0,H,W,H) + line(0,0,0,H) + line(W,0,W,H);
+  s += line(0,y1,W,y1) + line(0,y2,W,y2);
+  s += line(lW,y1,lW,y2) + line(W-rW,y1,W-rW,y2);
 
-  // Separadores horizontais principais
-  s += line(ox,      oy+y1,   ox+W,    oy+y1);
-  s += line(ox,      oy+y2,   ox+W,    oy+y2);
+  s += line(W*0.20,0,W*0.20,y1) + line(W*0.50,0,W*0.50,y1) + line(W*0.80,0,W*0.80,y1);
+  s += line(W*0.20,y2,W*0.20,H) + line(W*0.40,y2,W*0.40,H) + line(W*0.60,y2,W*0.60,H) + line(W*0.80,y2,W*0.80,H);
 
-  // Col-left / col-right (meio)
-  s += line(ox+lW,   oy+y1,   ox+lW,   oy+y2);
-  s += line(ox+W-rW, oy+y1,   ox+W-rW, oy+y2);
+  s += line(0,mh1,lW,mh1) + line(0,mh2,lW,mh2);
+  s += line(W-rW,mh1,W,mh1) + line(W-rW,mh2,W,mh2);
 
-  // Topo: divisões em 20%, 50%, 80%
-  s += line(ox+W*0.20, oy,    ox+W*0.20, oy+y1);
-  s += line(ox+W*0.50, oy,    ox+W*0.50, oy+y1);
-  s += line(ox+W*0.80, oy,    ox+W*0.80, oy+y1);
-
-  // Base: divisões em 20%, 40%, 60%, 80%
-  s += line(ox+W*0.20, oy+y2, ox+W*0.20, oy+H);
-  s += line(ox+W*0.40, oy+y2, ox+W*0.40, oy+H);
-  s += line(ox+W*0.60, oy+y2, ox+W*0.60, oy+H);
-  s += line(ox+W*0.80, oy+y2, ox+W*0.80, oy+H);
-
-  // Col-left divisões horizontais
-  s += line(ox,      oy+mh1,  ox+lW,   oy+mh1);
-  s += line(ox,      oy+mh2,  ox+lW,   oy+mh2);
-
-  // Col-right divisões horizontais
-  s += line(ox+W-rW, oy+mh1,  ox+W,    oy+mh1);
-  s += line(ox+W-rW, oy+mh2,  ox+W,    oy+mh2);
-
-  // Texto — fonte proporcional ao lacre
   const fs = r4(W * 0.11);
   const ta = `font-family="Arial,Helvetica,sans-serif" font-size="${fs}" font-weight="bold" text-anchor="middle" dominant-baseline="middle"`;
+  const txt = (label, cx, cy, col) => `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" ${ta} fill="${col}">${label}</text>`;
 
-  const txt = (label, cx, cy, col) =>
-    `<text x="${r4(cx)}" y="${r4(cy)}" ${ta} fill="${col}">${label}</text>`;
+  s += txt('1',  lW*0.5,               topH/2,             t);
+  s += txt('26', lW+W*0.15,            topH/2,             d);
+  s += txt('27', W*0.50+W*0.15,        topH/2,             d);
+  s += txt('28', W*0.80+W*0.10,        topH/2,             d);
+  s += txt('2',  lW/2,                 y1+midH/6,          t);
+  s += txt('3',  lW/2,                 y1+midH/2,          t);
+  s += txt('4',  lW/2,                 y1+midH*5/6,        t);
+  s += txt('12', W-rW/2,               y1+midH/6,          t);
+  s += txt('11', W-rW/2,               y1+midH/2,          t);
+  s += txt('10', W-rW/2,               y1+midH*5/6,        t);
+  s += txt('5',  W*0.10,               y2+botH/2,          t);
+  s += txt('6',  W*0.30,               y2+botH/2,          t);
+  s += txt('7',  W*0.50,               y2+botH/2,          t);
+  s += txt('8',  W*0.70,               y2+botH/2,          t);
+  s += txt('9',  W*0.90,               y2+botH/2,          t);
 
-  s += txt('1',  ox+lW*0.5,               oy+topH/2,             t);
-  s += txt('26', ox+lW+W*0.15,            oy+topH/2,             d);
-  s += txt('27', ox+W*0.50+W*0.15,        oy+topH/2,             d);
-  s += txt('28', ox+W*0.80+W*0.10,        oy+topH/2,             d);
-  s += txt('2',  ox+lW/2,                 oy+y1+midH/6,          t);
-  s += txt('3',  ox+lW/2,                 oy+y1+midH/2,          t);
-  s += txt('4',  ox+lW/2,                 oy+y1+midH*5/6,        t);
-  s += txt('12', ox+W-rW/2,               oy+y1+midH/6,          t);
-  s += txt('11', ox+W-rW/2,               oy+y1+midH/2,          t);
-  s += txt('10', ox+W-rW/2,               oy+y1+midH*5/6,        t);
-  s += txt('5',  ox+W*0.10,               oy+y2+botH/2,          t);
-  s += txt('6',  ox+W*0.30,               oy+y2+botH/2,          t);
-  s += txt('7',  ox+W*0.50,               oy+y2+botH/2,          t);
-  s += txt('8',  ox+W*0.70,               oy+y2+botH/2,          t);
-  s += txt('9',  ox+W*0.90,               oy+y2+botH/2,          t);
-
-  // Logo (embutida como data URL)
   if (state.logoDataUrl) {
     const pad = bw * 2;
-    const lx = ox + lW + pad, ly = oy + y1 + pad;
+    const lx = lW + pad, ly = y1 + pad;
     const lw = cW - pad * 2, lh = midH - pad * 2;
     const img = document.getElementById('logo-img');
     if (img && img.naturalWidth) {
@@ -1129,14 +1136,71 @@ function buildLacreSVG(W, H, ox, oy) {
       let dw, dh;
       if (ir > br) { dw = lw; dh = lw / ir; } else { dh = lh; dw = lh * ir; }
       const dx = lx + (lw - dw) / 2, dy = ly + (lh - dh) / 2;
-      s += `<image x="${r4(dx)}" y="${r4(dy)}" width="${r4(dw)}" height="${r4(dh)}" href="${state.logoDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+      s += `<image x="${r4(ox+dx)}" y="${r4(oy+dy)}" width="${r4(dw)}" height="${r4(dh)}" href="${state.logoDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
     }
   }
-
   return s;
 }
 
-// ── Baixar SVG — lacre individual ─────────────────────────────────────────────
+function buildLacreSVG2x1(W, H, ox, oy) {
+  const r4 = v => Math.round(v * 10000) / 10000;
+  const bw = Math.max((7 / 500) * W, 0.1);
+  const topH = H * 0.70, botH = H * 0.30;
+  const rW = W * 0.15, lW = W - rW;
+  const hDest = topH / 3;
+  const hInfo = botH * (1 / 2.2), yInfo = topH + hInfo;
+  const wMes = W / 12;
+
+  const f = state.fundo, t = state.texto, d = state.destaque;
+  let s = `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
+
+  const sw = `stroke="${t}" stroke-width="${r4(bw)}" stroke-linecap="square"`;
+  const line = (x1,y1,x2,y2) => `<line x1="${r4(ox+x1)}" y1="${r4(oy+y1)}" x2="${r4(ox+x2)}" y2="${r4(oy+y2)}" ${sw}/>`;
+
+  s += line(0,0, W,0) + line(0,H, W,H) + line(0,0, 0,H) + line(W,0, W,H);
+  s += line(0,topH, W,topH) + line(0,yInfo, W,yInfo);
+  
+  s += line(lW,0, lW,topH);
+  for(let i=1; i<12; i++) s += line(wMes*i,yInfo, wMes*i,H);
+  
+  s += line(lW,hDest, W,hDest) + line(lW,hDest*2, W,hDest*2);
+
+  const txt = (label, cx, cy, col, fs) => `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${col}">${label}</text>`;
+
+  const fsDest = W * 0.08, fsInfo = W * 0.045, fsMes = W * 0.05;
+  s += txt('26', lW+rW/2, hDest/2, d, fsDest);
+  s += txt('27', lW+rW/2, hDest + hDest/2, d, fsDest);
+  s += txt('28', lW+rW/2, hDest*2 + hDest/2, d, fsDest);
+  
+  const infoText = state.vars['CHAVE_INFO'] || 'INFO';
+  s += txt(infoText, W/2, topH + hInfo/2, t, fsInfo);
+
+  const meses = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  for(let i=0; i<12; i++) s += txt(meses[i], wMes*i + wMes/2, yInfo + (H-yInfo)/2, t, fsMes);
+
+  if (state.logoDataUrl) {
+    const pad = bw * 2;
+    const lx = 0 + pad, ly = 0 + pad;
+    const lw = lW - pad*2, lh = topH - pad*2;
+    const img = document.getElementById('logo-img');
+    if (img && img.naturalWidth) {
+      const ir = img.naturalWidth / img.naturalHeight, br = lw / lh;
+      let dw, dh;
+      if (ir > br) { dw = lw; dh = lw / ir; } else { dh = lh; dw = lh * ir; }
+      const dx = lx + (lw - dw) / 2, dy = ly + (lh - dh) / 2;
+      s += `<image x="${r4(ox+dx)}" y="${r4(oy+dy)}" width="${r4(dw)}" height="${r4(dh)}" href="${state.logoDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+    }
+  }
+  return s;
+}
+
+function buildLacreSVGDinamico(W, H, ox, oy) {
+  if (state.templateFile.includes('lacre2x1')) {
+    return buildLacreSVG2x1(W, H, ox, oy);
+  }
+  return buildLacreSVG(W, H, ox, oy);
+}
+
 function baixarSVGIndividual() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
@@ -1144,9 +1208,8 @@ function baixarSVGIndividual() {
   const W = wCm * 10, H = hCm * 10;
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
-${buildLacreSVG(W, H, 0, 0)}
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+${buildLacreSVGDinamico(W, H, 0, 0)}
 </svg>`;
 
   const a = document.createElement('a');
@@ -1155,7 +1218,6 @@ ${buildLacreSVG(W, H, 0, 0)}
   a.click();
 }
 
-// ── Baixar SVG — montagem completa com gabarito ───────────────────────────────
 function baixarMontagemSVG() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-svgmont-label');
@@ -1177,21 +1239,16 @@ function baixarMontagemSVG() {
     const lwGab  = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
     const r4 = v => Math.round(v * 10000) / 10000;
 
-    let body = '';
+    let body = `<rect x="0" y="0" width="${fw}" height="${fh}" fill="#ffffff"/>`;
 
-    // Fundo branco da folha
-    body += `<rect x="0" y="0" width="${fw}" height="${fh}" fill="#ffffff"/>`;
-
-    // Todos os lacres
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
         const oy = oyGrade + r * (H + gapV);
-        body += buildLacreSVG(W, H, ox, oy);
+        body += buildLacreSVGDinamico(W, H, ox, oy);
       }
     }
 
-    // Gabarito (grupo separado, editável independentemente no Canva)
     const xEsq = r4(oxGrade - gapH / 2);
     const xDir  = r4(oxGrade + gradeW + gapH / 2);
     const yTop  = r4(oyGrade - gapV / 2);
@@ -1200,10 +1257,8 @@ function baixarMontagemSVG() {
     const gline = (x1,y1,x2,y2) => `<line x1="${r4(x1)}" y1="${r4(y1)}" x2="${r4(x2)}" y2="${r4(y2)}" ${gSW}/>`;
 
     body += `<g id="gabarito-corte">`;
-    body += gline(xEsq, yTop, xDir, yTop);
-    body += gline(xEsq, yBot, xDir, yBot);
-    body += gline(xEsq, yTop, xEsq, yBot);
-    body += gline(xDir, yTop, xDir, yBot);
+    body += gline(xEsq, yTop, xDir, yTop) + gline(xEsq, yBot, xDir, yBot);
+    body += gline(xEsq, yTop, xEsq, yBot) + gline(xDir, yTop, xDir, yBot);
 
     for (let r = 0; r < rows - 1; r++) {
       const yF = oyGrade + (r + 1) * H + r * gapV;
@@ -1218,8 +1273,7 @@ function baixarMontagemSVG() {
     body += `</g>`;
 
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="${fw}mm" height="${fh}mm" viewBox="0 0 ${fw} ${fh}">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${fw}mm" height="${fh}mm" viewBox="0 0 ${fw} ${fh}">
 ${body}
 </svg>`;
 
@@ -1237,7 +1291,6 @@ ${body}
   }
 }
 
-// ── Folha personalizada ───────────────────────────────────────────────────────
 function onFolhaChange() {
   const val = document.getElementById('mont-folha').value;
   const row = document.getElementById('custom-sheet-row');
@@ -1245,10 +1298,9 @@ function onFolhaChange() {
   atualizarInfoMontagem();
 }
 
-// ── Preview de montagem (canvas 2D) ──────────────────────────────────────────
 async function previewMontagem() {
   if (!state.templateSrc) return;
-  const { wCm, hCm, W, H, fw, fh, marg, gapH, gapV, cols, rows, total } = calcMontagem();
+  const { wCm, hCm, W, H, fw, fh, gapH, gapV, cols, rows, total } = calcMontagem();
   if (cols <= 0 || rows <= 0) {
     alert('O lacre é maior que a área útil da folha. Ajuste as medidas ou margens.');
     return;
@@ -1259,7 +1311,6 @@ async function previewMontagem() {
   const wrap   = document.getElementById('modal-canvas-wrap');
   const infoEl = document.getElementById('modal-info-text');
 
-  // Escala: encaixar folha em ~800px de largura máx
   const MAX_W = Math.min(window.innerWidth - 96, 820);
   const MAX_H = Math.min(window.innerHeight - 180, 640);
   const scaleW = MAX_W / fw;
@@ -1273,133 +1324,30 @@ async function previewMontagem() {
 
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Fundo branco da folha
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Dimensões da grade centralizada
+  const { canvas: srcCanvas } = await capturarCanvas(wCm, hCm);
+
   const gradeW = cols * W + (cols - 1) * gapH;
   const gradeH = rows * H + (rows - 1) * gapV;
   const oxGrade = (fw - gradeW) / 2;
   const oyGrade = (fh - gradeH) / 2;
+  const s = scale;
 
-  const s = scale; // pixels por mm
-
-  // Cores
-  const cFundo    = state.fundo;
-  const cTexto    = state.texto;
-  const cDestaque = state.destaque;
-  const cGabarito = document.getElementById('mont-cor-gabarito').value;
-
-  const bwPx = Math.max((7 / 500) * W * s, 0.5);
-
-  // Desenha cada lacre no canvas
-  function drawLacre(ox, oy, W, H) {
-    const px = v => Math.round(v * s);
-    const ox_ = ox * s, oy_ = oy * s, W_ = W * s, H_ = H * s;
-
-    const topH = H_ * 0.20, midH = H_ * 0.60, botH = H_ * 0.20;
-    const lW_  = W_ * 0.20, rW_  = W_ * 0.20;
-    const y1 = topH, y2 = topH + midH;
-
-    // Fundo
-    ctx.fillStyle = cFundo;
-    ctx.fillRect(ox_, oy_, W_, H_);
-
-    // Linhas
-    ctx.strokeStyle = cTexto;
-    ctx.lineWidth = bwPx;
-    ctx.beginPath();
-
-    // Borda externa
-    ctx.moveTo(ox_, oy_); ctx.lineTo(ox_ + W_, oy_);
-    ctx.moveTo(ox_, oy_ + H_); ctx.lineTo(ox_ + W_, oy_ + H_);
-    ctx.moveTo(ox_, oy_); ctx.lineTo(ox_, oy_ + H_);
-    ctx.moveTo(ox_ + W_, oy_); ctx.lineTo(ox_ + W_, oy_ + H_);
-
-    // Separadores horizontais principais
-    ctx.moveTo(ox_, oy_ + y1); ctx.lineTo(ox_ + W_, oy_ + y1);
-    ctx.moveTo(ox_, oy_ + y2); ctx.lineTo(ox_ + W_, oy_ + y2);
-
-    // Col-left / col-right
-    ctx.moveTo(ox_ + lW_, oy_ + y1); ctx.lineTo(ox_ + lW_, oy_ + y2);
-    ctx.moveTo(ox_ + W_ - rW_, oy_ + y1); ctx.lineTo(ox_ + W_ - rW_, oy_ + y2);
-
-    // Topo: divisões em 20%, 50%, 80%
-    ctx.moveTo(ox_ + W_*0.20, oy_); ctx.lineTo(ox_ + W_*0.20, oy_ + y1);
-    ctx.moveTo(ox_ + W_*0.50, oy_); ctx.lineTo(ox_ + W_*0.50, oy_ + y1);
-    ctx.moveTo(ox_ + W_*0.80, oy_); ctx.lineTo(ox_ + W_*0.80, oy_ + y1);
-
-    // Base: divisões em 20%, 40%, 60%, 80%
-    ctx.moveTo(ox_ + W_*0.20, oy_ + y2); ctx.lineTo(ox_ + W_*0.20, oy_ + H_);
-    ctx.moveTo(ox_ + W_*0.40, oy_ + y2); ctx.lineTo(ox_ + W_*0.40, oy_ + H_);
-    ctx.moveTo(ox_ + W_*0.60, oy_ + y2); ctx.lineTo(ox_ + W_*0.60, oy_ + H_);
-    ctx.moveTo(ox_ + W_*0.80, oy_ + y2); ctx.lineTo(ox_ + W_*0.80, oy_ + H_);
-
-    // Col-left divisões horizontais
-    const mh1 = y1 + midH/3, mh2 = y1 + 2*midH/3;
-    ctx.moveTo(ox_, oy_ + mh1); ctx.lineTo(ox_ + lW_, oy_ + mh1);
-    ctx.moveTo(ox_, oy_ + mh2); ctx.lineTo(ox_ + lW_, oy_ + mh2);
-
-    // Col-right divisões horizontais
-    ctx.moveTo(ox_ + W_ - rW_, oy_ + mh1); ctx.lineTo(ox_ + W_, oy_ + mh1);
-    ctx.moveTo(ox_ + W_ - rW_, oy_ + mh2); ctx.lineTo(ox_ + W_, oy_ + mh2);
-
-    ctx.stroke();
-
-    // Texto
-    const fs = Math.max(W_ * 0.11, 4);
-    ctx.font = `bold ${fs}px Arial, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    function t(label, x, y, w, h, col) {
-      ctx.fillStyle = col;
-      ctx.fillText(label, ox_ + x + w/2, oy_ + y + h/2);
-    }
-    t('1',  0,       0,       lW_,     topH,    cTexto);
-    t('26', lW_,     0,       W_*0.30, topH,    cDestaque);
-    t('27', W_*0.50, 0,       W_*0.30, topH,    cDestaque);
-    t('28', W_*0.80, 0,       W_*0.20, topH,    cDestaque);
-    t('2',  0, y1,          lW_, midH/3, cTexto);
-    t('3',  0, y1+midH/3,   lW_, midH/3, cTexto);
-    t('4',  0, y1+2*midH/3, lW_, midH/3, cTexto);
-    t('12', W_-rW_, y1,          rW_, midH/3, cTexto);
-    t('11', W_-rW_, y1+midH/3,   rW_, midH/3, cTexto);
-    t('10', W_-rW_, y1+2*midH/3, rW_, midH/3, cTexto);
-    t('5',  0,       y2, W_*0.20, botH, cTexto);
-    t('6',  W_*0.20, y2, W_*0.20, botH, cTexto);
-    t('7',  W_*0.40, y2, W_*0.20, botH, cTexto);
-    t('8',  W_*0.60, y2, W_*0.20, botH, cTexto);
-    t('9',  W_*0.80, y2, W_*0.20, botH, cTexto);
-
-    // Logo
-    if (state.logoDataUrl) {
-      const pad = bwPx * 2;
-      const lx = ox_ + lW_ + pad, ly = oy_ + y1 + pad;
-      const lw = W_*0.60 - pad*2, lh = midH - pad*2;
-      const img = document.getElementById('logo-img');
-      if (img && img.naturalWidth) {
-        const ir = img.naturalWidth / img.naturalHeight, br = lw / lh;
-        let dw, dh;
-        if (ir > br) { dw = lw; dh = lw / ir; } else { dh = lh; dw = lh * ir; }
-        ctx.drawImage(img, lx + (lw - dw)/2, ly + (lh - dh)/2, dw, dh);
-      }
-    }
-  }
-
-  // Desenhar todos os lacres
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const ox = oxGrade + c * (W + gapH);
-      const oy = oyGrade + r * (H + gapV);
-      drawLacre(ox, oy, W, H);
+      const ox = (oxGrade + c * (W + gapH)) * s;
+      const oy = (oyGrade + r * (H + gapV)) * s;
+      const dw = W * s;
+      const dh = H * s;
+      ctx.drawImage(srcCanvas, ox, oy, dw, dh);
     }
   }
 
-  // Gabarito
   const lwGab = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
+  const cGabarito = document.getElementById('mont-cor-gabarito').value;
+  
   ctx.strokeStyle = cGabarito;
   ctx.lineWidth = Math.max(lwGab * s, 0.5);
   ctx.setLineDash([3, 3]);
@@ -1430,7 +1378,7 @@ async function previewMontagem() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  infoEl.textContent = `${cols} col × ${rows} lin = ${total} lacres · folha ${Math.round(fw)}×${Math.round(fh)}mm`;
+  infoEl.textContent = `${cols} col × ${rows} lin = ${total} lacres folha ${Math.round(fw)}×${Math.round(fh)}mm`;
   modal.classList.add('open');
 }
 
@@ -1438,7 +1386,6 @@ function fecharModal() {
   document.getElementById('modal-montagem').classList.remove('open');
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 document.getElementById('lacre-w').value = 1;
 document.getElementById('lacre-h').value = 1;
 document.getElementById('mont-margem').value = 5;
@@ -1447,7 +1394,6 @@ document.getElementById('mont-gap-v').value = 0;
 carregarMedidasSalvas();
 atualizarInfoMontagem();
 
-// Carrega lista de templates dinamicamente do servidor
 (async () => {
   try {
     const res = await fetch('/api/templates');
@@ -1471,7 +1417,6 @@ atualizarInfoMontagem();
     if (templates.length > 0) loadTemplate(templates[0].file);
   } catch (e) {
     console.error('Erro ao carregar templates:', e);
-    // Fallback: tenta lacre1.html direto
     loadTemplate('lacre1.html');
   }
 })();
