@@ -791,15 +791,9 @@ async function baixarSerigrafiaPDF() {
       pdf.setDrawColor(0, 0, 0);
       pdf.setLineWidth(sw);
 
-      // Marcas de corte nos 4 cantos de cada lacre — só na página do lacre
+      // Marca de corte central por coluna/linha — só na página do lacre, fora da grade
       if (pg.temCorte) {
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const ox = oxGrade + c * (W + gapH);
-            const oy = oyGrade + r * (H + gapV);
-            desenharMarcasCorte(pdf, ox, oy, W, H, cutLen, cutGap, sw);
-          }
-        }
+        desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
       }
 
       // Miras ⊕ nos cantos da folha — em TODAS as páginas
@@ -828,26 +822,71 @@ function buildStateParaCor(pg) {
 
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
-  s.logoDataUrl = temLogo ? state.logoDataUrl : '';
+
+  // SVG: recoloriza para preto na camada correta, preservando cores vetoriais
+  if (temLogo && state.logoSVGString) {
+    const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
+    s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
+    s.logoSVGString = svgPreto;
+  } else {
+    s.logoDataUrl = '';
+    s.logoSVGString = '';
+  }
 
   return s;
 }
 
-// Tracinhos de corte nos 4 cantos de um lacre, fora da área
-function desenharMarcasCorte(pdf, ox, oy, W, H, len, gap, sw) {
+// Recoloriza o SVG: pixels da cor alvo → preto; demais cores → branco (invisível no papel)
+function recolorirSVGParaPreto(svgText, corAlvo) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const ignoreTags = new Set(['defs','style','title','desc','metadata','lineargradient','radialgradient','pattern','clippath','mask','filter','symbol']);
+  doc.querySelectorAll('*').forEach(el => {
+    if (ignoreTags.has(el.tagName.toLowerCase())) return;
+    ['fill','stroke'].forEach(attr => {
+      let v = el.getAttribute(attr);
+      if (v) {
+        const n = normalizeHex(v);
+        el.setAttribute(attr, n === corAlvo ? '#000000' : (n ? 'none' : v));
+      }
+      const style = el.getAttribute('style') || '';
+      if (style) {
+        const novo = style.replace(new RegExp(`(${attr})\\s*:\\s*([^;]+)`, 'g'), (_, a, val) => {
+          const n = normalizeHex(val.trim());
+          return `${a}:${n === corAlvo ? '#000000' : (n ? 'none' : val.trim())}`;
+        });
+        el.setAttribute('style', novo);
+      }
+    });
+  });
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
+
+// Tracinho de corte NO MEIO entre lacres — 1 marca central por coluna/linha, fora da grade
+// Chamado uma vez por página (não por lacre), desenhando as marcas na borda externa da grade
+function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw) {
   pdf.setLineWidth(sw);
-  // Superior-esquerdo
-  pdf.line(ox - gap - len, oy,        ox - gap,        oy);         // H
-  pdf.line(ox,             oy - gap - len, ox,          oy - gap);  // V
-  // Superior-direito
-  pdf.line(ox + W + gap,   oy,        ox + W + gap + len, oy);      // H
-  pdf.line(ox + W,         oy - gap - len, ox + W,    oy - gap);    // V
-  // Inferior-esquerdo
-  pdf.line(ox - gap - len, oy + H,    ox - gap,        oy + H);     // H
-  pdf.line(ox,             oy + H + gap, ox,          oy + H + gap + len); // V
-  // Inferior-direito
-  pdf.line(ox + W + gap,   oy + H,    ox + W + gap + len, oy + H); // H
-  pdf.line(ox + W,         oy + H + gap, ox + W,    oy + H + gap + len);  // V
+  pdf.setLineDash([1, 1], 0);
+
+  // Marcas horizontais — 1 por coluna, acima e abaixo da grade
+  for (let c = 0; c < cols; c++) {
+    const cx = oxGrade + c * (W + gapH) + W / 2; // centro da coluna
+    // Acima da grade
+    pdf.line(cx, oyGrade - gap - len, cx, oyGrade - gap);
+    // Abaixo da grade
+    pdf.line(cx, oyGrade + gradeH + gap, cx, oyGrade + gradeH + gap + len);
+  }
+
+  // Marcas verticais — 1 por linha, à esquerda e à direita da grade
+  for (let r = 0; r < rows; r++) {
+    const cy = oyGrade + r * (H + gapV) + H / 2; // centro da linha
+    // Esquerda da grade
+    pdf.line(oxGrade - gap - len, cy, oxGrade - gap, cy);
+    // Direita da grade
+    pdf.line(oxGrade + gradeW + gap, cy, oxGrade + gradeW + gap + len, cy);
+  }
+
+  pdf.setLineDash([], 0);
 }
 
 // Miras ⊕ nos cantos (e meios) da folha
