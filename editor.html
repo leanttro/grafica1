@@ -625,6 +625,12 @@ function buildHTML() {
 
 function updatePreview() {
   if (!state.templateSrc) return;
+  
+  state.fundo = state.vars['CHAVE_COR_FUNDO'] || '#ffffff';
+  state.texto = state.vars['CHAVE_COR_TEXTO'] || '#000000';
+  state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
+  state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
+
   const iframe = document.getElementById('preview-iframe');
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open(); doc.write(buildHTML()); doc.close();
