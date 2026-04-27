@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Lacre 2x1 - Leanttro Tecnologia</title>
+    <style>
+        :root {
+            --cor-fundo: CHAVE_COR_FUNDO;
+            --cor-texto: CHAVE_COR_TEXTO;
+            --cor-destaque: CHAVE_COR_DESTAQUE;
+            --border-width: 7px;
+            --info-align: CHAVE_INFO_ALIGN;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--cor-fundo);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Container 2:1 */
+        .lacre-container {
+            width: 90vw;
+            max-width: 800px;
+            aspect-ratio: 2 / 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--cor-fundo);
+            border: var(--border-width) solid var(--cor-texto);
+        }
+
+        /* ── Linha superior (logo + coluna 26/27/28) ── */
+        .row-top {
+            display: flex;
+            height: 70%;
+            width: 100%;
+            border-bottom: var(--border-width) solid var(--cor-texto);
+        }
+
+        .area-logo {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 16px;
+            /* sem borda direita — a coluna de destaque tem borda-left */
+        }
+
+        img.logo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .col-destaque {
+            width: 12%;
+            min-width: 48px;
+            display: flex;
+            flex-direction: column;
+            border-left: var(--border-width) solid var(--cor-texto);
+        }
+
+        .cell-destaque {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--cor-destaque);
+            font-weight: 700;
+            font-size: clamp(0.7rem, 2.5vw, 1.6rem);
+        }
+
+        .cell-destaque:not(:last-child) {
+            border-bottom: var(--border-width) solid var(--cor-texto);
+        }
+
+        /* ── Linha inferior (info + meses) ── */
+        .row-bottom {
+            display: flex;
+            flex-direction: column;
+            height: 30%;
+            width: 100%;
+        }
+
+        /* Faixa de info (texto livre) */
+        .area-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            justify-content: var(--info-align);
+            border-bottom: var(--border-width) solid var(--cor-texto);
+            color: var(--cor-texto);
+            font-size: clamp(0.55rem, 2vw, 1rem);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        /* Faixa dos meses */
+        .area-meses {
+            display: flex;
+            height: 55%;
+        }
+
+        .cell-mes {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            font-size: clamp(0.55rem, 2vw, 1.1rem);
+            color: var(--cor-texto);
+        }
+
+        .cell-mes:not(:last-child) {
+            border-right: var(--border-width) solid var(--cor-texto);
+        }
+    </style>
+</head>
+<body>
+    <div class="lacre-container">
+
+        <!-- Topo: logo + coluna 26/27/28 -->
+        <div class="row-top">
+            <div class="area-logo">
+                <img src="CHAVE_LOGO" alt="Logo Cliente" class="logo">
+            </div>
+            <div class="col-destaque">
+                <div class="cell-destaque">26</div>
+                <div class="cell-destaque">27</div>
+                <div class="cell-destaque">28</div>
+            </div>
+        </div>
+
+        <!-- Base: info + meses -->
+        <div class="row-bottom">
+            <div class="area-info">CHAVE_INFO</div>
+            <div class="area-meses">
+                <div class="cell-mes">J</div>
+                <div class="cell-mes">F</div>
+                <div class="cell-mes">M</div>
+                <div class="cell-mes">A</div>
+                <div class="cell-mes">M</div>
+                <div class="cell-mes">J</div>
+                <div class="cell-mes">J</div>
+                <div class="cell-mes">A</div>
+                <div class="cell-mes">S</div>
+                <div class="cell-mes">O</div>
+                <div class="cell-mes">N</div>
+                <div class="cell-mes">D</div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
