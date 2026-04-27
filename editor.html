@@ -640,7 +640,6 @@ function handleLogo(input) {
   };
   reader.readAsDataURL(file);
 }
-};
 
 // ── Dimensões das folhas em mm [largura, altura] ──────────────────────────────
 const FOLHAS = {
@@ -658,8 +657,9 @@ async function loadTemplate(filename) {
   try {
     const res = await fetch(filename);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    buildDynamicPanel();
+    state.templateSrc = await res.text();
     state.templateFile = filename;
+    buildDynamicPanel();
 
     document.getElementById('preview-loading').style.display = 'none';
     document.getElementById('preview-frame').style.display = 'block';
@@ -672,50 +672,6 @@ async function loadTemplate(filename) {
     document.getElementById('fetch-error').style.display = 'block';
     console.error('Erro ao carregar template:', e);
   }
-}
-
-function buildHTML() {
-  return state.templateSrc
-    .replace(/CHAVE_COR_FUNDO/g,    state.fundo)
-    .replace(/CHAVE_COR_TEXTO/g,    state.texto)
-    .replace(/CHAVE_COR_DESTAQUE/g, state.destaque)
-    .replace(/CHAVE_LOGO/g,         state.logoDataUrl || '');
-}
-
-function updatePreview() {
-  if (!state.templateSrc) return;
-  const iframe = document.getElementById('preview-iframe');
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open(); doc.write(buildHTML()); doc.close();
-}
-
-function syncColor(key, val) {
-  state[key] = val;
-  document.getElementById(`swatch-${key}`).style.background = val;
-  document.getElementById(`hex-${key}`).value = val;
-  updatePreview();
-}
-
-function syncHex(key, val) {
-  const clean = val.startsWith('#') ? val : '#' + val;
-  state[key] = clean;
-  document.getElementById(`swatch-${key}`).style.background = clean;
-  if (clean.length === 7) document.getElementById(`picker-${key}`).value = clean;
-  updatePreview();
-}
-
-function handleLogo(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    state.logoDataUrl = e.target.result;
-    document.getElementById('logo-img').src = e.target.result;
-    document.getElementById('logo-img').style.display = 'block';
-    document.getElementById('logo-placeholder').style.display = 'none';
-    updatePreview();
-  };
-  reader.readAsDataURL(file);
 }
 
 function selectTemplate(el) {
