@@ -70,15 +70,14 @@ window.TemplateEngines['1x1cm_numerado.html'] = {
     txt('8',  W*0.60,  y2, W*0.20, botH, T);
     txt('9',  W*0.80,  y2, W*0.20, botH, T);
 
-    // Número sequencial — pequeno, abaixo do logo, no centro
+    // Número sequencial — visível, abaixo do logo, no centro
     const numero = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
     if (numero) {
-      const fsNum = W * 0.045 * 2.835; // fonte pequena ~4.5% da largura
+      const fsNum = W * 0.10 * 2.835; // fonte ~10% da largura
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(fsNum);
       pdf.setTextColor(tr, tg, tb);
-      // Posição: centro horizontal, parte inferior do centro (90% do meio)
-      const numY = oy + y2 - (midH * 0.08);
+      const numY = oy + y2 - (midH * 0.07);
       pdf.text(numero, ox + lW + cW / 2, numY, { align: 'center' });
     }
 
@@ -179,13 +178,13 @@ window.TemplateEngines['1x1cm_numerado.html'] = {
     s += txt('8',  W*0.70,               y2+botH/2,          t);
     s += txt('9',  W*0.90,               y2+botH/2,          t);
 
-    // Número sequencial — pequeno, abaixo do logo, no centro
+    // Número sequencial — visível, abaixo do logo, no centro
     const numero = state.numeroFormatado || (state.vars && state.vars['CHAVE_NUMERO']) || '';
     if (numero) {
-      const fsNum = r4(W * 0.045);
-      const taNum = `font-family="Arial,Helvetica,sans-serif" font-size="${fsNum}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" opacity="0.65"`;
+      const fsNum = r4(W * 0.10);
+      const taNum = `font-family="Arial,Helvetica,sans-serif" font-size="${fsNum}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" opacity="0.85"`;
       const numCX = lW + cW / 2;
-      const numCY = y2 - midH * 0.08;
+      const numCY = y2 - midH * 0.07;
       s += `<text x="${r4(ox+numCX)}" y="${r4(oy+numCY)}" ${taNum} fill="${t}">${numero}</text>`;
     }
 
