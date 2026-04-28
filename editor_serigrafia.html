@@ -545,13 +545,24 @@ async function handleLogoSVG(file) {
   const doc = parser.parseFromString(text, 'image/svg+xml');
   const svgEl = doc.documentElement;
   
-  if (!svgEl.getAttribute('viewBox')) {
-    const w = svgEl.getAttribute('width') || '100';
-    const h = svgEl.getAttribute('height') || '100';
-    svgEl.setAttribute('viewBox', `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+  let w = svgEl.getAttribute('width');
+  let h = svgEl.getAttribute('height');
+  const vb = svgEl.getAttribute('viewBox');
+  
+  if (!vb) {
+    w = w ? parseFloat(w) : 100;
+    h = h ? parseFloat(h) : 100;
+    svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  } else {
+    const parts = vb.trim().split(/[\s,]+/);
+    if (parts.length === 4) {
+      w = parseFloat(parts[2]);
+      h = parseFloat(parts[3]);
+    }
   }
-  svgEl.removeAttribute('width');
-  svgEl.removeAttribute('height');
+  
+  if (w) svgEl.setAttribute('width', w);
+  if (h) svgEl.setAttribute('height', h);
   
   const fixedText = new XMLSerializer().serializeToString(svgEl);
 
@@ -582,7 +593,6 @@ async function handleLogoSVG(file) {
   updatePreview();
   atualizarPagesBadges();
 }
-
 async function handleLogoPDF(file) {
   try {
     // Feedback visual básico
@@ -765,32 +775,34 @@ async function capturarCanvas(wCm, hCm) {
     await new Promise(r => setTimeout(r, 300));
   }
 
-  iframeDoc.body.style.margin = '0';
-  
   const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
-    useCORS: true, allowTaint: true,
-    backgroundColor: state.fundo, logging: false, scale: 3,
+    useCORS: true, 
+    allowTaint: true,
+    backgroundColor: state.fundo, 
+    logging: false, 
+    scale: 3
   });
   
   const out = document.createElement('canvas');
-  out.width = wPx; out.height = hPx;
+  out.width = wPx; 
+  out.height = hPx;
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   
-  const scale = Math.max(wPx / srcCanvas.width, hPx / srcCanvas.height);
+  ctx.fillStyle = state.fundo;
+  ctx.fillRect(0, 0, wPx, hPx);
+  
+  const scale = Math.min(wPx / srcCanvas.width, hPx / srcCanvas.height);
   const nw = srcCanvas.width * scale;
   const nh = srcCanvas.height * scale;
   const nx = (wPx - nw) / 2;
   const ny = (hPx - nh) / 2;
   
-  ctx.fillStyle = state.fundo;
-  ctx.fillRect(0, 0, wPx, hPx);
   ctx.drawImage(srcCanvas, nx, ny, nw, nh);
   
   return { canvas: out };
 }
-
 async function baixarFotoPNG() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
