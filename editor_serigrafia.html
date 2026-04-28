@@ -6,6 +6,7 @@
 <title>Editor de Serigrafia — Leanttro</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
 <style>
 :root {
   --bg:        #0f0f10;
@@ -866,7 +867,36 @@ async function baixarSerigrafiaPDF() {
   }
 }
 
-// Rasteriza SVG string para PNG data URL via canvas (resolve problema de cores no jsPDF addImage)
+// Desenha SVG vetorial direto no PDF usando svg2pdf.js (sem rasterizar)
+// Retorna true se conseguiu, false se fallback para PNG
+async function desenharSVGVetorial(pdf, svgString, dx, dy, dw, dh) {
+  try {
+    if (!window.svg2pdf) return false;
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+    const svgEl = svgDoc.documentElement;
+    // Garante viewBox e dimensões para o svg2pdf escalar corretamente
+    if (!svgEl.getAttribute('viewBox')) {
+      const w = svgEl.getAttribute('width') || '100';
+      const h = svgEl.getAttribute('height') || '100';
+      svgEl.setAttribute('viewBox', `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+    }
+    svgEl.setAttribute('width', dw);
+    svgEl.setAttribute('height', dh);
+    // svg2pdf precisa do elemento no DOM temporariamente
+    svgEl.style.position = 'absolute';
+    svgEl.style.visibility = 'hidden';
+    document.body.appendChild(svgEl);
+    await svg2pdf(svgEl, pdf, { x: dx, y: dy, width: dw, height: dh });
+    document.body.removeChild(svgEl);
+    return true;
+  } catch(e) {
+    console.warn('svg2pdf falhou, usando PNG fallback:', e);
+    return false;
+  }
+}
+
+// Fallback: rasteriza SVG para PNG (usado só se svg2pdf não estiver disponível)
 async function svgParaPngDataUrl(svgString, wPx, hPx) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -897,15 +927,12 @@ function buildStateParaCor(pg) {
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
 
-  // SVG: recoloriza para preto na camada correta
-  // logoDataUrl continua sendo o SVG recolorizado — o drawPDF do template usa addImage
-  // Para garantir que as cores aparecem, a rasterizacao e feita via svgParaPngDataUrl (async)
-  // Por ora passa o dataUrl SVG recolorizado; a conversao PNG e feita em baixarSerigrafiaPDF
+  // SVG: recoloriza para preto na camada correta — mantém como string SVG para desenho vetorial
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
     s.logoSVGString = svgPreto;
     s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
-    s._svgParaRasterizar = svgPreto; // flag para rasterizar antes do drawPDF
+    s._svgParaRasterizar = null; // svg2pdf cuida do vetor — sem rasterização
   } else {
     s.logoDataUrl = '';
     s.logoSVGString = '';
