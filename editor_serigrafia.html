@@ -560,10 +560,11 @@ async function handleLogoPDF(file) {
   try {
     if (!window.pdfjsLib) {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
+    // Seta workerSrc sempre (garante mesmo se lib já estava carregada)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
     const page = await pdf.getPage(1);
     const vp = page.getViewport({ scale: 4 });
     const canvas = document.createElement('canvas');
@@ -927,12 +928,15 @@ function buildStateParaCor(pg) {
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
 
-  // SVG: recoloriza para preto na camada correta — mantém como string SVG para desenho vetorial
+  // SVG: recoloriza para preto na camada correta
+  // logoDataUrl continua sendo o SVG recolorizado — o drawPDF do template usa addImage
+  // Para garantir que as cores aparecem, a rasterização é feita via svgParaPngDataUrl (async)
+  // Por ora passa o dataUrl SVG recolorizado; a conversão PNG é feita em baixarSerigrafiaPDF
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
     s.logoSVGString = svgPreto;
     s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
-    s._svgParaRasterizar = null; // svg2pdf cuida do vetor — sem rasterização
+    s._svgParaRasterizar = svgPreto; // flag para rasterizar antes do drawPDF
   } else {
     s.logoDataUrl = '';
     s.logoSVGString = '';
