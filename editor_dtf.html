@@ -379,6 +379,13 @@ select.mini-input {
         </svg>
         <span id="btn-mont-label">Baixar Montagem PDF + Marcas</span>
       </button>
+      <button class="btn-primary" style="background:#1d4ed8;" onclick="baixarMontagemPNG()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+        <span id="btn-mont-png-label">Baixar Montagem PNG Transparente</span>
+      </button>
     </div>
   </div>
 
@@ -439,7 +446,6 @@ async function handleSVG(file) {
   state.imagemTipo      = 'svg';
   state.imagemNome      = file.name;
 
-  // Extrair dimensões do viewBox ou width/height
   const parser = new DOMParser();
   const doc    = parser.parseFromString(text, 'image/svg+xml');
   const svgEl  = doc.documentElement;
@@ -453,7 +459,6 @@ async function handleSVG(file) {
     state.imagemH = parseFloat(svgEl.getAttribute('height')) || 100;
   }
 
-  // Preview no painel
   const wrap = document.getElementById('img-svg-wrap');
   const ph   = document.getElementById('img-placeholder');
   const rst  = document.getElementById('img-raster');
@@ -737,6 +742,32 @@ async function drawArteNoPDF(pdf, ox, oy, W, H) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// DESENHAR ARTE NO CANVAS (para PNG transparente)
+// ══════════════════════════════════════════════════════════════════════
+async function drawArteNoCanvas(ctx, ox, oy, W, H, scale) {
+  if (!state.imagemDataUrl) return;
+
+  const oxPx = ox * scale;
+  const oyPx = oy * scale;
+  const wPx  = W  * scale;
+  const hPx  = H  * scale;
+
+  const img = new Image();
+  img.src = state.imagemDataUrl;
+  await new Promise(r => { img.onload = r; img.onerror = r; });
+
+  const iw = img.naturalWidth  || wPx;
+  const ih = img.naturalHeight || hPx;
+  const ir = iw / ih, br = wPx / hPx;
+  let dw, dh;
+  if (ir > br) { dw = wPx; dh = wPx / ir; } else { dh = hPx; dw = hPx * ir; }
+  const dx = oxPx + (wPx - dw) / 2;
+  const dy = oyPx + (hPx - dh) / 2;
+
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // SVG INDIVIDUAL
 // ══════════════════════════════════════════════════════════════════════
 function buildSVGIndividual(W, H) {
@@ -744,8 +775,6 @@ function buildSVGIndividual(W, H) {
   let body = `<rect x="0" y="0" width="${r4(W)}" height="${r4(H)}" fill="#ffffff"/>`;
 
   if (state.imagemTipo === 'svg' && state.imagemSVGString) {
-    // Embed o SVG original dentro do viewBox
-    const src = state.imagemSVGString;
     body += `<image x="0" y="0" width="${r4(W)}" height="${r4(H)}" href="${state.imagemDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
   } else if (state.imagemDataUrl) {
     body += `<image x="0" y="0" width="${r4(W)}" height="${r4(H)}" href="${state.imagemDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
@@ -760,6 +789,8 @@ ${body}
 // ══════════════════════════════════════════════════════════════════════
 // EXPORTAÇÕES
 // ══════════════════════════════════════════════════════════════════════
+
+// PNG de Aprovação (individual, fundo branco)
 async function baixarPNG() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
@@ -804,6 +835,7 @@ async function baixarPNG() {
   finally { lbl.textContent = 'Baixar PNG de Aprovação'; }
 }
 
+// SVG individual
 function baixarSVGIndividual() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
@@ -818,6 +850,7 @@ function baixarSVGIndividual() {
   } catch(e) { alert('Erro SVG: ' + e.message); }
 }
 
+// Montagem PDF + Marcas
 async function baixarMontagemPDF() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const lbl = document.getElementById('btn-mont-label');
@@ -855,7 +888,6 @@ async function baixarMontagemPDF() {
     const oxGrade = (fw - gradeW) / 2;
     const oyGrade = (fh - gradeH) / 2;
 
-    // Desenha cada cópia da arte na posição correta
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
@@ -864,11 +896,8 @@ async function baixarMontagemPDF() {
       }
     }
 
-    // Marcas de corte
     pdf.setDrawColor(0, 0, 0);
     desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
-
-    // Miras de registro
     desenharMirasFolha(pdf, fw, fh, regR, sw, regPos);
 
     const nomeFolha = folhaKey === 'custom' ? `${fw}x${fh}mm` : folhaKey;
@@ -880,6 +909,156 @@ async function baixarMontagemPDF() {
   } finally {
     lbl.textContent = 'Baixar Montagem PDF + Marcas';
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MONTAGEM PNG TRANSPARENTE (espelho exato do PDF, sem fundo)
+// ══════════════════════════════════════════════════════════════════════
+async function baixarMontagemPNG() {
+  if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const lbl = document.getElementById('btn-mont-png-label');
+  lbl.textContent = 'Gerando…';
+
+  try {
+    const { wCm, hCm, W, H, fw, fh, marg, gapH, gapV, cols, rows } = calcMontagem();
+
+    if (cols <= 0 || rows <= 0) {
+      alert('A arte é maior que a área útil da folha. Ajuste as medidas ou margens.');
+      return;
+    }
+
+    const cutLen = parseFloat(document.getElementById('seri-cut-len').value) || 5;
+    const cutGap = parseFloat(document.getElementById('seri-cut-gap').value) || 2;
+    const regR   = parseFloat(document.getElementById('seri-reg-r').value)   || 3;
+    const sw     = parseFloat(document.getElementById('seri-sw').value)      || 0.15;
+    const regPos = parseInt(document.getElementById('seri-reg-pos').value)   || 4;
+
+    // Resolução: 300 DPI → 11.811 px/mm
+    const SCALE = 11.811;
+
+    const canvasW = Math.round(fw * SCALE);
+    const canvasH = Math.round(fh * SCALE);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+
+    // Fundo TRANSPARENTE — não preenchemos nada aqui
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const gradeW  = cols * W + (cols - 1) * gapH;
+    const gradeH  = rows * H + (rows - 1) * gapV;
+    const oxGrade = (fw - gradeW) / 2;
+    const oyGrade = (fh - gradeH) / 2;
+
+    // Desenha cada cópia da arte na posição correta
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const ox = oxGrade + c * (W + gapH);
+        const oy = oyGrade + r * (H + gapV);
+        await drawArteNoCanvas(ctx, ox, oy, W, H, SCALE);
+      }
+    }
+
+    // Marcas de corte no canvas
+    desenharMarcasCorteCanvas(ctx, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw, SCALE);
+
+    // Miras de registro no canvas
+    desenharMirasFolhaCanvas(ctx, fw, fh, regR, sw, regPos, SCALE);
+
+    // Download
+    const a = document.createElement('a');
+    const folhaKey = document.getElementById('mont-folha').value;
+    const nomeFolha = folhaKey === 'custom' ? `${fw}x${fh}mm` : folhaKey;
+    a.download = `dtf_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}_transp.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+
+  } catch(e) {
+    alert('Erro na montagem PNG: ' + e.message);
+    console.error(e);
+  } finally {
+    lbl.textContent = 'Baixar Montagem PNG Transparente';
+  }
+}
+
+// Marcas de corte no Canvas (espelho do PDF)
+function desenharMarcasCorteCanvas(ctx, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw, scale) {
+  ctx.save();
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = sw * scale;
+  ctx.setLineDash([1 * scale, 1 * scale]);
+
+  const xE = oxGrade, xD = oxGrade + gradeW;
+  const yT = oyGrade, yB = oyGrade + gradeH;
+  const xPontaE = xE - gapH / 2, xPontaD = xD + gapH / 2;
+  const yPontaT = yT - gapV / 2, yPontaB = yB + gapV / 2;
+
+  const line = (x1, y1, x2, y2) => {
+    ctx.beginPath();
+    ctx.moveTo(x1 * scale, y1 * scale);
+    ctx.lineTo(x2 * scale, y2 * scale);
+    ctx.stroke();
+  };
+
+  line(xPontaE, yPontaT - gap - len, xPontaE, yPontaT - gap);
+  line(xPontaD, yPontaT - gap - len, xPontaD, yPontaT - gap);
+  line(xPontaE, yPontaB + gap, xPontaE, yPontaB + gap + len);
+  line(xPontaD, yPontaB + gap, xPontaD, yPontaB + gap + len);
+
+  line(xPontaE - gap - len, yPontaT, xPontaE - gap, yPontaT);
+  line(xPontaE - gap - len, yPontaB, xPontaE - gap, yPontaB);
+  line(xPontaD + gap, yPontaT, xPontaD + gap + len, yPontaT);
+  line(xPontaD + gap, yPontaB, xPontaD + gap + len, yPontaB);
+
+  if (gapH > 0) {
+    for (let c = 0; c < cols - 1; c++) {
+      const xGap = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
+      line(xGap, yT - gap - len, xGap, yT - gap);
+      line(xGap, yB + gap, xGap, yB + gap + len);
+    }
+  }
+  if (gapV > 0) {
+    for (let r = 0; r < rows - 1; r++) {
+      const yGap = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
+      line(xE - gap - len, yGap, xE - gap, yGap);
+      line(xD + gap, yGap, xD + gap + len, yGap);
+    }
+  }
+
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Miras de registro no Canvas (espelho do PDF)
+function desenharMirasFolhaCanvas(ctx, fw, fh, r, sw, numPontos, scale) {
+  ctx.save();
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = sw * scale;
+
+  const m = r * 2.5;
+  let pts = [[m,m],[fw-m,m],[m,fh-m],[fw-m,fh-m]];
+  if (numPontos >= 8) {
+    pts = pts.concat([[fw/2,m],[fw/2,fh-m],[m,fh/2],[fw-m,fh/2]]);
+  }
+
+  pts.forEach(([cx, cy]) => {
+    const cxPx = cx * scale, cyPx = cy * scale, rPx = r * scale;
+    ctx.beginPath();
+    ctx.arc(cxPx, cyPx, rPx, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cxPx - rPx, cyPx); ctx.lineTo(cxPx + rPx, cyPx);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cxPx, cyPx - rPx); ctx.lineTo(cxPx, cyPx + rPx);
+    ctx.stroke();
+  });
+
+  ctx.restore();
 }
 
 // ══════════════════════════════════════════════════════════════════════
