@@ -836,12 +836,15 @@ async function baixarSerigrafiaPDF() {
         for (let c = 0; c < cols; c++) {
           const ox = oxGrade + c * (W + gapH);
           const oy = oyGrade + r * (H + gapV);
-          // Passa stateCorr sem logo para o engine (evita rasterização interna)
-          const stateParaEngine = Object.assign({}, stateCorr, { logoDataUrl: '', logoSVGString: '' });
-          await engine.drawPDF(pdf, ox, oy, W, H, stateParaEngine);
-          // Se há SVG, desenha vetorial direto sobre o PDF
-          if (stateCorr._svgVetorial) {
+          // Se há SVG vetorial, desenha diretamente no PDF (vetorial puro via svg2pdf)
+          // e passa state sem logo para o engine evitar duplicação/rasterização
+          if (stateCorr._svgVetorial && window.svg2pdf) {
+            const stateParaEngine = Object.assign({}, stateCorr, { logoDataUrl: '', logoSVGString: '' });
+            await engine.drawPDF(pdf, ox, oy, W, H, stateParaEngine);
             await desenharSVGVetorial(pdf, stateCorr._svgVetorial, ox, oy, W, H);
+          } else {
+            // Sem svg2pdf disponível ou sem SVG: passa o dataUrl recolorido para o engine
+            await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
           }
         }
       }
