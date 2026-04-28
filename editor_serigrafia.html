@@ -952,21 +952,24 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   const yT = oyGrade;           // borda superior da grade
   const yB = oyGrade + gradeH;  // borda inferior da grade
 
-  // 4 cantos da grade — mesma logica dos tracos internos, so muda o X ou Y de posicao
-  // Tracos verticais de ponta: identicos aos internos verticais, mas em xE e xD (borda da grade)
-  // Tracos horizontais de ponta: identicos aos internos horizontais, mas em yT e yB (borda da grade)
-  // Vertical superior-esquerdo e superior-direito
-  pdf.line(xE, yT - gap - len, xE, yT - gap);
-  pdf.line(xD, yT - gap - len, xD, yT - gap);
-  // Vertical inferior-esquerdo e inferior-direito
-  pdf.line(xE, yB + gap, xE, yB + gap + len);
-  pdf.line(xD, yB + gap, xD, yB + gap + len);
-  // Horizontal esquerdo-superior e esquerdo-inferior
-  pdf.line(xE - gap - len, yT, xE - gap, yT);
-  pdf.line(xE - gap - len, yB, xE - gap, yB);
-  // Horizontal direito-superior e direito-inferior
-  pdf.line(xD + gap, yT, xD + gap + len, yT);
-  pdf.line(xD + gap, yB, xD + gap + len, yB);
+  // 4 cantos — tracos de ponta ficam no CENTRO da margem disponivel
+  // igual aos internos que ficam no centro do gap entre lacres
+  // oxGrade = margem horizontal disponivel de cada lado (da borda da folha ate a grade)
+  // oyGrade = margem vertical disponivel de cada lado
+  const xMargem = oxGrade / 2;   // centro da margem esquerda/direita
+  const yMargem = oyGrade / 2;   // centro da margem superior/inferior
+
+  // Tracos verticais de ponta (acima e abaixo da grade, nas bordas esq e dir)
+  pdf.line(xE, yT - yMargem - len / 2, xE, yT - yMargem + len / 2);
+  pdf.line(xD, yT - yMargem - len / 2, xD, yT - yMargem + len / 2);
+  pdf.line(xE, yB + yMargem - len / 2, xE, yB + yMargem + len / 2);
+  pdf.line(xD, yB + yMargem - len / 2, xD, yB + yMargem + len / 2);
+
+  // Tracos horizontais de ponta (esquerda e direita da grade, nas bordas sup e inf)
+  pdf.line(xE - xMargem - len / 2, yT, xE - xMargem + len / 2, yT);
+  pdf.line(xE - xMargem - len / 2, yB, xE - xMargem + len / 2, yB);
+  pdf.line(xD + xMargem - len / 2, yT, xD + xMargem + len / 2, yT);
+  pdf.line(xD + xMargem - len / 2, yB, xD + xMargem + len / 2, yB);
 
   // 1 traco vertical por gap de coluna — na margem acima e abaixo, alinhado ao meio do gap
   if (gapH > 0) {
