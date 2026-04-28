@@ -185,6 +185,11 @@ def serigrafia():
 def dtf():
     return send_from_directory(BASE_DIR, "editor_dtf.html")
 
+@app.route("/mouse")
+@login_required
+def mouse():
+    return send_from_directory(BASE_DIR, "editor_mouse.html")
+
 @app.route("/api/convert-pdf-to-svg", methods=["POST"])
 @login_required
 def convert_pdf_to_svg():
