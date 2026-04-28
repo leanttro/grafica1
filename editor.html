@@ -6,6 +6,10 @@
 <title>Editor de Lacre — Leanttro</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- JsBarcode para código de barras puro JS -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<!-- QRCode para QR Code puro JS -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root {
   --bg: #0f0f10;
@@ -18,6 +22,8 @@
   --accent-glow: rgba(37,99,235,0.18);
   --accent2: #16a34a;
   --accent2-glow: rgba(22,163,74,0.18);
+  --accent3: #9333ea;
+  --accent3-glow: rgba(147,51,234,0.18);
   --radius: 8px;
   --mono: 'DM Mono', monospace;
   --sans: 'DM Sans', sans-serif;
@@ -120,15 +126,26 @@ label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 select.color-hex { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
 
+/* ─── LOGO BOX ─── */
 .logo-preview-box {
   width: 100%; height: 72px;
   background: var(--surface2); border: 1px dashed var(--border);
   border-radius: var(--radius); display: flex;
   align-items: center; justify-content: center; overflow: hidden;
+  position: relative;
 }
 .logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .logo-placeholder { color: var(--muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .logo-placeholder svg { opacity: 0.35; }
+
+/* ─── LOGO TOOLS (melhoria + remoção de fundo) ─── */
+.logo-tools {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+}
+.logo-tools-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+
 .btn-upload {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 9px; background: var(--surface2); border: 1px solid var(--border);
@@ -139,6 +156,61 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .btn-upload:hover { border-color: #555; }
 .btn-upload input { display: none; }
 
+.btn-tool {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 8px; border-radius: var(--radius); font-size: 11px;
+  font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.15s, border-color 0.15s;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text);
+}
+.btn-tool:hover { border-color: #555; }
+.btn-tool.purple { border-color: rgba(147,51,234,0.4); background: var(--accent3-glow); color: #c084fc; }
+.btn-tool.purple:hover { border-color: #9333ea; }
+.btn-tool.green-t { border-color: rgba(22,163,74,0.4); background: var(--accent2-glow); color: #4ade80; }
+.btn-tool.green-t:hover { border-color: #16a34a; }
+.btn-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tool-status {
+  font-size: 10px; color: var(--muted); font-family: var(--mono);
+  min-height: 14px; text-align: center;
+}
+
+/* ─── NUMERAÇÃO ─── */
+.num-config {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.num-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.num-toggle-label { font-size: 12px; font-weight: 600; }
+.toggle-switch {
+  position: relative; width: 38px; height: 20px; flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 10px;
+  cursor: pointer; transition: background 0.2s;
+}
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px;
+  transition: transform 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: var(--accent); }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+
+.num-body { display: flex; flex-direction: column; gap: 8px; }
+.num-body.hidden { display: none; }
+
+/* ─── ACTIONS ─── */
 .actions { display: flex; flex-direction: column; gap: 8px; }
 .btn-primary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -149,9 +221,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 }
 .btn-primary:hover { opacity: 0.88; }
 .btn-primary:active { transform: scale(0.98); }
-.btn-primary.green {
-  background: var(--accent2);
-}
+.btn-primary.green { background: var(--accent2); }
 .btn-secondary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 10px; background: transparent; border: 1px solid var(--border);
@@ -162,22 +232,12 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .btn-secondary:hover { border-color: #555; }
 
 .montagem-config {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.montagem-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.montagem-row.triple {
-  grid-template-columns: 1fr 1fr 1fr;
-}
+.montagem-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.montagem-row.triple { grid-template-columns: 1fr 1fr 1fr; }
 .mini-label {
   font-size: 9px; font-weight: 700; letter-spacing: 1px;
   text-transform: uppercase; color: var(--muted);
@@ -196,9 +256,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   border: 1px solid var(--border); text-align: center;
 }
 
-.divider {
-  height: 1px; background: var(--border); margin: 2px 0;
-}
+.divider { height: 1px; background: var(--border); margin: 2px 0; }
 
 .preview-area {
   background: var(--bg); display: flex; flex-direction: column;
@@ -244,11 +302,10 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-.custom-sheet-row {
-  display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;
-}
+.custom-sheet-row { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .custom-sheet-row.visible { display: grid; }
 
+/* ─── MODAL ─── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
   display: none; align-items: center; justify-content: center;
@@ -262,8 +319,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .modal-title { font-size: 13px; font-weight: 600; }
 .modal-close {
@@ -276,10 +332,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   flex: 1; overflow: auto; padding: 20px;
   display: flex; align-items: flex-start; justify-content: center;
 }
-.modal-canvas-wrap {
-  background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  position: relative;
-}
+.modal-canvas-wrap { background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.4); position: relative; }
 .modal-canvas-wrap canvas { display: block; }
 .modal-footer {
   display: flex; align-items: center; justify-content: space-between;
@@ -288,6 +341,15 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 }
 .modal-info { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .modal-actions { display: flex; gap: 8px; }
+
+/* tag de novidade */
+.new-badge {
+  display: inline-block; font-size: 8px; font-weight: 700;
+  background: var(--accent3-glow); color: #c084fc;
+  border: 1px solid rgba(147,51,234,0.3);
+  padding: 1px 5px; border-radius: 99px; letter-spacing: 0.5px;
+  text-transform: uppercase; vertical-align: middle; margin-left: 5px;
+}
 </style>
 </head>
 <body>
@@ -300,15 +362,14 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
 <div class="panel">
 
- <div>
+  <!-- TEMPLATES -->
+  <div>
     <div class="section-title">Template</div>
-    <div class="template-list" id="template-list">
-      </div>
-    <div class="fetch-error" id="fetch-error">
-      ⚠️ Não foi possível carregar o template.
-    </div>
+    <div class="template-list" id="template-list"></div>
+    <div class="fetch-error" id="fetch-error">⚠️ Não foi possível carregar o template.</div>
   </div>
 
+  <!-- VARIÁVEIS -->
   <div>
     <div class="section-title">Variáveis</div>
     <div class="fields" id="dynamic-fields">
@@ -316,6 +377,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
+  <!-- EXPORTAÇÃO -->
   <div>
     <div class="section-title">Exportação e Medidas</div>
     <div class="fields">
@@ -333,10 +395,10 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
+  <!-- MONTAGEM -->
   <div>
     <div class="section-title">Montagem para Impressão</div>
     <div class="montagem-config">
-
       <div class="montagem-row">
         <div>
           <span class="mini-label">Folha</span>
@@ -365,7 +427,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           </select>
         </div>
       </div>
-
       <div class="montagem-row triple">
         <div>
           <span class="mini-label">Margem (mm)</span>
@@ -380,7 +441,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           <input type="number" id="mont-gap-v" class="mini-input" value="0" min="0" max="20" step="0.5" oninput="atualizarInfoMontagem()">
         </div>
       </div>
-
       <div class="montagem-row">
         <div>
           <span class="mini-label">Cor do Gabarito</span>
@@ -391,11 +451,108 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           <input type="number" id="mont-lw-gabarito" class="mini-input" value="0.1" min="0.05" max="1" step="0.05">
         </div>
       </div>
-
       <div class="montagem-info" id="mont-info">Calculando...</div>
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- NUMERAÇÃO SEQUENCIAL + CÓDIGO DE BARRAS (NOVO) -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div>
+    <div class="section-title">
+      Numeração Sequencial
+      <span class="new-badge">Novo</span>
+    </div>
+    <div class="num-config">
+      <div class="num-toggle">
+        <span class="num-toggle-label">Ativar numeração automática</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="num-ativo" onchange="toggleNumBody()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="num-body hidden" id="num-body">
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Número Inicial</span>
+            <input type="number" id="num-inicio" class="mini-input" value="1" min="0" step="1">
+          </div>
+          <div>
+            <span class="mini-label">Incremento</span>
+            <input type="number" id="num-incremento" class="mini-input" value="1" min="1" step="1">
+          </div>
+        </div>
+        <div>
+          <span class="mini-label">Prefixo (opcional)</span>
+          <input type="text" id="num-prefixo" class="mini-input" placeholder="Ex: LT-" style="font-family:var(--mono);">
+        </div>
+        <div>
+          <span class="mini-label">Dígitos mínimos (zeros à esq.)</span>
+          <input type="number" id="num-digits" class="mini-input" value="0" min="0" max="10" step="1" placeholder="0 = sem padding">
+        </div>
+
+        <div style="height:1px; background:var(--border);"></div>
+
+        <!-- Código de barras -->
+        <div class="num-toggle" style="margin-top:2px;">
+          <span class="num-toggle-label" style="font-size:11px;">Código de barras</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="barcode-ativo" onchange="toggleBarcodeOpts()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div id="barcode-opts" class="hidden" style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <span class="mini-label">Tipo</span>
+            <select id="barcode-tipo" class="mini-input">
+              <option value="CODE128">CODE 128 (padrão)</option>
+              <option value="CODE39">CODE 39</option>
+              <option value="EAN13">EAN-13</option>
+              <option value="EAN8">EAN-8</option>
+              <option value="QR">QR Code</option>
+            </select>
+          </div>
+          <div class="montagem-row">
+            <div>
+              <span class="mini-label">Posição</span>
+              <select id="barcode-pos" class="mini-input">
+                <option value="bottom-overlay">Sobre o lacre (baixo)</option>
+                <option value="top-overlay">Sobre o lacre (topo)</option>
+                <option value="below">Abaixo do lacre</option>
+              </select>
+            </div>
+            <div>
+              <span class="mini-label">Altura (mm)</span>
+              <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
+            </div>
+          </div>
+          <div class="montagem-row">
+            <div>
+              <span class="mini-label">Cor barras</span>
+              <input type="color" id="barcode-cor" value="#000000" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;">
+            </div>
+            <div>
+              <span class="mini-label">Cor fundo</span>
+              <input type="color" id="barcode-fundo" value="#ffffff" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;">
+            </div>
+          </div>
+          <div style="font-size:10px; color:var(--muted); font-family:var(--mono); padding:6px 8px; background:var(--bg); border-radius:6px; border:1px solid var(--border);">
+            ⚡ Barcode é gerado no cliente — 100% offline, sem servidor.
+          </div>
+        </div>
+
+        <!-- QR Code extra info -->
+        <div id="qr-opts" class="hidden" style="margin-top:4px;">
+          <span class="mini-label">Sufixo/URL no QR (opcional)</span>
+          <input type="text" id="qr-sufixo" class="mini-input" placeholder="https://seusite.com/v/" style="font-family:var(--mono);">
+          <div style="font-size:10px; color:var(--muted); margin-top:4px;">O número será acrescentado após o sufixo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AÇÕES -->
   <div>
     <div class="section-title">Ações</div>
     <div class="actions">
@@ -430,14 +587,14 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
           <circle cx="12" cy="12" r="3"/>
         </svg>
-        <span>Pré-visualizar Montagem</span>
+        Pré-visualizar Montagem
       </button>
       <button class="btn-secondary" onclick="baixarMontagemSVG()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
           <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
         </svg>
-        <span id="btn-svgmont-label">Baixar Montagem SVG (vetor)</span>
+        <span id="btn-svgmont-label">Baixar Montagem SVG</span>
       </button>
       <button class="btn-primary green" onclick="baixarMontagemPDF()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -449,23 +606,22 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-</div>
+</div><!-- /panel -->
 
+<!-- PREVIEW -->
 <div class="preview-area">
   <div class="preview-label">Preview ao vivo</div>
-
   <div class="preview-loading" id="preview-loading">
     <div class="spinner"></div>
     <span>Carregando template…</span>
   </div>
-
   <div class="preview-frame" id="preview-frame" style="display:none">
     <iframe id="preview-iframe" title="Preview do Lacre"></iframe>
   </div>
-
   <div class="preview-note" id="preview-note" style="display:none">lacre1.html</div>
 </div>
 
+<!-- MODAL MONTAGEM -->
 <div class="modal-overlay" id="modal-montagem">
   <div class="modal-box">
     <div class="modal-header">
@@ -497,6 +653,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   </div>
 </div>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <script>
 window.TemplateEngines = {};
 
@@ -504,6 +661,11 @@ const state = {
   vars: {},
   templateSrc: '',
   templateFile: '',
+  fundo: '#ffffff',
+  texto: '#000000',
+  destaque: '#000000',
+  logoDataUrl: '',
+  logoOriginalDataUrl: '', // guarda original antes de qualquer processamento
 };
 
 const FOLHAS = {
@@ -512,18 +674,287 @@ const FOLHAS = {
   letter: [216, 279],
 };
 
+// ═══════════════════════════════════════════
+// MELHORIA DE IMAGEM (Upscale no cliente)
+// Usa uma rede ESRGAN via @upscalerjs/default-model + UpscalerJS (WASM/ONNX)
+// CDN: unpkg.com — funciona 100% offline após carregamento inicial
+// ═══════════════════════════════════════════
+
+let _upscalerLoaded = false;
+
+async function carregarUpscaler() {
+  if (_upscalerLoaded) return true;
+  try {
+    // TensorFlow.js é dependência do UpscalerJS
+    if (!window.tf) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js');
+    }
+    if (!window.Upscaler) {
+      await loadScript('https://cdn.jsdelivr.net/npm/upscaler@1.0.0-beta.20/dist/browser/umd/upscaler.min.js');
+    }
+    _upscalerLoaded = true;
+    return true;
+  } catch(e) {
+    console.error('Upscaler não carregado:', e);
+    return false;
+  }
+}
+
+async function melhorarImagem() {
+  const btn = document.getElementById('btn-upscale');
+  const statusEl = document.getElementById('tool-status');
+  if (!state.logoDataUrl) { statusEl.textContent = 'Nenhuma imagem carregada.'; return; }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Carregando motor IA…';
+
+  const ok = await carregarUpscaler();
+  if (!ok) {
+    statusEl.textContent = 'Falha ao carregar upscaler. Verifique conexão.';
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    statusEl.textContent = 'Processando (pode levar alguns segundos)…';
+    const upscaler = new window.Upscaler();
+    const resultado = await upscaler.upscale(state.logoDataUrl);
+    state.logoDataUrl = resultado;
+    state.vars['CHAVE_LOGO'] = resultado;
+    const img = document.getElementById('logo-img');
+    if (img) img.src = resultado;
+    updatePreview();
+    statusEl.textContent = '✓ Imagem melhorada com IA (2x)';
+  } catch(e) {
+    console.error(e);
+    statusEl.textContent = 'Erro: ' + (e.message || 'falha no upscale');
+  }
+  btn.disabled = false;
+}
+
+// ═══════════════════════════════════════════
+// REMOÇÃO DE FUNDO (Transformers.js — cliente puro)
+// Modelo: RMBG-1.4 via Hugging Face
+// ═══════════════════════════════════════════
+
+let _bgRemoverLoaded = false;
+let _bgPipeline = null;
+
+async function carregarBgRemover() {
+  if (_bgRemoverLoaded) return true;
+  try {
+    if (!window.__esm_transformers__) {
+      // importa dinamicamente o módulo ESM
+      const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js');
+      window.__esm_transformers__ = mod;
+    }
+    _bgRemoverLoaded = true;
+    return true;
+  } catch(e) {
+    console.error('Transformers não carregou:', e);
+    return false;
+  }
+}
+
+async function removerFundo() {
+  const btn = document.getElementById('btn-rembg');
+  const statusEl = document.getElementById('tool-status');
+  if (!state.logoDataUrl) { statusEl.textContent = 'Nenhuma imagem carregada.'; return; }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Carregando modelo (1ª vez pode demorar)…';
+
+  const ok = await carregarBgRemover();
+  if (!ok) {
+    statusEl.textContent = 'Falha ao carregar modelo. Verifique conexão.';
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    const { pipeline, env } = window.__esm_transformers__;
+    // Permite carregar de CDN externo
+    env.allowRemoteModels = true;
+    env.useBrowserCache  = true;
+
+    if (!_bgPipeline) {
+      statusEl.textContent = 'Baixando modelo RMBG (~180 MB na 1ª vez)…';
+      _bgPipeline = await pipeline('image-segmentation', 'briaai/RMBG-1.4', { device: 'webgpu' });
+    }
+
+    statusEl.textContent = 'Removendo fundo…';
+
+    // converte dataURL → Blob → URL objeto
+    const resp = await fetch(state.logoDataUrl);
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+
+    const [result] = await _bgPipeline(url, { threshold: 0.5 });
+    URL.revokeObjectURL(url);
+
+    // result.mask é um tensor; precisamos compor a imagem
+    const canvas = document.createElement('canvas');
+    const img    = new Image();
+    img.src = state.logoDataUrl;
+    await new Promise(r => { img.onload = r; });
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    // aplica máscara (alpha)
+    const maskData = result.mask.data;
+    const imgData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < maskData.length; i++) {
+      imgData.data[i * 4 + 3] = maskData[i] > 0 ? 255 : 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const novaUrl = canvas.toDataURL('image/png');
+    state.logoDataUrl = novaUrl;
+    state.vars['CHAVE_LOGO'] = novaUrl;
+    const imgEl = document.getElementById('logo-img');
+    if (imgEl) imgEl.src = novaUrl;
+    updatePreview();
+    statusEl.textContent = '✓ Fundo removido com sucesso';
+  } catch(e) {
+    console.error(e);
+    statusEl.textContent = 'Erro: ' + (e.message || 'falha na remoção de fundo');
+  }
+  btn.disabled = false;
+}
+
+function restaurarOriginal() {
+  if (!state.logoOriginalDataUrl) return;
+  state.logoDataUrl = state.logoOriginalDataUrl;
+  state.vars['CHAVE_LOGO'] = state.logoOriginalDataUrl;
+  const imgEl = document.getElementById('logo-img');
+  if (imgEl) imgEl.src = state.logoOriginalDataUrl;
+  updatePreview();
+  document.getElementById('tool-status').textContent = 'Imagem original restaurada.';
+}
+
+// ═══════════════════════════════════════════
+// NUMERAÇÃO SEQUENCIAL + BARCODE
+// ═══════════════════════════════════════════
+
+function toggleNumBody() {
+  const ativo = document.getElementById('num-ativo').checked;
+  document.getElementById('num-body').classList.toggle('hidden', !ativo);
+}
+
+function toggleBarcodeOpts() {
+  const ativo = document.getElementById('barcode-ativo').checked;
+  const opts  = document.getElementById('barcode-opts');
+  opts.classList.toggle('hidden', !ativo);
+  if (!ativo) document.getElementById('qr-opts').classList.add('hidden');
+  else toggleQROpts();
+  document.getElementById('barcode-tipo').onchange = toggleQROpts;
+}
+
+function toggleQROpts() {
+  const tipo = document.getElementById('barcode-tipo').value;
+  document.getElementById('qr-opts').classList.toggle('hidden', tipo !== 'QR');
+}
+
+function getNumConfig() {
+  return {
+    ativo:      document.getElementById('num-ativo').checked,
+    inicio:     parseInt(document.getElementById('num-inicio').value) || 1,
+    incremento: parseInt(document.getElementById('num-incremento').value) || 1,
+    prefixo:    document.getElementById('num-prefixo').value || '',
+    digits:     parseInt(document.getElementById('num-digits').value) || 0,
+    barcode:    document.getElementById('barcode-ativo').checked,
+    bTipo:      document.getElementById('barcode-tipo').value,
+    bPos:       document.getElementById('barcode-pos').value,
+    bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
+    bCor:       document.getElementById('barcode-cor').value,
+    bFundo:     document.getElementById('barcode-fundo').value,
+    qrSufixo:   document.getElementById('qr-sufixo').value || '',
+  };
+}
+
+function formatNum(n, cfg) {
+  let s = String(n);
+  if (cfg.digits > 0) s = s.padStart(cfg.digits, '0');
+  return cfg.prefixo + s;
+}
+
+// Gera imagem de barcode/QR como dataURL PNG usando canvas
+function gerarBarcodeDataUrl(texto, cfg) {
+  return new Promise((resolve) => {
+    const W = 300, H = Math.round(cfg.bAltura * 11.81); // mm → px aprox
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+
+    if (cfg.bTipo === 'QR') {
+      const content = cfg.qrSufixo + texto;
+      QRCode.toCanvas(canvas, content, {
+        width: W, margin: 0,
+        color: { dark: cfg.bCor, light: cfg.bFundo }
+      }, (err) => {
+        resolve(err ? null : canvas.toDataURL('image/png'));
+      });
+    } else {
+      try {
+        JsBarcode(canvas, texto, {
+          format:       cfg.bTipo,
+          lineColor:    cfg.bCor,
+          background:   cfg.bFundo,
+          width:        2,
+          height:       H * 0.75,
+          displayValue: true,
+          fontSize:     H * 0.18,
+          margin:       2,
+        });
+        resolve(canvas.toDataURL('image/png'));
+      } catch(e) {
+        console.warn('Barcode error:', e);
+        resolve(null);
+      }
+    }
+  });
+}
+
+// Desenha barcode no PDF em posição relativa ao lacre
+async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg) {
+  const bDataUrl = await gerarBarcodeDataUrl(texto, cfg);
+  if (!bDataUrl) return;
+
+  const bH = cfg.bAltura; // mm
+  let bx, by, bw, bh;
+
+  if (cfg.bPos === 'below') {
+    bx = ox; by = oy + H; bw = W; bh = bH;
+  } else if (cfg.bPos === 'top-overlay') {
+    bx = ox; by = oy; bw = W; bh = bH;
+  } else { // bottom-overlay
+    bx = ox; by = oy + H - bH; bw = W; bh = bH;
+  }
+
+  pdf.addImage(bDataUrl, 'PNG', bx, by, bw, bh, undefined, 'NONE');
+}
+
+// ═══════════════════════════════════════════
+// MOTOR DE TEMPLATE
+// ═══════════════════════════════════════════
+
+async function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 async function loadTemplateEngine(filename) {
   const jsFile = filename.replace('.html', '.js');
   if (document.querySelector(`script[src="${jsFile}"]`)) return;
-
   return new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = jsFile;
     script.onload = resolve;
-    script.onerror = () => {
-      console.error('Motor vetorial não encontrado:', jsFile);
-      resolve();
-    };
+    script.onerror = () => { console.error('Motor vetorial não encontrado:', jsFile); resolve(); };
     document.head.appendChild(script);
   });
 }
@@ -537,22 +968,18 @@ async function loadTemplate(filename) {
   try {
     const res = await fetch(filename);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.templateSrc = await res.text();
+    state.templateSrc  = await res.text();
     state.templateFile = filename;
-
     await loadTemplateEngine(filename);
-
     buildDynamicPanel();
-
     document.getElementById('preview-loading').style.display = 'none';
-    document.getElementById('preview-frame').style.display = 'block';
-    document.getElementById('preview-note').style.display = 'block';
-    document.getElementById('preview-note').textContent = `${filename}`;
-
+    document.getElementById('preview-frame').style.display  = 'block';
+    document.getElementById('preview-note').style.display   = 'block';
+    document.getElementById('preview-note').textContent     = filename;
     updatePreview();
   } catch (e) {
     document.getElementById('preview-loading').style.display = 'none';
-    document.getElementById('fetch-error').style.display = 'block';
+    document.getElementById('fetch-error').style.display     = 'block';
     console.error('Erro ao carregar template:', e);
   }
 }
@@ -560,9 +987,7 @@ async function loadTemplate(filename) {
 function buildDynamicPanel() {
   const keys = [...new Set((state.templateSrc.match(/CHAVE_[A-Z0-9_]+/g) || []))];
   keys.forEach(k => {
-    if (!(k in state.vars)) {
-      state.vars[k] = k.startsWith('CHAVE_COR_') ? '#000000' : '';
-    }
+    if (!(k in state.vars)) state.vars[k] = k.startsWith('CHAVE_COR_') ? '#000000' : '';
   });
 
   const container = document.getElementById('dynamic-fields');
@@ -588,10 +1013,11 @@ function buildDynamicPanel() {
           </div>
           <input type="text" class="color-hex" id="hex-${key}" value="${val}" oninput="dynHex('${key}', this.value)">
         </div>`;
+
     } else if (key === 'CHAVE_LOGO') {
       const src = state.vars[key] || '';
       fg.innerHTML = `
-        <label>${key}</label>
+        <label>${key} <span class="new-badge">IA</span></label>
         <div class="logo-preview-box" id="logo-box">
           <div class="logo-placeholder" id="logo-placeholder" style="${src ? 'display:none' : ''}">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -610,7 +1036,24 @@ function buildDynamicPanel() {
           </svg>
           Upload de imagem
           <input type="file" accept="image/*" onchange="handleLogo(this)">
-        </label>`;
+        </label>
+        <div class="logo-tools">
+          <div class="logo-tools-row">
+            <button class="btn-tool purple" id="btn-upscale" onclick="melhorarImagem()" title="Melhora resolução com IA (2x) — roda no seu navegador, sem enviar dados">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              IA Upscale (2×)
+            </button>
+            <button class="btn-tool green-t" id="btn-rembg" onclick="removerFundo()" title="Remove o fundo da imagem com IA — roda no seu navegador">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+              Remover Fundo
+            </button>
+          </div>
+          <button class="btn-tool" onclick="restaurarOriginal()" style="font-size:10px; padding:5px;">
+            ↩ Restaurar imagem original
+          </button>
+          <div class="tool-status" id="tool-status"></div>
+        </div>`;
+
     } else {
       const val = state.vars[key] || '';
       fg.innerHTML = `
@@ -631,11 +1074,10 @@ function buildHTML() {
 
 function updatePreview() {
   if (!state.templateSrc) return;
-  state.fundo = state.vars['CHAVE_COR_FUNDO'] || '#ffffff';
-  state.texto = state.vars['CHAVE_COR_TEXTO'] || '#000000';
+  state.fundo    = state.vars['CHAVE_COR_FUNDO']    || '#ffffff';
+  state.texto    = state.vars['CHAVE_COR_TEXTO']    || '#000000';
   state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
   state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
-
   const iframe = document.getElementById('preview-iframe');
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open(); doc.write(buildHTML()); doc.close();
@@ -670,11 +1112,16 @@ function handleLogo(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    state.vars['CHAVE_LOGO'] = e.target.result;
+    const url = e.target.result;
+    state.vars['CHAVE_LOGO']     = url;
+    state.logoDataUrl            = url;
+    state.logoOriginalDataUrl    = url; // guarda cópia
     const img = document.getElementById('logo-img');
     const ph  = document.getElementById('logo-placeholder');
-    if (img) { img.src = e.target.result; img.style.display = 'block'; }
+    if (img) { img.src = url; img.style.display = 'block'; }
     if (ph)  ph.style.display = 'none';
+    const st = document.getElementById('tool-status');
+    if (st) st.textContent = '';
     updatePreview();
   };
   reader.readAsDataURL(file);
@@ -686,6 +1133,7 @@ function selectTemplate(el) {
   loadTemplate(el.dataset.file);
 }
 
+// ─── MEDIDAS ───
 function carregarMedidasSalvas() {
   const salvas = JSON.parse(localStorage.getItem('leanttro_medidas_lacre') || '{}');
   const sel = document.getElementById('medidas-salvas');
@@ -694,35 +1142,34 @@ function carregarMedidasSalvas() {
     sel.innerHTML += `<option value="${val.w}|${val.h}">${nome} (${val.w}x${val.h}cm)</option>`;
   }
 }
-
 function salvarMedida() {
   const w = document.getElementById('lacre-w').value;
   const h = document.getElementById('lacre-h').value;
-  if(!w || !h) return;
-  const nome = prompt('Digite um nome para essa medida (Ex: Padrão Caixa):');
-  if(!nome) return;
+  if (!w || !h) return;
+  const nome = prompt('Nome para essa medida (Ex: Padrão Caixa):');
+  if (!nome) return;
   const salvas = JSON.parse(localStorage.getItem('leanttro_medidas_lacre') || '{}');
-  salvas[nome] = {w, h};
+  salvas[nome] = { w, h };
   localStorage.setItem('leanttro_medidas_lacre', JSON.stringify(salvas));
   carregarMedidasSalvas();
 }
-
 function carregarMedida(val) {
-  if(!val) return;
+  if (!val) return;
   const [w, h] = val.split('|');
   document.getElementById('lacre-w').value = w;
   document.getElementById('lacre-h').value = h;
   atualizarInfoMontagem();
 }
 
+// ─── UTILS ───
 function hexToRgb(hex) {
-  const h = hex.replace('#','');
+  const h = hex.replace('#', '');
   return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
 }
 
 function calcMontagem() {
-  const wCm  = parseFloat(document.getElementById('lacre-w').value) || 1;
-  const hCm  = parseFloat(document.getElementById('lacre-h').value) || 1;
+  const wCm = parseFloat(document.getElementById('lacre-w').value) || 1;
+  const hCm = parseFloat(document.getElementById('lacre-h').value) || 1;
   const folhaKey = document.getElementById('mont-folha').value;
   const ori  = document.getElementById('mont-orientacao').value;
   const marg = parseFloat(document.getElementById('mont-margem').value) ?? 5;
@@ -743,11 +1190,9 @@ function calcMontagem() {
 
   const W = wCm * 10;
   const H = hCm * 10;
-
   const areaW = fw - margv * 2;
   const areaH = fh - margv * 2;
-
-  const TOL = 0.001;
+  const TOL   = 0.001;
   const colsRaw = Math.max(0, Math.floor((areaW + gapHv + TOL) / (W + gapHv)));
   const rowsRaw = Math.max(0, Math.floor((areaH + gapVv + TOL) / (H + gapVv)));
   const cols = (colsRaw * W + (colsRaw - 1) * gapHv) <= areaW + TOL ? colsRaw : colsRaw - 1;
@@ -760,7 +1205,6 @@ function atualizarInfoMontagem() {
   const { wCm, hCm, cols, rows, total } = calcMontagem();
   const frame = document.getElementById('preview-frame');
   if (frame) frame.style.aspectRatio = `${wCm} / ${hCm}`;
-
   const el = document.getElementById('mont-info');
   if (cols <= 0 || rows <= 0) {
     el.textContent = '⚠️ Lacre maior que a área útil da folha';
@@ -769,6 +1213,7 @@ function atualizarInfoMontagem() {
   }
 }
 
+// ─── CAPTURA CANVAS ───
 async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
@@ -798,6 +1243,7 @@ async function capturarCanvas(wCm, hCm) {
   return { canvas: out };
 }
 
+// ─── BAIXAR PNG ───
 async function baixarFotoPNG() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
@@ -814,20 +1260,18 @@ async function baixarFotoPNG() {
   finally { lbl.textContent = 'Baixar PNG (400 DPI)'; }
 }
 
+// ─── PDF INDIVIDUAL ───
 async function gerarPDFVetor(wCm, hCm) {
   const { jsPDF } = window.jspdf;
   const M = 0.7;
   const W = wCm * 10, H = hCm * 10;
   const PW = W + M*2, PH = H + M*2;
-
   const pdf = new jsPDF({ unit:'mm', format:[PW, PH], orientation: PW >= PH ? 'landscape' : 'portrait' });
   pdf.setFillColor(255,255,255);
   pdf.rect(0, 0, PW, PH, 'F');
-
   const engine = window.TemplateEngines[state.templateFile];
   if (!engine) throw new Error('Motor JS não encontrado para este template.');
   await engine.drawPDF(pdf, M, M, W, H, state);
-
   return pdf;
 }
 
@@ -844,6 +1288,9 @@ async function baixarFotoPDF() {
   finally { lbl.textContent = 'Baixar PDF (vetor)'; }
 }
 
+// ─────────────────────────────────────────────────────────
+// MONTAGEM PDF — NÚCLEO COM NUMERAÇÃO SEQUENCIAL + BARCODE
+// ─────────────────────────────────────────────────────────
 async function baixarMontagemPDF() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-mont-label');
@@ -858,12 +1305,16 @@ async function baixarMontagemPDF() {
       return;
     }
 
+    const numCfg = getNumConfig();
     const corGabarito = document.getElementById('mont-cor-gabarito').value;
     const lwGabarito  = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
     const [gr, gg, gb] = hexToRgb(corGabarito);
-
     const folhaKey = document.getElementById('mont-folha').value;
-    const ori = document.getElementById('mont-orientacao').value;
+    const ori      = document.getElementById('mont-orientacao').value;
+
+    // Se barcode "below", a folha precisa de espaço extra por lacre?
+    // Não — o barcode é sobreposto ou abaixo mas dentro do gabarito da grade.
+    // Deixamos o usuário ajustar margem/gap se quiser separação real.
 
     const pdf = new jsPDF({
       unit: 'mm',
@@ -874,22 +1325,45 @@ async function baixarMontagemPDF() {
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, fw, fh, 'F');
 
-    const gradeW = cols * W + (cols - 1) * gapH;
-    const gradeH = rows * H + (rows - 1) * gapV;
-    const oxGrade = (fw - gradeW) / 2;
-    const oyGrade = (fh - gradeH) / 2;
+    const gradeW   = cols * W + (cols - 1) * gapH;
+    const gradeH   = rows * H + (rows - 1) * gapV;
+    const oxGrade  = (fw - gradeW) / 2;
+    const oyGrade  = (fh - gradeH) / 2;
 
     const engine = window.TemplateEngines[state.templateFile];
     if (!engine) throw new Error('Motor JS não encontrado para este template.');
+
+    let indice = 0; // índice sequencial global na folha
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
         const oy = oyGrade + r * (H + gapV);
-        await engine.drawPDF(pdf, ox, oy, W, H, state);
+
+        // Prepara estado individual com número do lacre
+        const stateLocal = Object.assign({}, state);
+        if (numCfg.ativo) {
+          const numAtual = numCfg.inicio + indice * numCfg.incremento;
+          stateLocal.numeroSequencial = numAtual;
+          stateLocal.numeroFormatado  = formatNum(numAtual, numCfg);
+          // Injeta em vars para que templates que usam CHAVE_NUMERO possam consumi-lo
+          stateLocal.vars = Object.assign({}, state.vars, {
+            CHAVE_NUMERO: stateLocal.numeroFormatado,
+          });
+        }
+
+        await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
+
+        // Desenha barcode sobre/abaixo do lacre
+        if (numCfg.ativo && numCfg.barcode) {
+          await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
+        }
+
+        indice++;
       }
     }
 
+    // ── GABARITO ──
     pdf.setDrawColor(gr, gg, gb);
     pdf.setLineWidth(lwGabarito);
 
@@ -909,7 +1383,6 @@ async function baixarMontagemPDF() {
       const y = (yFim + yProx) / 2;
       pdf.line(xEsq, y, xDir, y);
     }
-
     for (let c = 0; c < cols - 1; c++) {
       const xFim  = oxGrade + (c + 1) * W + c * gapH;
       const xProx = oxGrade + (c + 1) * (W + gapH);
@@ -918,7 +1391,8 @@ async function baixarMontagemPDF() {
     }
 
     const nomeFolha = document.getElementById('mont-folha').value;
-    pdf.save(`montagem_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}.pdf`);
+    const numSufixo = numCfg.ativo ? `_num${numCfg.inicio}` : '';
+    pdf.save(`montagem_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}${numSufixo}.pdf`);
 
   } catch(e) {
     alert('Erro na montagem: ' + e.message);
@@ -928,22 +1402,20 @@ async function baixarMontagemPDF() {
   }
 }
 
+// ─── SVG INDIVIDUAL ───
 function baixarSVGIndividual() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
   const hCm = parseFloat(document.getElementById('lacre-h').value) || 5;
   const W = wCm * 10, H = hCm * 10;
-
   try {
     const engine = window.TemplateEngines[state.templateFile];
     if (!engine) throw new Error('Motor JS não encontrado para este template.');
     const svgContent = engine.drawSVG(W, H, 0, 0, state);
-
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
 ${svgContent}
 </svg>`;
-
     const a = document.createElement('a');
     a.download = `lacre_${wCm}x${hCm}cm.svg`;
     a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
@@ -951,37 +1423,40 @@ ${svgContent}
   } catch(e) { alert('Erro SVG: ' + e.message); }
 }
 
+// ─── SVG MONTAGEM ───
 function baixarMontagemSVG() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-svgmont-label');
   lbl.textContent = 'Gerando...';
-
   try {
-    const { wCm, hCm, W, H, fw, fh, marg, gapH, gapV, cols, rows } = calcMontagem();
-    if (cols <= 0 || rows <= 0) {
-      alert('O lacre é maior que a área útil da folha.');
-      return;
-    }
+    const { wCm, hCm, W, H, fw, fh, gapH, gapV, cols, rows } = calcMontagem();
+    if (cols <= 0 || rows <= 0) { alert('O lacre é maior que a área útil da folha.'); return; }
 
-    const gradeW = cols * W + (cols - 1) * gapH;
-    const gradeH = rows * H + (rows - 1) * gapV;
+    const gradeW  = cols * W + (cols - 1) * gapH;
+    const gradeH  = rows * H + (rows - 1) * gapV;
     const oxGrade = (fw - gradeW) / 2;
     const oyGrade = (fh - gradeH) / 2;
-
-    const corGab = document.getElementById('mont-cor-gabarito').value;
-    const lwGab  = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
+    const corGab  = document.getElementById('mont-cor-gabarito').value;
+    const lwGab   = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
     const r4 = v => Math.round(v * 10000) / 10000;
+    const numCfg  = getNumConfig();
 
     let body = `<rect x="0" y="0" width="${fw}" height="${fh}" fill="#ffffff"/>`;
-
     const engine = window.TemplateEngines[state.templateFile];
     if (!engine) throw new Error('Motor JS não encontrado para este template.');
 
+    let indice = 0;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
         const oy = oyGrade + r * (H + gapV);
-        body += engine.drawSVG(W, H, ox, oy, state);
+        const stateLocal = Object.assign({}, state);
+        if (numCfg.ativo) {
+          const numAtual = numCfg.inicio + indice * numCfg.incremento;
+          stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numAtual, numCfg) });
+        }
+        body += engine.drawSVG(W, H, ox, oy, stateLocal);
+        indice++;
       }
     }
 
@@ -993,11 +1468,8 @@ function baixarMontagemSVG() {
     const gline = (x1,y1,x2,y2) => `<line x1="${r4(x1)}" y1="${r4(y1)}" x2="${r4(x2)}" y2="${r4(y2)}" ${gSW}/>`;
 
     body += `<g id="gabarito-corte">`;
-    body += gline(xEsq, yTop, xDir, yTop);
-    body += gline(xEsq, yBot, xDir, yBot);
-    body += gline(xEsq, yTop, xEsq, yBot);
-    body += gline(xDir, yTop, xDir, yBot);
-
+    body += gline(xEsq, yTop, xDir, yTop) + gline(xEsq, yBot, xDir, yBot);
+    body += gline(xEsq, yTop, xEsq, yBot) + gline(xDir, yTop, xDir, yBot);
     for (let r = 0; r < rows - 1; r++) {
       const yF = oyGrade + (r + 1) * H + r * gapV;
       const yP = oyGrade + (r + 1) * (H + gapV);
@@ -1020,19 +1492,17 @@ ${body}
     a.download = `montagem_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}.svg`;
     a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     a.click();
-
   } catch(e) {
-    alert('Erro SVG: ' + e.message);
-    console.error(e);
+    alert('Erro SVG: ' + e.message); console.error(e);
   } finally {
-    lbl.textContent = 'Baixar Montagem SVG (vetor)';
+    lbl.textContent = 'Baixar Montagem SVG';
   }
 }
 
+// ─── PREVIEW MODAL ───
 function onFolhaChange() {
   const val = document.getElementById('mont-folha').value;
-  const row = document.getElementById('custom-sheet-row');
-  row.classList.toggle('visible', val === 'custom');
+  document.getElementById('custom-sheet-row').classList.toggle('visible', val === 'custom');
   atualizarInfoMontagem();
 }
 
@@ -1044,16 +1514,14 @@ async function previewMontagem() {
     return;
   }
 
-  const modal = document.getElementById('modal-montagem');
+  const modal  = document.getElementById('modal-montagem');
   const canvas = document.getElementById('modal-canvas');
   const wrap   = document.getElementById('modal-canvas-wrap');
   const infoEl = document.getElementById('modal-info-text');
 
   const MAX_W = Math.min(window.innerWidth - 96, 820);
   const MAX_H = Math.min(window.innerHeight - 180, 640);
-  const scaleW = MAX_W / fw;
-  const scaleH = MAX_H / fh;
-  const scale  = Math.min(scaleW, scaleH);
+  const scale  = Math.min(MAX_W / fw, MAX_H / fh);
 
   canvas.width  = Math.round(fw * scale);
   canvas.height = Math.round(fh * scale);
@@ -1067,8 +1535,8 @@ async function previewMontagem() {
 
   const { canvas: srcCanvas } = await capturarCanvas(wCm, hCm);
 
-  const gradeW = cols * W + (cols - 1) * gapH;
-  const gradeH = rows * H + (rows - 1) * gapV;
+  const gradeW  = cols * W + (cols - 1) * gapH;
+  const gradeH  = rows * H + (rows - 1) * gapV;
   const oxGrade = (fw - gradeW) / 2;
   const oyGrade = (fh - gradeH) / 2;
   const s = scale;
@@ -1077,17 +1545,15 @@ async function previewMontagem() {
     for (let c = 0; c < cols; c++) {
       const ox = (oxGrade + c * (W + gapH)) * s;
       const oy = (oyGrade + r * (H + gapV)) * s;
-      const dw = W * s;
-      const dh = H * s;
-      ctx.drawImage(srcCanvas, ox, oy, dw, dh);
+      ctx.drawImage(srcCanvas, ox, oy, W * s, H * s);
     }
   }
 
-  const lwGab = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
+  const lwGab    = parseFloat(document.getElementById('mont-lw-gabarito').value) || 0.1;
   const cGabarito = document.getElementById('mont-cor-gabarito').value;
-  
+
   ctx.strokeStyle = cGabarito;
-  ctx.lineWidth = Math.max(lwGab * s, 0.5);
+  ctx.lineWidth   = Math.max(lwGab * s, 0.5);
   ctx.setLineDash([3, 3]);
   ctx.beginPath();
 
@@ -1104,19 +1570,19 @@ async function previewMontagem() {
   for (let r = 0; r < rows - 1; r++) {
     const yF = (oyGrade + (r + 1) * H + r * gapV) * s;
     const yP = (oyGrade + (r + 1) * (H + gapV)) * s;
-    const y  = (yF + yP) / 2;
-    ctx.moveTo(xEsq, y); ctx.lineTo(xDir, y);
+    ctx.moveTo(xEsq, (yF + yP) / 2); ctx.lineTo(xDir, (yF + yP) / 2);
   }
   for (let c = 0; c < cols - 1; c++) {
     const xF = (oxGrade + (c + 1) * W + c * gapH) * s;
     const xP = (oxGrade + (c + 1) * (W + gapH)) * s;
-    const x  = (xF + xP) / 2;
-    ctx.moveTo(x, yTop); ctx.lineTo(x, yBot);
+    ctx.moveTo((xF + xP) / 2, yTop); ctx.lineTo((xF + xP) / 2, yBot);
   }
   ctx.stroke();
   ctx.setLineDash([]);
 
-  infoEl.textContent = `${cols} col × ${rows} lin = ${total} lacres folha ${Math.round(fw)}×${Math.round(fh)}mm`;
+  const numCfg = getNumConfig();
+  const numInfo = numCfg.ativo ? ` · Num. ${numCfg.inicio}–${numCfg.inicio + (total - 1) * numCfg.incremento}` : '';
+  infoEl.textContent = `${cols} col × ${rows} lin = ${total} lacres · ${Math.round(fw)}×${Math.round(fh)}mm${numInfo}`;
   modal.classList.add('open');
 }
 
@@ -1124,11 +1590,12 @@ function fecharModal() {
   document.getElementById('modal-montagem').classList.remove('open');
 }
 
-document.getElementById('lacre-w').value = 1;
-document.getElementById('lacre-h').value = 1;
+// ─── INIT ───
+document.getElementById('lacre-w').value    = 1;
+document.getElementById('lacre-h').value    = 1;
 document.getElementById('mont-margem').value = 5;
-document.getElementById('mont-gap-h').value = 0;
-document.getElementById('mont-gap-v').value = 0;
+document.getElementById('mont-gap-h').value  = 0;
+document.getElementById('mont-gap-v').value  = 0;
 carregarMedidasSalvas();
 atualizarInfoMontagem();
 
