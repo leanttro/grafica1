@@ -953,22 +953,23 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   const yB = oyGrade + gradeH;  // borda inferior da grade
 
   // 4 cantos da grade — tracos em L (horizontal + vertical) em cada canto
-  // O offset horizontal usa gapH/2 (igual ao centro do gap entre colunas)
-  // O offset vertical usa gapV/2 (igual ao centro do gap entre linhas)
-  const offH = gapH > 0 ? gapH / 2 : gap;
-  const offV = gapV > 0 ? gapV / 2 : gap;
+  // Traço horizontal da ponta: offset vertical = gapV/2 (mesmo centro de gap que os traços internos verticais)
+  // Traço vertical da ponta: offset horizontal = gapH/2 (mesmo centro de gap que os traços internos horizontais)
+  // Se gap for zero, usa cutGap como fallback
+  const offH = gapH > 0 ? gapH / 2 : gap; // offset lateral (esq/dir) para traços verticais de ponta
+  const offV = gapV > 0 ? gapV / 2 : gap; // offset superior/inferior para traços horizontais de ponta
   // Canto superior-esquerdo
-  pdf.line(xE - offH - len, yT, xE - offH, yT);
-  pdf.line(xE, yT - offV - len, xE, yT - offV);
+  pdf.line(xE - gap - len, yT - offV, xE - gap, yT - offV); // horizontal, centrado no offV acima
+  pdf.line(xE - offH, yT - gap - len, xE - offH, yT - gap); // vertical, centrado no offH à esquerda
   // Canto superior-direito
-  pdf.line(xD + offH, yT, xD + offH + len, yT);
-  pdf.line(xD, yT - offV - len, xD, yT - offV);
+  pdf.line(xD + gap, yT - offV, xD + gap + len, yT - offV);
+  pdf.line(xD + offH, yT - gap - len, xD + offH, yT - gap);
   // Canto inferior-esquerdo
-  pdf.line(xE - offH - len, yB, xE - offH, yB);
-  pdf.line(xE, yB + offV, xE, yB + offV + len);
+  pdf.line(xE - gap - len, yB + offV, xE - gap, yB + offV);
+  pdf.line(xE - offH, yB + gap, xE - offH, yB + gap + len);
   // Canto inferior-direito
-  pdf.line(xD + offH, yB, xD + offH + len, yB);
-  pdf.line(xD, yB + offV, xD, yB + offV + len);
+  pdf.line(xD + gap, yB + offV, xD + gap + len, yB + offV);
+  pdf.line(xD + offH, yB + gap, xD + offH, yB + gap + len);
 
   // 1 traco vertical por gap de coluna — na margem acima e abaixo, alinhado ao meio do gap
   if (gapH > 0) {
