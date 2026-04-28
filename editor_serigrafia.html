@@ -540,16 +540,35 @@ async function handleLogoVetorial(input) {
 
 async function handleLogoSVG(file) {
   const text = await file.text();
-  state.logoSVGString = text;
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'image/svg+xml');
+  const svgEl = doc.documentElement;
+  
+  if (!svgEl.getAttribute('viewBox')) {
+    const w = svgEl.getAttribute('width') || '100';
+    const h = svgEl.getAttribute('height') || '100';
+    svgEl.setAttribute('viewBox', `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+  }
+  svgEl.removeAttribute('width');
+  svgEl.removeAttribute('height');
+  
+  const fixedText = new XMLSerializer().serializeToString(svgEl);
+
+  state.logoSVGString = fixedText;
   state.logoFileName  = file.name;
-  state.logoSVGColors = extractSVGColors(text);
-  // dataUrl para uso no preview HTML e no drawPDF
-  state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
+  state.logoSVGColors = extractSVGColors(fixedText);
+  state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fixedText);
   state.vars['CHAVE_LOGO'] = state.logoDataUrl;
 
   const wrap = document.getElementById('logo-svg-wrap');
   const ph   = document.getElementById('logo-placeholder');
-  if (wrap) { wrap.innerHTML = text; const s = wrap.querySelector('svg'); if(s){s.style.maxWidth='100%';s.style.maxHeight='64px';} wrap.style.display='flex'; }
+  if (wrap) { 
+    wrap.innerHTML = fixedText; 
+    const s = wrap.querySelector('svg'); 
+    if(s){ s.style.maxWidth='100%'; s.style.maxHeight='64px'; } 
+    wrap.style.display='flex'; 
+  }
   if (ph) ph.style.display = 'none';
 
   const ib = document.getElementById('logo-info-box');
@@ -735,6 +754,7 @@ async function capturarCanvas(wCm, hCm) {
   const iframe    = document.getElementById('preview-iframe');
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
+  
   if (!iframeWin.html2canvas) {
     await new Promise((resolve, reject) => {
       const s = iframeDoc.createElement('script');
@@ -744,16 +764,30 @@ async function capturarCanvas(wCm, hCm) {
     });
     await new Promise(r => setTimeout(r, 300));
   }
+
+  iframeDoc.body.style.margin = '0';
+  
   const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
     useCORS: true, allowTaint: true,
     backgroundColor: state.fundo, logging: false, scale: 3,
   });
+  
   const out = document.createElement('canvas');
   out.width = wPx; out.height = hPx;
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
+  
+  const scale = Math.max(wPx / srcCanvas.width, hPx / srcCanvas.height);
+  const nw = srcCanvas.width * scale;
+  const nh = srcCanvas.height * scale;
+  const nx = (wPx - nw) / 2;
+  const ny = (hPx - nh) / 2;
+  
+  ctx.fillStyle = state.fundo;
+  ctx.fillRect(0, 0, wPx, hPx);
+  ctx.drawImage(srcCanvas, nx, ny, nw, nh);
+  
   return { canvas: out };
 }
 
