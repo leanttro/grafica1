@@ -18,6 +18,8 @@
   --accent-glow: rgba(37,99,235,0.18);
   --accent2: #16a34a;
   --accent2-glow: rgba(22,163,74,0.18);
+  --warn: #d97706;
+  --warn-glow: rgba(217,119,6,0.15);
   --radius: 8px;
   --mono: 'DM Mono', monospace;
   --sans: 'DM Sans', sans-serif;
@@ -33,13 +35,12 @@ body {
   grid-template-rows: 56px 1fr;
 }
 
+/* ── Topbar ── */
 .topbar {
   grid-column: 1 / -1;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   padding: 0 28px;
 }
 .topbar-brand { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
@@ -52,14 +53,13 @@ body {
   letter-spacing: 0.8px; text-transform: uppercase;
 }
 
+/* ── Panel ── */
 .panel {
   background: var(--surface);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   padding: 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
+  display: flex; flex-direction: column; gap: 22px;
 }
 .section-title {
   font-size: 10px; font-weight: 700;
@@ -67,36 +67,79 @@ body {
   color: var(--muted); margin-bottom: 12px;
 }
 
-.fields { display: flex; flex-direction: column; gap: 14px; }
-.field-group { display: flex; flex-direction: column; gap: 6px; }
-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
-
-select.input-base, input[type="range"].input-base {
-  width: 100%; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text);
-  font-family: var(--sans); font-size: 13px;
-  padding: 10px 12px; outline: none; transition: border-color 0.15s;
+/* ── Templates ── */
+.template-list { display: flex; flex-direction: column; gap: 6px; }
+.template-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; background: var(--surface2);
+  transition: border-color 0.15s, background 0.15s;
 }
-select.input-base {
-  appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+.template-option:hover { border-color: #444; }
+.template-option.active { border-color: var(--accent); background: var(--accent-glow); }
+.tpl-icon {
+  flex-shrink: 0; opacity: 0.7;
 }
-select.input-base:focus { border-color: var(--accent); }
+.template-option.active .tpl-icon { opacity: 1; }
+.tpl-meta { display: flex; flex-direction: column; gap: 2px; }
+.tpl-name { font-size: 13px; font-weight: 500; }
+.tpl-desc { font-size: 10px; color: var(--muted); font-family: var(--mono); }
 
-.upload-area {
-  width: 100%; height: 140px;
-  background: var(--surface2); border: 1px dashed var(--border);
-  border-radius: var(--radius); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 8px; cursor: pointer;
-  transition: all 0.2s; position: relative; overflow: hidden;
+/* ── Upload de Arte ── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-height: 120px; text-align: center;
 }
-.upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.05); }
-.upload-area input { display: none; }
-.upload-content { display: flex; flex-direction: column; align-items: center; color: var(--muted); font-size: 11px; }
-.upload-content svg { color: var(--accent); margin-bottom: 4px; }
-.upload-preview { display: none; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; position: absolute; top:0; left:0; pointer-events: none; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: var(--accent-glow); }
+.upload-zone.has-image { border-style: solid; border-color: var(--border); padding: 10px; }
+.upload-zone img { max-width: 100%; max-height: 100px; border-radius: 4px; object-fit: contain; }
+.upload-icon { opacity: 0.4; }
+.upload-text { font-size: 12px; color: var(--muted); }
+.upload-hint { font-size: 10px; color: var(--muted); opacity: 0.6; font-family: var(--mono); }
 
+/* ── Modo de Arte ── */
+.mode-tabs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mode-tab {
+  padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2);
+  cursor: pointer; text-align: center;
+  font-size: 12px; font-weight: 500;
+  transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.mode-tab:hover { border-color: #444; }
+.mode-tab.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+.mode-tab-label { font-size: 11px; font-weight: 600; }
+.mode-tab-desc { font-size: 9px; color: var(--muted); font-weight: 400; font-family: var(--mono); letter-spacing: 0.3px; }
+.mode-tab.active .mode-tab-desc { color: rgba(96,165,250,0.8); }
+
+/* ── Info box ── */
+.info-box {
+  background: var(--warn-glow);
+  border: 1px solid rgba(217,119,6,0.3);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 11px; color: #fbbf24;
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+.info-box.blue {
+  background: var(--accent-glow);
+  border-color: rgba(37,99,235,0.3);
+  color: #93c5fd;
+}
+
+/* ── Botões ── */
 .actions { display: flex; flex-direction: column; gap: 8px; }
 .btn-primary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -116,57 +159,101 @@ select.input-base:focus { border-color: var(--accent); }
   transition: border-color 0.15s;
 }
 .btn-secondary:hover { border-color: #555; }
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+/* ── Preview Area ── */
 .preview-area {
-  background: var(--bg); display: flex; flex-direction: column;
+  background: var(--bg);
+  display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 40px; position: relative; overflow: hidden;
-  background-image: radial-gradient(circle at center, #1a1a1c 1px, transparent 1px);
-  background-size: 20px 20px;
+  padding: 40px; gap: 20px; position: relative;
+  overflow: hidden;
 }
 .preview-label {
   position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
   font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
   text-transform: uppercase; color: var(--muted);
-  display: flex; align-items: center; gap: 8px; white-space: nowrap; z-index: 10;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
 }
-.preview-label::before, .preview-label::after { content: ''; display: block; width: 40px; height: 1px; background: var(--border); }
+.preview-label::before, .preview-label::after {
+  content: ''; display: block; width: 40px; height: 1px; background: var(--border);
+}
 
-/* Sistema visual de Preview */
-.canvas-wrapper {
+/* ── Preview Canvas Wrapper ── */
+.preview-wrap {
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-  transition: all 0.3s ease;
-  background: #ffffff;
-}
-.art-image {
-  position: absolute;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  transform-origin: center center;
-  pointer-events: none;
-}
-.cut-overlay {
-  position: absolute;
-  top: 50%; left: 50%; transform: translate(-50%, -50%);
-  border: 2px dashed #ff00ff;
-  pointer-events: none;
-  z-index: 5;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.65); /* Escurece a sangria fora da faca */
-}
-.preview-note {
-  position: absolute; bottom: 20px;
-  font-size: 11px; color: var(--muted); font-family: var(--mono);
-  background: var(--surface); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
 }
 
-.range-slider-wrap { display: flex; align-items: center; gap: 10px; }
-.range-slider-wrap span { font-size: 11px; font-family: var(--mono); color: var(--muted); width: 30px; text-align: right; }
-input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; margin-top: -6px; }
-input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px; }
+#preview-canvas {
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  max-width: min(520px, calc(100vw - 480px));
+  max-height: calc(100vh - 180px);
+  width: auto; height: auto;
+}
 
+.preview-empty {
+  width: min(400px, calc(100vw - 480px));
+  aspect-ratio: 22/18;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-info {
+  display: flex; gap: 16px; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 11px; font-family: var(--mono);
+}
+.preview-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.badge-cut { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.badge-bleed { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000; padding: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; display: flex; flex-direction: column;
+  width: min(640px, 100%); max-height: 90vh; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 13px; font-weight: 600; }
+.modal-close {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  padding: 4px; border-radius: 4px; display: flex; align-items: center;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { flex: 1; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.modal-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 14px 20px; border-top: 1px solid var(--border); gap: 10px;
+}
+
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -175,346 +262,652 @@ input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cur
 <body>
 
 <div class="topbar">
-  <div class="topbar-brand">Leanttro <span>/ Facas Mouse Pad</span></div>
-  <span class="topbar-pill">Editor</span>
-  <a href="/" class="btn-secondary" style="font-size:12px; padding:6px 14px; text-decoration:none;">Sair</a>
+  <div class="topbar-brand">Leanttro <span>/ Editor de Mouse Pad</span></div>
+  <span class="topbar-pill">On-line</span>
+  <a href="/logout" class="btn-secondary" style="font-size:12px; padding:6px 14px; text-decoration:none;">Sair</a>
 </div>
 
+<!-- ════════════════ PANEL ════════════════ -->
 <div class="panel">
 
+  <!-- Templates -->
   <div>
-    <div class="section-title">Gabarito Faca</div>
-    <div class="fields">
-      <div class="field-group">
-        <label>Selecione o Formato</label>
-        <select id="select-shape" class="input-base" onchange="changeShape()">
-          <option value="rect_22_18">Retangular 22x18cm (Cantos Arredondados)</option>
-          <option value="round_19">Redondo Ø 19cm</option>
-          <option value="rect_70_30">Gamer 70x30cm (Retangular)</option>
-        </select>
-      </div>
-    </div>
-  </div>
+    <div class="section-title">Faca (Template)</div>
+    <div class="template-list">
 
-  <div>
-    <div class="section-title">Imagem / Arte</div>
-    <div class="fields">
-      <div class="field-group">
-        <label>Upload da Arte (Formato final com ou sem sangria)</label>
-        <label class="upload-area">
-          <input type="file" accept="image/png, image/jpeg" id="input-image" onchange="handleImage(this)">
-          <img id="upload-preview" class="upload-preview" src="" alt="preview">
-          <div class="upload-content">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span id="upload-label">Clique para selecionar</span>
-          </div>
-        </label>
-      </div>
-      <div class="field-group">
-        <label>Ajuste Fino de Escala (Zoom na sangria)</label>
-        <div class="range-slider-wrap">
-          <input type="range" id="zoom-slider" min="50" max="150" value="100" class="input-base" oninput="updateZoom()">
-          <span id="zoom-val">100%</span>
+      <div class="template-option active" data-id="rect" onclick="selecionarTemplate(this)">
+        <div class="tpl-icon">
+          <svg width="28" height="22" viewBox="0 0 28 22" fill="none">
+            <rect x="1" y="1" width="26" height="20" rx="4" stroke="#71717a" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="tpl-meta">
+          <div class="tpl-name">Retangular 22×18cm</div>
+          <div class="tpl-desc">Arte: 23×19cm • sangria 5mm</div>
         </div>
       </div>
+
+      <div class="template-option" data-id="round" onclick="selecionarTemplate(this)">
+        <div class="tpl-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="11" stroke="#71717a" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="tpl-meta">
+          <div class="tpl-name">Redondo ⌀19cm</div>
+          <div class="tpl-desc">Arte: 20×20cm • sangria 5mm</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
+  <!-- Upload -->
   <div>
-    <div class="section-title">Exportação</div>
-    <div class="actions">
-      <button class="btn-secondary" onclick="exportMockupPNG()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    <div class="section-title">Arte do Cliente</div>
+
+    <div class="upload-zone" id="upload-zone"
+         onclick="document.getElementById('file-input').click()"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <div class="upload-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
         </svg>
-        <span id="btn-png-label">Baixar PNG (Visualização Cortada)</span>
+      </div>
+      <div class="upload-text">Clique ou arraste a arte aqui</div>
+      <div class="upload-hint">PNG, JPG, WEBP · quadrada ou no tamanho da faca</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileInput(this)">
+
+    <div style="margin-top:8px; display:flex; gap:6px;">
+      <button class="btn-secondary" style="flex:1;font-size:11px;padding:7px;" onclick="document.getElementById('file-input').click()">
+        Trocar imagem
       </button>
-      <button class="btn-primary green" onclick="exportProducaoPDF()">
+      <button class="btn-secondary" style="flex:1;font-size:11px;padding:7px;" onclick="limparImagem()">
+        Limpar
+      </button>
+    </div>
+  </div>
+
+  <!-- Modo -->
+  <div>
+    <div class="section-title">Modo da Arte</div>
+    <div class="mode-tabs">
+      <div class="mode-tab active" id="tab-bleed" onclick="setModo('bleed')">
+        <div class="mode-tab-label">Com Sangria</div>
+        <div class="mode-tab-desc">Arte já tem sangria<br>Mostra onde corta</div>
+      </div>
+      <div class="mode-tab" id="tab-exact" onclick="setModo('exact')">
+        <div class="mode-tab-label">Sem Sangria</div>
+        <div class="mode-tab-desc">Arte no tamanho exato<br>Sangria criada auto</div>
+      </div>
+    </div>
+    <div class="info-box" id="mode-info" style="margin-top:10px;">
+      Envie arte em <strong>23×19cm</strong> para retangular ou <strong>20×20cm</strong> para redondo. O preview mostrará onde a faca vai cortar.
+    </div>
+  </div>
+
+  <!-- Ações -->
+  <div>
+    <div class="section-title">Ações</div>
+    <div class="actions">
+      <button class="btn-secondary" id="btn-png" onclick="baixarPNG()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span id="btn-png-label">Baixar PNG Cortado (visualização)</span>
+      </button>
+
+      <div class="divider"></div>
+
+      <button class="btn-primary green" id="btn-pdf" onclick="baixarPDF()" disabled>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
         </svg>
-        <span id="btn-pdf-label">Baixar PDF de Produção (2 Págs)</span>
+        <span id="btn-pdf-label">Baixar PDF para Impressão (2 páginas)</span>
       </button>
+
+      <div class="info-box blue" style="margin-top:4px;">
+        PDF página 1: arte com sangria em escala real.<br>
+        PDF página 2: gabarito da faca para corte.
+      </div>
     </div>
   </div>
 
 </div>
 
-<div class="preview-area" id="preview-area">
-  <div class="preview-label">Preview Interativo da Sangria</div>
-  
-  <div class="canvas-wrapper" id="canvas-wrapper">
-    <img id="art-image" class="art-image" src="" style="display:none;">
-    
-    <div class="cut-overlay" id="cut-overlay"></div>
+<!-- ════════════════ PREVIEW ════════════════ -->
+<div class="preview-area">
+  <div class="preview-label">Preview ao vivo</div>
+
+  <div class="preview-empty" id="preview-empty">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    <span>Envie uma arte para ver o preview</span>
   </div>
 
-  <div class="preview-note" id="preview-note">Selecione uma arte...</div>
+  <canvas id="preview-canvas" style="display:none;"></canvas>
+
+  <div class="preview-info" id="preview-info" style="display:none;">
+    <span id="info-template">—</span>
+    <span id="info-arte">—</span>
+    <span class="preview-badge badge-cut" id="info-badge">CORTE</span>
+    <span style="color:var(--muted);" id="info-sangria">—</span>
+  </div>
 </div>
 
+<!-- ════════════════ SCRIPT ════════════════ -->
 <script>
-// Configuração das Facas (Tamanhos em cm)
-// Sangria padrão: +1cm (0.5cm de cada lado)
-const SHAPES = {
-  'rect_22_18': { w: 22, h: 18, rx: 1.5, bleed: 1, type: 'rect', name: 'Mouse Pad 22x18cm' },
-  'round_19':   { w: 19, h: 19, rx: 9.5, bleed: 1, type: 'circle', name: 'Mouse Pad Redondo 19cm' },
-  'rect_70_30': { w: 70, h: 30, rx: 1.5, bleed: 1, type: 'rect', name: 'Mouse Pad Gamer 70x30cm' }
-};
-
+// ─── Estado global ───────────────────────────────────────────────────────────
 const state = {
-  activeShapeKey: 'rect_22_18',
-  imageDataUrl: null,
-  zoom: 100
+  templateId: 'rect',
+  modo: 'bleed',      // 'bleed' | 'exact'
+  imgSrc: null,
+  img: null,
 };
 
-// --- CONTROLE DE PREVIEW CSS ---
-function getActiveShape() {
-  return SHAPES[state.activeShapeKey];
+// ─── Definições de templates ──────────────────────────────────────────────────
+// Todas as medidas em cm
+const TEMPLATES = {
+  rect: {
+    name: 'Retangular 22×18cm',
+    facaW: 22, facaH: 18,
+    sangria: 0.5,      // cm de sangria de cada lado
+    cornerRadius: 1.2, // cm (cantos arredondados)
+    shape: 'rect',
+  },
+  round: {
+    name: 'Redondo ⌀19cm',
+    facaW: 19, facaH: 19,
+    sangria: 0.5,
+    cornerRadius: 9.5, // raio = metade
+    shape: 'circle',
+  },
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function tpl() { return TEMPLATES[state.templateId]; }
+
+function getModeInfo() {
+  const t = tpl();
+  const arteW = t.facaW + t.sangria * 2;
+  const arteH = t.facaH + t.sangria * 2;
+  if (state.modo === 'bleed') {
+    if (t.shape === 'circle') {
+      return `Envie arte em <strong>${arteW.toFixed(0)}×${arteH.toFixed(0)}cm</strong> (quadrado com sangria de ${(t.sangria*10).toFixed(0)}mm). O preview mostra onde o círculo vai cortar.`;
+    }
+    return `Envie arte em <strong>${arteW.toFixed(0)}×${arteH.toFixed(0)}cm</strong> (sangria de ${(t.sangria*10).toFixed(0)}mm cada lado). O preview mostra onde a faca vai cortar.`;
+  } else {
+    if (t.shape === 'circle') {
+      return `Envie arte em <strong>${t.facaW.toFixed(0)}×${t.facaH.toFixed(0)}cm</strong>. Sangria de ${(t.sangria*10).toFixed(0)}mm será criada automaticamente espelhando as bordas.`;
+    }
+    return `Envie arte em <strong>${t.facaW.toFixed(0)}×${t.facaH.toFixed(0)}cm</strong>. Sangria de ${(t.sangria*10).toFixed(0)}mm será criada automaticamente espelhando as bordas.`;
+  }
 }
 
-function changeShape() {
-  state.activeShapeKey = document.getElementById('select-shape').value;
-  updatePreviewCSS();
+// ─── Seleção de template ──────────────────────────────────────────────────────
+function selecionarTemplate(el) {
+  document.querySelectorAll('.template-option').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  state.templateId = el.dataset.id;
+
+  // Atualiza ícone de preview_empty
+  const emptyIcon = document.getElementById('preview-empty').querySelector('svg');
+  if (state.templateId === 'round') {
+    emptyIcon.innerHTML = '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1" opacity="0.3"/>';
+  } else {
+    emptyIcon.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1" opacity="0.3"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="1" opacity="0.3"/><polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="1" opacity="0.3"/>';
+  }
+
+  document.getElementById('mode-info').innerHTML = getModeInfo();
+  renderPreview();
 }
 
-function handleImage(input) {
-  const file = input.files[0];
-  if (!file) return;
+// ─── Modo bleed / exact ───────────────────────────────────────────────────────
+function setModo(modo) {
+  state.modo = modo;
+  document.getElementById('tab-bleed').classList.toggle('active', modo === 'bleed');
+  document.getElementById('tab-exact').classList.toggle('active', modo === 'exact');
+  document.getElementById('mode-info').innerHTML = getModeInfo();
+  renderPreview();
+}
+
+// ─── Upload de imagem ─────────────────────────────────────────────────────────
+function carregarImagem(file) {
+  if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
   reader.onload = e => {
-    state.imageDataUrl = e.target.result;
-    
-    // UI Updates
-    document.getElementById('upload-preview').src = state.imageDataUrl;
-    document.getElementById('upload-preview').style.display = 'block';
-    document.getElementById('upload-label').textContent = file.name;
-    document.getElementById('upload-label').style.color = '#fff';
-    
-    document.getElementById('art-image').src = state.imageDataUrl;
-    document.getElementById('art-image').style.display = 'block';
-    
-    // Reset Zoom
-    document.getElementById('zoom-slider').value = 100;
-    state.zoom = 100;
-    document.getElementById('zoom-val').textContent = '100%';
-    
-    updatePreviewCSS();
+    state.imgSrc = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      state.img = img;
+      // Preview no upload-zone
+      const zone = document.getElementById('upload-zone');
+      zone.classList.add('has-image');
+      zone.innerHTML = `<img src="${e.target.result}" alt="arte">`;
+      renderPreview();
+      atualizarBotoes(true);
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function updateZoom() {
-  state.zoom = document.getElementById('zoom-slider').value;
-  document.getElementById('zoom-val').textContent = state.zoom + '%';
-  document.getElementById('art-image').style.transform = `scale(${state.zoom / 100})`;
+function onFileInput(input) {
+  if (input.files[0]) carregarImagem(input.files[0]);
 }
 
-function updatePreviewCSS() {
-  const shape = getActiveShape();
-  
-  // Medidas reais
-  const cutW = shape.w;
-  const cutH = shape.h;
-  const bleedW = shape.w + shape.bleed;
-  const bleedH = shape.h + shape.bleed;
-  
-  // Escala para caber na tela
-  const containerW = document.getElementById('preview-area').clientWidth - 80;
-  const containerH = document.getElementById('preview-area').clientHeight - 80;
-  const scale = Math.min(containerW / bleedW, containerH / bleedH, 20); // max 20px per cm
-  
-  // Set wrapper (Bleed Area)
-  const wrapper = document.getElementById('canvas-wrapper');
-  wrapper.style.width = `${bleedW * scale}px`;
-  wrapper.style.height = `${bleedH * scale}px`;
-  if(shape.type === 'circle') wrapper.style.borderRadius = '50%';
-  else wrapper.style.borderRadius = `${(shape.rx + (shape.bleed/2)) * scale}px`;
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag');
+}
+function onDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  if (e.dataTransfer.files[0]) carregarImagem(e.dataTransfer.files[0]);
+}
 
-  // Set cut overlay
-  const overlay = document.getElementById('cut-overlay');
-  overlay.style.width = `${cutW * scale}px`;
-  overlay.style.height = `${cutH * scale}px`;
-  
-  if (shape.type === 'circle') {
-    overlay.style.borderRadius = '50%';
-  } else {
-    overlay.style.borderRadius = `${shape.rx * scale}px`;
+function limparImagem() {
+  state.img = null; state.imgSrc = null;
+  const zone = document.getElementById('upload-zone');
+  zone.classList.remove('has-image');
+  zone.innerHTML = `
+    <div class="upload-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+    <div class="upload-text">Clique ou arraste a arte aqui</div>
+    <div class="upload-hint">PNG, JPG, WEBP · quadrada ou no tamanho da faca</div>`;
+  document.getElementById('file-input').value = '';
+  renderPreview();
+  atualizarBotoes(false);
+}
+
+function atualizarBotoes(enabled) {
+  document.getElementById('btn-png').disabled = !enabled;
+  document.getElementById('btn-pdf').disabled = !enabled;
+}
+
+// ─── Render Preview ───────────────────────────────────────────────────────────
+// Retorna o canvas de preview renderizado
+function renderPreview() {
+  const canvas = document.getElementById('preview-canvas');
+  const empty  = document.getElementById('preview-empty');
+  const info   = document.getElementById('preview-info');
+
+  if (!state.img) {
+    canvas.style.display = 'none';
+    empty.style.display  = 'flex';
+    info.style.display   = 'none';
+    return;
   }
-  
-  // Info Update
-  const info = document.getElementById('preview-note');
-  info.innerHTML = `<strong>${shape.name}</strong> • Faca: ${cutW}x${cutH}cm • Arte necessária (c/ sangria): ${bleedW}x${bleedH}cm`;
+
+  empty.style.display = 'none';
+  canvas.style.display = 'block';
+  info.style.display   = 'flex';
+
+  const t = tpl();
+  const PX_PER_CM = 96; // preview resolution (px/cm)
+
+  // Dimensões da faca e da arte em pixels de preview
+  const facaW_px = t.facaW * PX_PER_CM;
+  const facaH_px = t.facaH * PX_PER_CM;
+  const sangria_px = t.sangria * PX_PER_CM;
+  const arteW_px = facaW_px + sangria_px * 2;
+  const arteH_px = facaH_px + sangria_px * 2;
+
+  // O canvas mostra a arte completa (com sangria)
+  canvas.width  = arteW_px;
+  canvas.height = arteH_px;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, arteW_px, arteH_px);
+
+  // Desenha a arte
+  if (state.modo === 'bleed') {
+    // Arte já tem sangria — desenha em tamanho cheio
+    ctx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
+  } else {
+    // Arte sem sangria — espelha nas bordas
+    desenharComSangria(ctx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
+  }
+
+  // Overlay: área que SERÁ CORTADA (fora da faca) fica mais escura
+  ctx.save();
+
+  // Cria o path da faca
+  const facaPath = criarPathFaca(ctx, t, sangria_px, facaW_px, facaH_px, PX_PER_CM);
+
+  // Clip inverso: fill fora da faca
+  ctx.beginPath();
+  ctx.rect(0, 0, arteW_px, arteH_px);
+  facaPath(ctx); // subtrai a faca (usando evenodd ou fill-rule)
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill('evenodd');
+
+  // Linha da faca
+  ctx.beginPath();
+  facaPath(ctx);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([10, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Label CORTE
+  ctx.font = 'bold 10px DM Mono, monospace';
+  ctx.fillStyle = '#ef4444';
+  ctx.textAlign = 'left';
+  ctx.fillText('LINHA DE CORTE', sangria_px + 6, sangria_px - 4);
+
+  ctx.restore();
+
+  // Atualiza info
+  document.getElementById('info-template').textContent = t.name;
+  const artaCm = state.modo === 'bleed'
+    ? `Arte: ${(t.facaW + t.sangria*2).toFixed(0)}×${(t.facaH + t.sangria*2).toFixed(0)}cm`
+    : `Arte: ${t.facaW}×${t.facaH}cm`;
+  document.getElementById('info-arte').textContent = artaCm;
+  document.getElementById('info-sangria').textContent = `sangria ${(t.sangria*10).toFixed(0)}mm`;
+  document.getElementById('info-badge').textContent = state.modo === 'bleed' ? 'COM SANGRIA' : 'AUTO-SANGRIA';
+  document.getElementById('info-badge').className = 'preview-badge ' + (state.modo === 'bleed' ? 'badge-bleed' : 'badge-cut');
 }
 
-// Inicialização
-window.addEventListener('resize', updatePreviewCSS);
-updatePreviewCSS();
+// Cria uma função que traça o path da faca no ctx
+function criarPathFaca(ctx, t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
+  const ox = sangria_px; // offset X da faca dentro da arte
+  const oy = sangria_px;
 
-// --- LÓGICA DE GERAÇÃO E EXPORTAÇÃO ---
-
-async function loadImageObj() {
-  return new Promise((resolve, reject) => {
-    if (!state.imageDataUrl) return reject('Nenhuma imagem carregada');
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = state.imageDataUrl;
-  });
+  if (t.shape === 'circle') {
+    const cx = ox + facaW_px / 2;
+    const cy = oy + facaH_px / 2;
+    const r  = facaW_px / 2;
+    return (c) => {
+      c.arc(cx, cy, r, 0, Math.PI * 2);
+    };
+  } else {
+    // Rect com cantos arredondados
+    const r = t.cornerRadius * PX_PER_CM;
+    return (c) => {
+      c.roundRect(ox, oy, facaW_px, facaH_px, r);
+    };
+  }
 }
 
-// 1. Exportar Mockup PNG (Somente a área da faca, fundo transparente)
-async function exportMockupPNG() {
-  if (!state.imageDataUrl) { alert('Carregue uma arte primeiro.'); return; }
-  const btnLabel = document.getElementById('btn-png-label');
-  btnLabel.textContent = 'Gerando PNG...';
-  
+// Desenha arte com sangria espelhada nas bordas
+function desenharComSangria(ctx, img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px) {
+  // Centro = faca exata, bordas = reflexo espelhado
+  const sw = sangria_px;
+
+  // Centro da arte
+  ctx.drawImage(img, sw, sw, facaW_px, facaH_px);
+
+  // Espelho esquerda
+  ctx.save();
+  ctx.translate(sw, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(img, 0, sw, sw, facaH_px);
+  ctx.restore();
+
+  // Espelho direita
+  ctx.save();
+  ctx.translate(sw + facaW_px, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(img, -(facaW_px), sw, sw, facaH_px);
+  ctx.restore();
+
+  // Espelho topo
+  ctx.save();
+  ctx.translate(0, sw);
+  ctx.scale(1, -1);
+  ctx.drawImage(img, sw, 0, facaW_px, sw);
+  ctx.restore();
+
+  // Espelho base
+  ctx.save();
+  ctx.translate(0, sw + facaH_px);
+  ctx.scale(1, -1);
+  ctx.drawImage(img, sw, -(facaH_px), facaW_px, sw);
+  ctx.restore();
+
+  // Cantos (aproximado: cor média)
+  ctx.fillStyle = '#cccccc';
+  // canto TL
+  ctx.drawImage(img, 0, 0, 1, 1, 0, 0, sw, sw);
+  // canto TR
+  ctx.drawImage(img, img.width-1, 0, 1, 1, sw+facaW_px, 0, sw, sw);
+  // canto BL
+  ctx.drawImage(img, 0, img.height-1, 1, 1, 0, sw+facaH_px, sw, sw);
+  // canto BR
+  ctx.drawImage(img, img.width-1, img.height-1, 1, 1, sw+facaW_px, sw+facaH_px, sw, sw);
+}
+
+// ─── PNG cortado ──────────────────────────────────────────────────────────────
+async function baixarPNG() {
+  if (!state.img) return;
+  const lbl = document.getElementById('btn-png-label');
+  lbl.textContent = 'Gerando...';
+
   try {
-    const shape = getActiveShape();
-    const img = await loadImageObj();
-    
-    // Resolução de saída (ex: 300dpi = 118 px/cm)
-    const pxCm = 118;
-    const canvasW = shape.w * pxCm;
-    const canvasH = shape.h * pxCm;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-    const ctx = canvas.getContext('2d');
-    
-    // 1. Criar Máscara de Corte
-    ctx.beginPath();
-    if (shape.type === 'circle') {
-      ctx.arc(canvasW/2, canvasH/2, canvasW/2, 0, 2 * Math.PI);
+    const t = tpl();
+    const DPI = 300;
+    const PX_PER_CM = DPI / 2.54;
+
+    const facaW_px = Math.round(t.facaW * PX_PER_CM);
+    const facaH_px = Math.round(t.facaH * PX_PER_CM);
+    const sangria_px = Math.round(t.sangria * PX_PER_CM);
+    const arteW_px = facaW_px + sangria_px * 2;
+    const arteH_px = facaH_px + sangria_px * 2;
+
+    // Canvas com arte completa
+    const arteCanvas = document.createElement('canvas');
+    arteCanvas.width = arteW_px; arteCanvas.height = arteH_px;
+    const arteCtx = arteCanvas.getContext('2d');
+
+    if (state.modo === 'bleed') {
+      arteCtx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
     } else {
-      const rx = shape.rx * pxCm;
-      ctx.moveTo(rx, 0);
-      ctx.lineTo(canvasW - rx, 0);
-      ctx.quadraticCurveTo(canvasW, 0, canvasW, rx);
-      ctx.lineTo(canvasW, canvasH - rx);
-      ctx.quadraticCurveTo(canvasW, canvasH, canvasW - rx, canvasH);
-      ctx.lineTo(rx, canvasH);
-      ctx.quadraticCurveTo(0, canvasH, 0, canvasH - rx);
-      ctx.lineTo(0, rx);
-      ctx.quadraticCurveTo(0, 0, rx, 0);
+      desenharComSangria(arteCtx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
     }
-    ctx.closePath();
-    ctx.clip(); // Aplica a faca
-    
-    // 2. Desenhar Imagem com "Cover" e Zoom
-    // Precisamos simular como a imagem está preenchendo a sangria, e então desenhar centrada
-    const bleedW = (shape.w + shape.bleed) * pxCm;
-    const bleedH = (shape.h + shape.bleed) * pxCm;
-    
-    const imgRatio = img.width / img.height;
-    const bleedRatio = bleedW / bleedH;
-    
-    let drawW, drawH;
-    if (imgRatio > bleedRatio) {
-      drawH = bleedH;
-      drawW = bleedH * imgRatio;
+
+    // Canvas final: clip pela faca
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = arteW_px; outCanvas.height = arteH_px;
+    const outCtx = outCanvas.getContext('2d');
+
+    // Clippath
+    outCtx.save();
+    outCtx.beginPath();
+    if (t.shape === 'circle') {
+      outCtx.arc(sangria_px + facaW_px/2, sangria_px + facaH_px/2, facaW_px/2, 0, Math.PI*2);
     } else {
-      drawW = bleedW;
-      drawH = bleedW / imgRatio;
+      const r = t.cornerRadius * PX_PER_CM;
+      outCtx.roundRect(sangria_px, sangria_px, facaW_px, facaH_px, r);
     }
-    
-    // Aplicar Zoom do usuário
-    const z = state.zoom / 100;
-    drawW *= z;
-    drawH *= z;
-    
-    const dx = (canvasW - drawW) / 2;
-    const dy = (canvasH - drawH) / 2;
-    
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, dx, dy, drawW, drawH);
-    
-    // Baixar
+    outCtx.clip();
+    outCtx.drawImage(arteCanvas, 0, 0);
+    outCtx.restore();
+
+    // Ajusta o canvas para tamanho da faca apenas (sem sangria)
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = facaW_px; finalCanvas.height = facaH_px;
+    const finalCtx = finalCanvas.getContext('2d');
+    finalCtx.drawImage(outCanvas, sangria_px, sangria_px, facaW_px, facaH_px, 0, 0, facaW_px, facaH_px);
+
     const a = document.createElement('a');
-    a.download = `mockup_${shape.name.replace(/ /g, '_')}.png`;
-    a.href = canvas.toDataURL('image/png');
+    a.download = `mouse_${t.facaW}x${t.facaH}cm_cortado_preview.png`;
+    a.href = finalCanvas.toDataURL('image/png');
     a.click();
 
-  } catch(e) {
-    alert('Erro ao gerar PNG: ' + e);
-  } finally {
-    btnLabel.textContent = 'Baixar PNG (Visualização Cortada)';
-  }
+  } catch(e) { alert('Erro PNG: ' + e.message); console.error(e); }
+  finally { lbl.textContent = 'Baixar PNG Cortado (visualização)'; }
 }
 
-// 2. Exportar PDF de Produção (Pág 1: Arte com Sangria, Pág 2: Vetor da Faca)
-async function exportProducaoPDF() {
-  if (!state.imageDataUrl) { alert('Carregue uma arte primeiro.'); return; }
-  const btnLabel = document.getElementById('btn-pdf-label');
-  btnLabel.textContent = 'Gerando PDF...';
-  
+// ─── PDF 2 páginas ────────────────────────────────────────────────────────────
+async function baixarPDF() {
+  if (!state.img) return;
+  const lbl = document.getElementById('btn-pdf-label');
+  lbl.textContent = 'Gerando PDF...';
+
   try {
-    const shape = getActiveShape();
-    const img = await loadImageObj();
     const { jsPDF } = window.jspdf;
-    
-    // Dimensões do PDF em mm = Tamanho COM sangria
-    const pdfW = (shape.w + shape.bleed) * 10;
-    const pdfH = (shape.h + shape.bleed) * 10;
-    
-    const ori = pdfW > pdfH ? 'landscape' : 'portrait';
-    const pdf = new jsPDF({ unit: 'mm', format: [pdfW, pdfH], orientation: ori });
-    
-    // PÁGINA 1: IMAGEM (com matemática de Object-fit Cover + Zoom)
-    const imgRatio = img.width / img.height;
-    const pdfRatio = pdfW / pdfH;
-    
-    let drawW, drawH;
-    if (imgRatio > pdfRatio) {
-      drawH = pdfH; drawW = pdfH * imgRatio;
-    } else {
-      drawW = pdfW; drawH = pdfW / imgRatio;
-    }
-    
-    const z = state.zoom / 100;
-    drawW *= z; drawH *= z;
-    
-    const dx = (pdfW - drawW) / 2;
-    const dy = (pdfH - drawH) / 2;
-    
-    const format = state.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-    pdf.addImage(state.imageDataUrl, format, dx, dy, drawW, drawH, undefined, 'FAST');
-    
-    // PÁGINA 2: VETOR DA FACA
-    pdf.addPage([pdfW, pdfH], ori);
-    
-    // Fundo branco opcional para não ficar transparente na visualização
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(0, 0, pdfW, pdfH, 'F');
-    
-    // Linha de corte em Magenta puro (C0 M100 Y0 K0 -> RGB 255,0,255)
-    pdf.setDrawColor(255, 0, 255);
-    pdf.setLineWidth(0.5); // Linha fina
-    
-    const cutW_mm = shape.w * 10;
-    const cutH_mm = shape.h * 10;
-    const marg_x = (pdfW - cutW_mm) / 2;
-    const marg_y = (pdfH - cutH_mm) / 2;
-    
-    if (shape.type === 'circle') {
-      pdf.circle(pdfW / 2, pdfH / 2, cutW_mm / 2, 'S');
-    } else {
-      const rx_mm = shape.rx * 10;
-      pdf.roundedRect(marg_x, marg_y, cutW_mm, cutH_mm, rx_mm, rx_mm, 'S');
-    }
-    
-    pdf.save(`producao_${shape.name.replace(/ /g, '_')}.pdf`);
+    const t = tpl();
 
-  } catch(e) {
-    alert('Erro ao gerar PDF: ' + e);
-  } finally {
-    btnLabel.textContent = 'Baixar PDF de Produção (2 Págs)';
+    // Medidas em mm
+    const sangriaMM = t.sangria * 10;
+    const arteWmm = t.facaW * 10 + sangriaMM * 2;
+    const arteHmm = t.facaH * 10 + sangriaMM * 2;
+    const facaWmm = t.facaW * 10;
+    const facaHmm = t.facaH * 10;
+
+    // ── Página 1: Arte com sangria ────────────────────────────────────────────
+    const pdf = new jsPDF({
+      unit: 'mm',
+      format: [arteWmm, arteHmm],
+      orientation: arteWmm >= arteHmm ? 'landscape' : 'portrait',
+    });
+
+    // Renderiza arte em alta res para o PDF
+    const DPI = 300;
+    const PX_PER_CM = DPI / 2.54;
+    const arteWpx = Math.round(arteWmm / 10 * PX_PER_CM);
+    const arteHpx = Math.round(arteHmm / 10 * PX_PER_CM);
+    const facaWpx = Math.round(facaWmm / 10 * PX_PER_CM);
+    const facaHpx = Math.round(facaHmm / 10 * PX_PER_CM);
+    const sangriaPx = Math.round(sangriaMM / 10 * PX_PER_CM);
+
+    const arteCanvas = document.createElement('canvas');
+    arteCanvas.width = arteWpx; arteCanvas.height = arteHpx;
+    const arteCtx = arteCanvas.getContext('2d');
+
+    if (state.modo === 'bleed') {
+      arteCtx.drawImage(state.img, 0, 0, arteWpx, arteHpx);
+    } else {
+      desenharComSangria(arteCtx, state.img, facaWpx, facaHpx, sangriaPx, arteWpx, arteHpx);
+    }
+
+    // Adiciona a imagem na página
+    const imgData = arteCanvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, arteWmm, arteHmm);
+
+    // Linha de corte sutil na página 1 (apenas guia visual, cor ciano)
+    pdf.setDrawColor(0, 200, 255);
+    pdf.setLineWidth(0.1);
+    if (t.shape === 'circle') {
+      // Desenha círculo
+      const cxMM = sangriaMM + facaWmm / 2;
+      const cyMM = sangriaMM + facaHmm / 2;
+      const rMM  = facaWmm / 2;
+      desenharCirculoPDF(pdf, cxMM, cyMM, rMM);
+    } else {
+      const r = t.cornerRadius * 10;
+      desenharRoundRectPDF(pdf, sangriaMM, sangriaMM, facaWmm, facaHmm, r);
+    }
+
+    // ── Página 2: Gabarito da faca ────────────────────────────────────────────
+    pdf.addPage([arteWmm, arteHmm], arteWmm >= arteHmm ? 'landscape' : 'portrait');
+
+    // Fundo branco
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, arteWmm, arteHmm, 'F');
+
+    // Marcações de sangria
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.15);
+    pdf.setLineDashPattern([2, 2], 0);
+    pdf.rect(sangriaMM, sangriaMM, facaWmm, facaHmm);
+    pdf.setLineDashPattern([], 0);
+
+    // Textos info
+    pdf.setFontSize(6);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`Arte: ${arteWmm.toFixed(0)}×${arteHmm.toFixed(0)}mm  |  Faca: ${facaWmm.toFixed(0)}×${facaHmm.toFixed(0)}mm  |  Sangria: ${sangriaMM.toFixed(0)}mm`, sangriaMM, sangriaMM - 2);
+
+    // Faca (linha de corte principal)
+    pdf.setDrawColor(180, 0, 0);
+    pdf.setLineWidth(0.25);
+    pdf.setLineDashPattern([], 0);
+
+    if (t.shape === 'circle') {
+      const cxMM = sangriaMM + facaWmm / 2;
+      const cyMM = sangriaMM + facaHmm / 2;
+      const rMM  = facaWmm / 2;
+      desenharCirculoPDF(pdf, cxMM, cyMM, rMM);
+      // Label do diâmetro
+      pdf.setFontSize(8);
+      pdf.setTextColor(180, 0, 0);
+      pdf.text(`⌀ ${t.facaW} cm`, cxMM - 5, cyMM + rMM + 5);
+    } else {
+      const r = t.cornerRadius * 10;
+      desenharRoundRectPDF(pdf, sangriaMM, sangriaMM, facaWmm, facaHmm, r);
+      // Cotas
+      pdf.setFontSize(7); pdf.setTextColor(180, 0, 0);
+      pdf.text(`${t.facaW} cm`, sangriaMM + facaWmm/2 - 5, sangriaMM + facaHmm + 6);
+      pdf.text(`${t.facaH} cm`, sangriaMM - 10, sangriaMM + facaHmm/2);
+    }
+
+    // Leanttro watermark
+    pdf.setFontSize(6); pdf.setTextColor(200, 200, 200);
+    pdf.text('Gerado por Leanttro Editor de Mouse Pad', 2, arteHmm - 2);
+
+    pdf.save(`mousepad_${t.facaW}x${t.facaH}cm_impressao.pdf`);
+
+  } catch(e) { alert('Erro PDF: ' + e.message); console.error(e); }
+  finally { lbl.textContent = 'Baixar PDF para Impressão (2 páginas)'; }
+}
+
+// ─── Helpers PDF ──────────────────────────────────────────────────────────────
+function desenharCirculoPDF(pdf, cx, cy, r) {
+  // jsPDF não tem arc nativo — aproximamos com 72 segmentos
+  const steps = 72;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * Math.PI * 2;
+    pts.push({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
+  }
+  for (let i = 0; i < pts.length - 1; i++) {
+    pdf.line(pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y);
   }
 }
+
+function desenharRoundRectPDF(pdf, x, y, w, h, r) {
+  // Garante que r não é maior que metade do menor lado
+  r = Math.min(r, w/2, h/2);
+  const steps = 18;
+
+  const corners = [
+    { cx: x + r,     cy: y + r,     startAngle: Math.PI,       sweep: Math.PI / 2 }, // TL
+    { cx: x + w - r, cy: y + r,     startAngle: 3*Math.PI / 2, sweep: Math.PI / 2 }, // TR
+    { cx: x + w - r, cy: y + h - r, startAngle: 0,             sweep: Math.PI / 2 }, // BR
+    { cx: x + r,     cy: y + h - r, startAngle: Math.PI / 2,   sweep: Math.PI / 2 }, // BL
+  ];
+
+  const pts = [];
+  corners.forEach(({ cx, cy, startAngle, sweep }) => {
+    for (let i = 0; i <= steps; i++) {
+      const a = startAngle + (i / steps) * sweep;
+      pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+  });
+  pts.push(pts[0]); // fecha
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    pdf.line(pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y);
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('mode-info').innerHTML = getModeInfo();
 </script>
 </body>
 </html>
