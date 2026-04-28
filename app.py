@@ -10,7 +10,7 @@ from flask import (
 HOST       = "0.0.0.0"
 PORT       = int(os.environ.get("PORT", 5000))
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-ENTRY      = "editor.html"
+ENTRY      = "home.html"          # Página inicial agora é o home
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 
 # Extensões de arquivo que podem ser servidas ao cliente
@@ -173,48 +173,58 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return send_from_directory(BASE_DIR, ENTRY)
+    """Página inicial — Central de Editores."""
+    return send_from_directory(BASE_DIR, "home.html")
+
+
+@app.route("/lacre")
+@login_required
+def lacre():
+    """Editor de Lacre / Etiqueta Digital."""
+    return send_from_directory(BASE_DIR, "editor.html")
+
 
 @app.route("/serigrafia")
 @login_required
 def serigrafia():
+    """Editor de Serigrafia."""
     return send_from_directory(BASE_DIR, "editor_serigrafia.html")
+
 
 @app.route("/dtf")
 @login_required
 def dtf():
+    """Editor DTF / Transfer."""
     return send_from_directory(BASE_DIR, "editor_dtf.html")
 
-@app.route("/mouse")
+
+@app.route("/mousepad")
 @login_required
-def mouse():
+def mousepad():
+    """Editor de Mouse Pad."""
     return send_from_directory(BASE_DIR, "editor_mouse.html")
+
 
 @app.route("/api/convert-pdf-to-svg", methods=["POST"])
 @login_required
 def convert_pdf_to_svg():
     if 'file' not in request.files:
         return Response("Nenhum arquivo enviado.", status=400)
-    
+
     file = request.files['file']
     if file.filename == '':
         return Response("Arquivo inválido.", status=400)
 
     try:
-        # Lê o PDF em memória
         pdf_bytes = file.read()
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        
-        # Pega a primeira página
         page = doc[0]
-        
-        # Extrai o conteúdo vetorial como código SVG
         svg_content = page.get_svg_image()
         doc.close()
-        
         return Response(svg_content, mimetype="image/svg+xml")
     except Exception as e:
         return Response(f"Erro ao converter PDF: {str(e)}", status=500)
+
 
 @app.route("/api/templates")
 @login_required
@@ -232,7 +242,6 @@ def list_templates():
                 "order": sufixo
             })
 
-    # Ordenação numérica correta
     templates.sort(key=lambda t: (len(t["order"]), t["order"]))
     for t in templates:
         del t["order"]
@@ -255,6 +264,11 @@ if __name__ == "__main__":
     print("=" * 48)
     print("  Editor de Lacre — Leanttro Tecnologia")
     print(f"  Servidor: http://127.0.0.1:{PORT}/")
+    print(f"  Home:      http://127.0.0.1:{PORT}/")
+    print(f"  Lacre:     http://127.0.0.1:{PORT}/lacre")
+    print(f"  Serigrafia:http://127.0.0.1:{PORT}/serigrafia")
+    print(f"  DTF:       http://127.0.0.1:{PORT}/dtf")
+    print(f"  Mouse Pad: http://127.0.0.1:{PORT}/mousepad")
     users = load_users()
     print(f"  Usuários carregados: {list(users.keys()) or '(nenhum)'}")
     print("  Pressione Ctrl+C para encerrar.")
