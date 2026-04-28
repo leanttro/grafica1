@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <style>
 :root {
   --bg:        #0f0f10;
@@ -43,6 +44,16 @@ body {
 .topbar-brand { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .topbar-brand span { color: var(--muted); font-weight: 400; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-toggle {
+  display: flex; gap: 4px; background: var(--surface2);
+  padding: 4px; border-radius: 8px; border: 1px solid var(--border);
+}
+.topbar-toggle button {
+  background: transparent; border: none; color: var(--muted);
+  padding: 4px 12px; font-size: 11px; font-weight: 600;
+  border-radius: 4px; cursor: pointer; transition: all 0.2s;
+}
+.topbar-toggle button.active { background: var(--accent); color: #fff; }
 .topbar-pill {
   font-size: 10px; font-weight: 700;
   background: rgba(224,92,0,0.12); color: #fb923c;
@@ -170,8 +181,22 @@ select.mini-input {
 .btn-secondary:hover { border-color: #555; }
 .preview-area {
   background: var(--bg); display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+#preview-grade {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px; gap: 16px; width: 100%; height: 100%; position: relative;
+}
+#preview-livre {
+  display: none; width: 100%; height: 100%;
   align-items: center; justify-content: center;
-  padding: 40px; gap: 16px; position: relative;
+  position: relative; overflow: hidden;
+}
+.livre-canvas-wrapper {
+  background: transparent;
+  background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%, #eee);
+  background-size: 20px 20px; background-position: 0 0, 10px 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 .preview-label {
   position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
@@ -214,6 +239,10 @@ select.mini-input {
 <div class="topbar">
   <div class="topbar-brand">Leanttro <span>/ DTF</span></div>
   <div class="topbar-right">
+    <div class="topbar-toggle">
+      <button id="btn-mode-grade" class="active" onclick="toggleMode('grade')">Grade Auto</button>
+      <button id="btn-mode-livre" onclick="toggleMode('livre')">Montagem Livre</button>
+    </div>
     <span class="topbar-pill">Editor DTF</span>
     <a href="/" class="btn-secondary" style="font-size:12px;padding:6px 14px;">← Lacres</a>
     <a href="/logout" class="btn-secondary" style="font-size:12px;padding:6px 14px;">Sair</a>
@@ -222,7 +251,6 @@ select.mini-input {
 
 <div class="panel">
 
-  <!-- IMAGEM -->
   <div>
     <div class="section-title">Imagem / Arte</div>
     <div class="fields">
@@ -253,7 +281,6 @@ select.mini-input {
     </div>
   </div>
 
-  <!-- MEDIDAS -->
   <div>
     <div class="section-title">Medidas da Arte (cm)</div>
     <div class="fields">
@@ -270,141 +297,161 @@ select.mini-input {
     </div>
   </div>
 
-  <!-- MONTAGEM -->
-  <div>
-    <div class="section-title">Montagem para Impressão</div>
-    <div class="montagem-config">
-      <div class="montagem-row">
-        <div>
-          <span class="mini-label">Folha / Rolo</span>
-          <select id="mont-folha" class="mini-input" onchange="onFolhaChange()">
-            <option value="A4">A4 (210×297mm)</option>
-            <option value="A3">A3 (297×420mm)</option>
-            <option value="letter">Carta (216×279mm)</option>
-            <option value="custom">Personalizado...</option>
-          </select>
-          <div class="custom-sheet-row" id="custom-sheet-row">
-            <div>
-              <span class="mini-label">Larg. (mm)</span>
-              <input type="number" id="custom-fw" class="mini-input" value="210" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
+  <div id="panel-grade" style="display:contents">
+    <div>
+      <div class="section-title">Montagem para Impressão</div>
+      <div class="montagem-config">
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Folha / Rolo</span>
+            <select id="mont-folha" class="mini-input" onchange="onFolhaChange()">
+              <option value="A4">A4 (210×297mm)</option>
+              <option value="A3">A3 (297×420mm)</option>
+              <option value="letter">Carta (216×279mm)</option>
+              <option value="custom">Personalizado...</option>
+            </select>
+            <div class="custom-sheet-row" id="custom-sheet-row">
+              <div>
+                <span class="mini-label">Larg. (mm)</span>
+                <input type="number" id="custom-fw" class="mini-input" value="210" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
+              </div>
+              <div>
+                <span class="mini-label">Alt. (mm)</span>
+                <input type="number" id="custom-fh" class="mini-input" value="297" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
+              </div>
             </div>
-            <div>
-              <span class="mini-label">Alt. (mm)</span>
-              <input type="number" id="custom-fh" class="mini-input" value="297" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
-            </div>
+          </div>
+          <div>
+            <span class="mini-label">Orientação</span>
+            <select id="mont-orientacao" class="mini-input" onchange="atualizarInfoMontagem()">
+              <option value="portrait">Retrato</option>
+              <option value="landscape">Paisagem</option>
+            </select>
+          </div>
+        </div>
+        <div class="montagem-row triple">
+          <div>
+            <span class="mini-label">Margem (mm)</span>
+            <input type="number" id="mont-margem" class="mini-input" value="5" min="0" max="30" step="1" oninput="atualizarInfoMontagem()">
+          </div>
+          <div>
+            <span class="mini-label">Espaço H (mm)</span>
+            <input type="number" id="mont-gap-h" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
+          </div>
+          <div>
+            <span class="mini-label">Espaço V (mm)</span>
+            <input type="number" id="mont-gap-v" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
+          </div>
+        </div>
+        <div class="montagem-info" id="mont-info">Calculando...</div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Marcas de Corte e Registro</div>
+      <div class="seri-config">
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Comp. corte (mm)</span>
+            <input type="number" id="seri-cut-len" class="mini-input" value="5" min="2" max="20" step="0.5">
+          </div>
+          <div>
+            <span class="mini-label">Gap da marca (mm)</span>
+            <input type="number" id="seri-cut-gap" class="mini-input" value="2" min="0.5" max="10" step="0.5">
+          </div>
+        </div>
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Raio mira ⊕ (mm)</span>
+            <input type="number" id="seri-reg-r" class="mini-input" value="3" min="1" max="10" step="0.5">
+          </div>
+          <div>
+            <span class="mini-label">Espessura traço (mm)</span>
+            <input type="number" id="seri-sw" class="mini-input" value="0.15" min="0.05" max="1" step="0.05">
           </div>
         </div>
         <div>
-          <span class="mini-label">Orientação</span>
-          <select id="mont-orientacao" class="mini-input" onchange="atualizarInfoMontagem()">
-            <option value="portrait">Retrato</option>
-            <option value="landscape">Paisagem</option>
+          <span class="mini-label">Posição das miras ⊕</span>
+          <select id="seri-reg-pos" class="mini-input">
+            <option value="4">4 cantos da folha</option>
+            <option value="8">8 pontos (cantos + meios)</option>
           </select>
         </div>
       </div>
-      <div class="montagem-row triple">
-        <div>
-          <span class="mini-label">Margem (mm)</span>
-          <input type="number" id="mont-margem" class="mini-input" value="5" min="0" max="30" step="1" oninput="atualizarInfoMontagem()">
-        </div>
-        <div>
-          <span class="mini-label">Espaço H (mm)</span>
-          <input type="number" id="mont-gap-h" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
-        </div>
-        <div>
-          <span class="mini-label">Espaço V (mm)</span>
-          <input type="number" id="mont-gap-v" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
-        </div>
-      </div>
-      <div class="montagem-info" id="mont-info">Calculando...</div>
     </div>
-  </div>
-
-  <!-- MARCAS -->
-  <div>
-    <div class="section-title">Marcas de Corte e Registro</div>
-    <div class="seri-config">
-      <div class="montagem-row">
-        <div>
-          <span class="mini-label">Comp. corte (mm)</span>
-          <input type="number" id="seri-cut-len" class="mini-input" value="5" min="2" max="20" step="0.5">
-        </div>
-        <div>
-          <span class="mini-label">Gap da marca (mm)</span>
-          <input type="number" id="seri-cut-gap" class="mini-input" value="2" min="0.5" max="10" step="0.5">
-        </div>
-      </div>
-      <div class="montagem-row">
-        <div>
-          <span class="mini-label">Raio mira ⊕ (mm)</span>
-          <input type="number" id="seri-reg-r" class="mini-input" value="3" min="1" max="10" step="0.5">
-        </div>
-        <div>
-          <span class="mini-label">Espessura traço (mm)</span>
-          <input type="number" id="seri-sw" class="mini-input" value="0.15" min="0.05" max="1" step="0.05">
-        </div>
-      </div>
-      <div>
-        <span class="mini-label">Posição das miras ⊕</span>
-        <select id="seri-reg-pos" class="mini-input">
-          <option value="4">4 cantos da folha</option>
-          <option value="8">8 pontos (cantos + meios)</option>
-        </select>
+    <div>
+      <div class="section-title">Ações</div>
+      <div class="actions">
+        <button class="btn-secondary" onclick="baixarPNG()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span id="btn-png-label">Baixar PNG de Aprovação</span>
+        </button>
+        <button class="btn-secondary" onclick="baixarSVGIndividual()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span id="btn-svg-label">Baixar SVG (vetor editável)</span>
+        </button>
+        <button class="btn-primary green" onclick="baixarMontagemPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span id="btn-mont-label">Baixar Montagem PDF + Marcas</span>
+        </button>
+        <button class="btn-primary" style="background:#1d4ed8;" onclick="baixarMontagemPNG()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span id="btn-mont-png-label">Baixar Montagem PNG Transparente</span>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- AÇÕES -->
-  <div>
-    <div class="section-title">Ações</div>
-    <div class="actions">
-      <button class="btn-secondary" onclick="baixarPNG()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <span id="btn-png-label">Baixar PNG de Aprovação</span>
-      </button>
-      <button class="btn-secondary" onclick="baixarSVGIndividual()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-        <span id="btn-svg-label">Baixar SVG (vetor editável)</span>
-      </button>
-      <button class="btn-primary green" onclick="baixarMontagemPDF()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-        </svg>
-        <span id="btn-mont-label">Baixar Montagem PDF + Marcas</span>
-      </button>
-      <button class="btn-primary" style="background:#1d4ed8;" onclick="baixarMontagemPNG()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-        </svg>
-        <span id="btn-mont-png-label">Baixar Montagem PNG Transparente</span>
-      </button>
+  <div id="panel-livre" style="display:none">
+    <div>
+      <div class="section-title">Prancheta (Máx 1000mm)</div>
+      <div class="montagem-config">
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Larg. (mm)</span>
+            <input type="number" id="livre-w" class="mini-input" value="500" min="50" max="1000" step="1" oninput="atualizarTamanhoLivre()">
+          </div>
+          <div>
+            <span class="mini-label">Alt. (mm)</span>
+            <input type="number" id="livre-h" class="mini-input" value="500" min="50" max="1000" step="1" oninput="atualizarTamanhoLivre()">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Ações Livres</div>
+      <div class="actions">
+        <button class="btn-secondary" onclick="adicionarArteLivre()">➕ Adicionar Arte ao Canvas</button>
+        <button class="btn-secondary" onclick="duplicarArteLivre()">📑 Duplicar Selecionado</button>
+        <button class="btn-primary" style="background:#1d4ed8;" onclick="baixarLivrePNG()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span id="btn-livre-png-label">Baixar Montagem Livre PNG</span>
+        </button>
+      </div>
     </div>
   </div>
 
 </div>
 
-<!-- PREVIEW -->
 <div class="preview-area">
-  <div class="preview-label">Preview ao vivo</div>
-
-  <div class="preview-loading" id="preview-loading">
-    <div class="spinner"></div>
-    <span>Aguardando arte…</span>
+  
+  <div id="preview-grade">
+    <div class="preview-label">Preview ao vivo</div>
+    <div class="preview-loading" id="preview-loading">
+      <div class="spinner"></div>
+      <span>Aguardando arte…</span>
+    </div>
+    <div class="preview-frame" id="preview-frame" style="display:none; aspect-ratio: 1/1;">
+      <iframe id="preview-iframe" title="Preview DTF"></iframe>
+    </div>
+    <div class="preview-note" id="preview-note" style="display:none;"></div>
   </div>
 
-  <div class="preview-frame" id="preview-frame" style="display:none; aspect-ratio: 1/1;">
-    <iframe id="preview-iframe" title="Preview DTF"></iframe>
+  <div id="preview-livre">
+    <div id="livre-canvas-wrapper" class="livre-canvas-wrapper">
+      <canvas id="livre-canvas"></canvas>
+    </div>
   </div>
 
-  <div class="preview-note" id="preview-note" style="display:none;"></div>
 </div>
 
 <script>
@@ -424,15 +471,17 @@ const FOLHAS = { A4:[210,297], A3:[297,420], letter:[216,279] };
 
 // ══════════════════════════════════════════════════════════════════════
 // CACHE DO TEMPLATE BRANCO
-// Carrega branco.html uma única vez e reutiliza em todas as atualizações
-// de preview — elimina o fetch repetido a cada mudança de medida.
 // ══════════════════════════════════════════════════════════════════════
 let _brancoTemplateCache = null;
 
 async function getBrancoTemplate() {
   if (_brancoTemplateCache !== null) return _brancoTemplateCache;
-  
-  _brancoTemplateCache = `<!DOCTYPE html>
+  try {
+    const res = await fetch('branco.html');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    _brancoTemplateCache = await res.text();
+  } catch(e) {
+    _brancoTemplateCache = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -440,22 +489,8 @@ body{width:100vw;height:100vh;display:flex;align-items:center;justify-content:ce
 img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
 </style></head>
 <body>CHAVE_IMAGEM</body></html>`;
-  
-  return _brancoTemplateCache;
-}
-
-async function buildPreviewHTML() {
-  const tpl = await getBrancoTemplate();
-
-  let conteudo;
-  if (state.imagemTipo === 'svg' && state.imagemSVGString) {
-    conteudo = state.imagemSVGString
-      .replace(/<svg/, '<svg style="max-width:100%;max-height:100%;display:block;"');
-  } else {
-    conteudo = `<img src="${state.imagemDataUrl}" alt="arte" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`;
   }
-
-  return tpl.split('CHAVE_IMAGEM').join(conteudo);
+  return _brancoTemplateCache;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -561,9 +596,6 @@ function mostrarInfoImagem(msg) {
 
 // ══════════════════════════════════════════════════════════════════════
 // PREVIEW
-// Usa o template branco.html (cacheado) substituindo apenas CHAVE_IMAGEM.
-// O iframe recebe o HTML via srcdoc para evitar reload de página inteira —
-// só o conteúdo muda, o frame em si permanece estável.
 // ══════════════════════════════════════════════════════════════════════
 async function updatePreview() {
   if (!state.imagemDataUrl) return;
@@ -577,7 +609,6 @@ async function updatePreview() {
   const html = await buildPreviewHTML();
 
   const iframe = document.getElementById('preview-iframe');
-  // srcdoc injeta o conteúdo sem navegar — muito mais rápido que doc.write
   iframe.srcdoc = html;
 
   document.getElementById('preview-loading').style.display = 'none';
@@ -591,17 +622,13 @@ async function updatePreview() {
 
 async function buildPreviewHTML() {
   const tpl = await getBrancoTemplate();
-
-  // Monta o conteúdo que vai substituir CHAVE_IMAGEM
   let conteudo;
   if (state.imagemTipo === 'svg' && state.imagemSVGString) {
-    // SVG inline: responsivo naturalmente via CSS do template
     conteudo = state.imagemSVGString
       .replace(/<svg/, '<svg style="max-width:100%;max-height:100%;display:block;"');
   } else {
     conteudo = `<img src="${state.imagemDataUrl}" alt="arte" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`;
   }
-
   return tpl.replace('CHAVE_IMAGEM', conteudo);
 }
 
@@ -637,7 +664,7 @@ function carregarMedida(val) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MONTAGEM
+// MONTAGEM GRADE AUTO
 // ══════════════════════════════════════════════════════════════════════
 function calcMontagem() {
   const wCm = parseFloat(document.getElementById('arte-w').value) || 1;
@@ -674,7 +701,6 @@ function atualizarInfoMontagem() {
     el.textContent = '⚠️ Arte maior que a área útil da folha';
   else
     el.textContent = `${cols} colunas × ${rows} linhas = ${total} artes por folha`;
-  // Só atualiza o aspect-ratio do frame (sem recarregar o iframe)
   if (state.imagemDataUrl) {
     const wCm2 = parseFloat(document.getElementById('arte-w').value) || 10;
     const hCm2 = parseFloat(document.getElementById('arte-h').value) || 10;
@@ -835,7 +861,7 @@ ${body}
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// EXPORTAÇÕES
+// EXPORTAÇÕES GRADE
 // ══════════════════════════════════════════════════════════════════════
 async function baixarPNG() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
@@ -1091,9 +1117,150 @@ function desenharMirasFolhaCanvas(ctx, fw, fh, r, sw, numPontos, scale) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// MONTAGEM LIVRE (FABRIC.JS)
+// ══════════════════════════════════════════════════════════════════════
+let livreCanvas = null;
+const PX_MM = 11.811; // Densidade baseada em 300dpi
+
+function initLivre() {
+  if (!livreCanvas) {
+    livreCanvas = new fabric.Canvas('livre-canvas', { preserveObjectStacking: true });
+    atualizarTamanhoLivre();
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const ativos = livreCanvas.getActiveObjects();
+        if (ativos.length && document.getElementById('panel-livre').style.display !== 'none') {
+          ativos.forEach(obj => livreCanvas.remove(obj));
+          livreCanvas.discardActiveObject();
+          livreCanvas.requestRenderAll();
+        }
+      }
+    });
+  }
+}
+
+function toggleMode(mode) {
+  const pGrade = document.getElementById('panel-grade');
+  const pLivre = document.getElementById('panel-livre');
+  const vGrade = document.getElementById('preview-grade');
+  const vLivre = document.getElementById('preview-livre');
+  const bGrade = document.getElementById('btn-mode-grade');
+  const bLivre = document.getElementById('btn-mode-livre');
+
+  if (mode === 'grade') {
+    pGrade.style.display = 'contents';
+    pLivre.style.display = 'none';
+    vGrade.style.display = 'flex';
+    vLivre.style.display = 'none';
+    bGrade.classList.add('active');
+    bLivre.classList.remove('active');
+  } else {
+    pGrade.style.display = 'none';
+    pLivre.style.display = 'contents';
+    vGrade.style.display = 'none';
+    vLivre.style.display = 'flex';
+    bLivre.classList.add('active');
+    bGrade.classList.remove('active');
+    initLivre();
+  }
+}
+
+function atualizarTamanhoLivre() {
+  let w = parseFloat(document.getElementById('livre-w').value) || 1000;
+  let h = parseFloat(document.getElementById('livre-h').value) || 1000;
+  if (w > 1000) { w = 1000; document.getElementById('livre-w').value = 1000; }
+  if (h > 1000) { h = 1000; document.getElementById('livre-h').value = 1000; }
+  
+  const wPx = w * PX_MM;
+  const hPx = h * PX_MM;
+  livreCanvas.setWidth(wPx);
+  livreCanvas.setHeight(hPx);
+  livreCanvas.renderAll();
+  ajustarZoomLivre(wPx, hPx);
+}
+
+function ajustarZoomLivre(wPx, hPx) {
+  const container = document.getElementById('preview-livre');
+  const padding = 40;
+  const scaleW = (container.clientWidth - padding) / wPx;
+  const scaleH = (container.clientHeight - padding) / hPx;
+  let scale = Math.min(scaleW, scaleH);
+  if (scale > 1) scale = 1;
+  
+  const wrapper = document.getElementById('livre-canvas-wrapper');
+  wrapper.style.transform = `scale(${scale})`;
+  wrapper.style.transformOrigin = 'center center';
+}
+
+window.addEventListener('resize', () => {
+  if (livreCanvas && document.getElementById('panel-livre').style.display !== 'none') {
+    ajustarZoomLivre(livreCanvas.width, livreCanvas.height);
+  }
+});
+
+function adicionarArteLivre() {
+  if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro no painel de Imagem/Arte.'); return; }
+  
+  const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
+  const targetWPx = wCm * 10 * PX_MM;
+  
+  fabric.Image.fromURL(state.imagemDataUrl, img => {
+    const scale = targetWPx / img.width;
+    img.set({
+      scaleX: scale,
+      scaleY: scale,
+      left: 50,
+      top: 50,
+      transparentCorners: false,
+      cornerColor: '#e05c00',
+      borderColor: '#e05c00',
+      cornerSize: 20
+    });
+    livreCanvas.add(img);
+    livreCanvas.setActiveObject(img);
+    livreCanvas.renderAll();
+  });
+}
+
+function duplicarArteLivre() {
+  const active = livreCanvas.getActiveObject();
+  if (!active) return;
+  active.clone(cloned => {
+    cloned.set({ left: active.left + 50, top: active.top + 50, evented: true });
+    livreCanvas.add(cloned);
+    livreCanvas.setActiveObject(cloned);
+    livreCanvas.requestRenderAll();
+  });
+}
+
+function baixarLivrePNG() {
+  if (!livreCanvas) return;
+  const btn = document.getElementById('btn-livre-png-label');
+  btn.textContent = 'Gerando...';
+  
+  setTimeout(() => {
+    try {
+      livreCanvas.discardActiveObject();
+      livreCanvas.renderAll();
+      
+      const dataUrl = livreCanvas.toDataURL({ format: 'png', quality: 1, multiplier: 1 });
+      const a = document.createElement('a');
+      const w = document.getElementById('livre-w').value;
+      const h = document.getElementById('livre-h').value;
+      a.download = `dtf_livre_${w}x${h}mm.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (e) {
+      alert('Erro ao gerar PNG Livre: ' + e.message);
+    } finally {
+      btn.textContent = 'Baixar Montagem Livre PNG';
+    }
+  }, 150);
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════
-// Pré-carrega o template em background assim que a página abre
 getBrancoTemplate();
 carregarMedidasSalvas();
 atualizarInfoMontagem();
