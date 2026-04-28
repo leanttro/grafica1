@@ -189,8 +189,9 @@ select.mini-input {
 }
 #preview-livre {
   display: none; width: 100%; height: 100%;
-  align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
+  align-items: flex-start; justify-content: center;
+  position: relative; overflow: auto;
+  padding-top: 24px;
 }
 .livre-canvas-wrapper {
   background: transparent;
@@ -403,16 +404,16 @@ select.mini-input {
 
   <div id="panel-livre" style="display:none">
     <div>
-      <div class="section-title">Prancheta (Máx 1000mm)</div>
+      <div class="section-title">Prancheta (Máx 100cm)</div>
       <div class="montagem-config">
         <div class="montagem-row">
           <div>
-            <span class="mini-label">Larg. (mm)</span>
-            <input type="number" id="livre-w" class="mini-input" value="500" min="50" max="1000" step="1" oninput="atualizarTamanhoLivre()">
+            <span class="mini-label">Larg. (cm)</span>
+            <input type="number" id="livre-w" class="mini-input" value="50" min="5" max="100" step="0.5" oninput="atualizarTamanhoLivre()">
           </div>
           <div>
-            <span class="mini-label">Alt. (mm)</span>
-            <input type="number" id="livre-h" class="mini-input" value="500" min="50" max="1000" step="1" oninput="atualizarTamanhoLivre()">
+            <span class="mini-label">Alt. (cm)</span>
+            <input type="number" id="livre-h" class="mini-input" value="50" min="5" max="100" step="0.5" oninput="atualizarTamanhoLivre()">
           </div>
         </div>
       </div>
@@ -425,6 +426,10 @@ select.mini-input {
         <button class="btn-primary" style="background:#1d4ed8;" onclick="baixarLivrePNG()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span id="btn-livre-png-label">Baixar Montagem Livre PNG</span>
+        </button>
+        <button class="btn-primary green" onclick="baixarLivrePDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span id="btn-livre-pdf-label">Baixar Montagem Livre PDF</span>
         </button>
       </div>
     </div>
@@ -1166,13 +1171,16 @@ function toggleMode(mode) {
 }
 
 function atualizarTamanhoLivre() {
-  let w = parseFloat(document.getElementById('livre-w').value) || 1000;
-  let h = parseFloat(document.getElementById('livre-h').value) || 1000;
-  if (w > 1000) { w = 1000; document.getElementById('livre-w').value = 1000; }
-  if (h > 1000) { h = 1000; document.getElementById('livre-h').value = 1000; }
+  let wCm = parseFloat(document.getElementById('livre-w').value) || 50;
+  let hCm = parseFloat(document.getElementById('livre-h').value) || 50;
+  if (wCm > 100) { wCm = 100; document.getElementById('livre-w').value = 100; }
+  if (hCm > 100) { hCm = 100; document.getElementById('livre-h').value = 100; }
   
-  const wPx = w * PX_MM;
-  const hPx = h * PX_MM;
+  // cm → mm → px (PX_MM = px por mm)
+  const wMm = wCm * 10;
+  const hMm = hCm * 10;
+  const wPx = wMm * PX_MM;
+  const hPx = hMm * PX_MM;
   livreCanvas.setWidth(wPx);
   livreCanvas.setHeight(hPx);
   livreCanvas.renderAll();
@@ -1181,15 +1189,17 @@ function atualizarTamanhoLivre() {
 
 function ajustarZoomLivre(wPx, hPx) {
   const container = document.getElementById('preview-livre');
-  const padding = 40;
+  const padding = 48;
   const scaleW = (container.clientWidth - padding) / wPx;
-  const scaleH = (container.clientHeight - padding) / hPx;
-  let scale = Math.min(scaleW, scaleH);
-  if (scale > 1) scale = 1;
+  // Usa apenas a largura para calcular o zoom, deixa altura rolar se necessário
+  let scale = Math.min(scaleW, 1);
+  if (scale < 0.05) scale = 0.05;
   
   const wrapper = document.getElementById('livre-canvas-wrapper');
   wrapper.style.transform = `scale(${scale})`;
-  wrapper.style.transformOrigin = 'center center';
+  wrapper.style.transformOrigin = 'top center';
+  // Ajusta altura do wrapper para o zoom não sobrepor elementos
+  wrapper.style.marginBottom = `${(hPx * scale) - hPx}px`;
 }
 
 window.addEventListener('resize', () => {
@@ -1247,7 +1257,7 @@ function baixarLivrePNG() {
       const a = document.createElement('a');
       const w = document.getElementById('livre-w').value;
       const h = document.getElementById('livre-h').value;
-      a.download = `dtf_livre_${w}x${h}mm.png`;
+      a.download = `dtf_livre_${w}x${h}cm.png`;
       a.href = dataUrl;
       a.click();
     } catch (e) {
@@ -1256,6 +1266,39 @@ function baixarLivrePNG() {
       btn.textContent = 'Baixar Montagem Livre PNG';
     }
   }, 150);
+}
+
+async function baixarLivrePDF() {
+  if (!livreCanvas) return;
+  const btn = document.getElementById('btn-livre-pdf-label');
+  btn.textContent = 'Gerando...';
+
+  try {
+    livreCanvas.discardActiveObject();
+    livreCanvas.renderAll();
+
+    const wCm = parseFloat(document.getElementById('livre-w').value) || 50;
+    const hCm = parseFloat(document.getElementById('livre-h').value) || 50;
+    const wMm = wCm * 10;
+    const hMm = hCm * 10;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      unit: 'mm',
+      format: [wMm, hMm],
+      orientation: wMm >= hMm ? 'landscape' : 'portrait',
+    });
+
+    // Exporta o canvas como PNG em alta resolução e adiciona no PDF
+    const dataUrl = livreCanvas.toDataURL({ format: 'png', quality: 1, multiplier: 1 });
+    pdf.addImage(dataUrl, 'PNG', 0, 0, wMm, hMm, undefined, 'NONE');
+
+    pdf.save(`dtf_livre_${wCm}x${hCm}cm.pdf`);
+  } catch (e) {
+    alert('Erro ao gerar PDF Livre: ' + e.message);
+  } finally {
+    btn.textContent = 'Baixar Montagem Livre PDF';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
