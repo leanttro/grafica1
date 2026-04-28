@@ -370,6 +370,14 @@ select.color-hex {
   <div>
     <div class="section-title">Ações</div>
     <div class="actions">
+      <button class="btn-secondary" onclick="baixarFotoPNG()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="btn-png-label">Baixar PNG de Aprovação</span>
+      </button>
       <button class="btn-primary green" onclick="baixarSerigrafiaPDF()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -717,6 +725,53 @@ function atualizarPagesBadges() {
   }).join('');
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// GERAÇÃO DE PNG PARA APROVAÇÃO
+// ══════════════════════════════════════════════════════════════════════
+async function capturarCanvas(wCm, hCm) {
+  const PX_PER_CM = 400 / 2.54;
+  const wPx = Math.round(wCm * PX_PER_CM);
+  const hPx = Math.round(hCm * PX_PER_CM);
+  const iframe    = document.getElementById('preview-iframe');
+  const iframeWin = iframe.contentWindow;
+  const iframeDoc = iframe.contentDocument || iframeWin.document;
+  if (!iframeWin.html2canvas) {
+    await new Promise((resolve, reject) => {
+      const s = iframeDoc.createElement('script');
+      s.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+      s.onload = resolve; s.onerror = reject;
+      iframeDoc.head.appendChild(s);
+    });
+    await new Promise(r => setTimeout(r, 300));
+  }
+  const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
+    useCORS: true, allowTaint: true,
+    backgroundColor: state.fundo, logging: false, scale: 3,
+  });
+  const out = document.createElement('canvas');
+  out.width = wPx; out.height = hPx;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
+  return { canvas: out };
+}
+
+async function baixarFotoPNG() {
+  if (!state.templateSrc) return;
+  const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
+  const hCm = parseFloat(document.getElementById('lacre-h').value) || 5;
+  const lbl = document.getElementById('btn-png-label');
+  lbl.textContent = 'Gerando...';
+  try {
+    const { canvas } = await capturarCanvas(wCm, hCm);
+    const a = document.createElement('a');
+    a.download = `aprovacao_lacre_${wCm}x${hCm}cm.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  } catch(e) { alert('Erro PNG: ' + e.message); }
+  finally { lbl.textContent = 'Baixar PNG de Aprovação'; }
+}
 // ══════════════════════════════════════════════════════════════════════
 // GERAÇÃO DO PDF DE SERIGRAFIA
 // ══════════════════════════════════════════════════════════════════════
