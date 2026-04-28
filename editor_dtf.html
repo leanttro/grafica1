@@ -431,13 +431,8 @@ let _brancoTemplateCache = null;
 
 async function getBrancoTemplate() {
   if (_brancoTemplateCache !== null) return _brancoTemplateCache;
-  try {
-    const res = await fetch('branco.html');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    _brancoTemplateCache = await res.text();
-  } catch(e) {
-    // Fallback inline caso o fetch falhe (ex: file://)
-    _brancoTemplateCache = `<!DOCTYPE html>
+  
+  _brancoTemplateCache = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -445,8 +440,22 @@ body{width:100vw;height:100vh;display:flex;align-items:center;justify-content:ce
 img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
 </style></head>
 <body>CHAVE_IMAGEM</body></html>`;
-  }
+  
   return _brancoTemplateCache;
+}
+
+async function buildPreviewHTML() {
+  const tpl = await getBrancoTemplate();
+
+  let conteudo;
+  if (state.imagemTipo === 'svg' && state.imagemSVGString) {
+    conteudo = state.imagemSVGString
+      .replace(/<svg/, '<svg style="max-width:100%;max-height:100%;display:block;"');
+  } else {
+    conteudo = `<img src="${state.imagemDataUrl}" alt="arte" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`;
+  }
+
+  return tpl.split('CHAVE_IMAGEM').join(conteudo);
 }
 
 // ══════════════════════════════════════════════════════════════════════
