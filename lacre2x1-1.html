@@ -78,14 +78,18 @@
 
         .cell-destaque {
             flex: 1;
-            /* display:grid + place-items funciona melhor que flex no html2canvas */
-            display: grid;
-            place-items: center;
+            position: relative;
             color: var(--cor-destaque);
             font-weight: 900;
             font-size: min(7vw, 14vh);
             line-height: 1;
             overflow: hidden;
+        }
+        .cell-destaque span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .cell-destaque:not(:last-child) {
@@ -145,9 +149,9 @@
                 <img src="CHAVE_LOGO" alt="Logo Cliente" class="logo">
             </div>
             <div class="col-destaque">
-                <div class="cell-destaque">26</div>
-                <div class="cell-destaque">27</div>
-                <div class="cell-destaque">28</div>
+                <div class="cell-destaque"><span>26</span></div>
+                <div class="cell-destaque"><span>27</span></div>
+                <div class="cell-destaque"><span>28</span></div>
             </div>
         </div>
 
