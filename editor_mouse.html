@@ -78,9 +78,7 @@ body {
 }
 .template-option:hover { border-color: #444; }
 .template-option.active { border-color: var(--accent); background: var(--accent-glow); }
-.tpl-icon {
-  flex-shrink: 0; opacity: 0.7;
-}
+.tpl-icon { flex-shrink: 0; opacity: 0.7; }
 .template-option.active .tpl-icon { opacity: 1; }
 .tpl-meta { display: flex; flex-direction: column; gap: 2px; }
 .tpl-name { font-size: 13px; font-weight: 500; }
@@ -122,6 +120,28 @@ body {
 .mode-tab-label { font-size: 11px; font-weight: 600; }
 .mode-tab-desc { font-size: 9px; color: var(--muted); font-weight: 400; font-family: var(--mono); letter-spacing: 0.3px; }
 .mode-tab.active .mode-tab-desc { color: rgba(96,165,250,0.8); }
+
+/* ── Sangria sub-tabs (só aparece em modo exact) ── */
+.sangria-tabs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-top: 8px;
+  display: none;
+}
+.sangria-tabs.visible { display: grid; }
+.sangria-tab {
+  padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2);
+  cursor: pointer; text-align: center;
+  font-size: 11px; font-weight: 500;
+  transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sangria-tab:hover { border-color: #555; }
+.sangria-tab.active { border-color: #a855f7; background: rgba(168,85,247,0.12); color: #d8b4fe; }
+.sangria-tab-label { font-size: 10px; font-weight: 600; }
+.sangria-tab-desc { font-size: 8px; color: var(--muted); font-family: var(--mono); }
+.sangria-tab.active .sangria-tab-desc { color: rgba(216,180,254,0.7); }
 
 /* ── Info box ── */
 .info-box {
@@ -224,6 +244,7 @@ body {
 }
 .badge-cut { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
 .badge-bleed { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.badge-stretch { background: rgba(168,85,247,0.15); color: #d8b4fe; border: 1px solid rgba(168,85,247,0.3); }
 
 /* ── Modal ── */
 .modal-overlay {
@@ -344,9 +365,20 @@ body {
         <div class="mode-tab-desc">Arte no tamanho exato<br>Sangria criada auto</div>
       </div>
     </div>
-    <div class="info-box" id="mode-info" style="margin-top:10px;">
-      Envie arte em <strong>23×19cm</strong> para retangular ou <strong>20×20cm</strong> para redondo. O preview mostrará onde a faca vai cortar.
+
+    <!-- Sub-tabs de tipo de sangria (só visível no modo exact) -->
+    <div class="sangria-tabs" id="sangria-tabs">
+      <div class="sangria-tab active" id="tab-espelho" onclick="setSangriaTipo('espelho')">
+        <div class="sangria-tab-label">🪞 Espelho</div>
+        <div class="sangria-tab-desc">Bordas espelhadas</div>
+      </div>
+      <div class="sangria-tab" id="tab-stretch" onclick="setSangriaTipo('stretch')">
+        <div class="sangria-tab-label">↔ Expansão</div>
+        <div class="sangria-tab-desc">Borda esticada</div>
+      </div>
     </div>
+
+    <div class="info-box" id="mode-info" style="margin-top:10px;"></div>
   </div>
 
   <!-- Ações -->
@@ -411,57 +443,59 @@ body {
 // ─── Estado global ───────────────────────────────────────────────────────────
 const state = {
   templateId: 'rect',
-  modo: 'bleed',      // 'bleed' | 'exact'
+  modo: 'bleed',         // 'bleed' | 'exact'
+  sangriaTipo: 'espelho', // 'espelho' | 'stretch'  (usado só quando modo=exact)
   imgSrc: null,
   img: null,
 };
 
 // ─── Definições de templates ──────────────────────────────────────────────────
-// Todas as medidas em cm
 const TEMPLATES = {
   rect: {
     name: 'Retangular 22×18cm',
     facaW: 22, facaH: 18,
-    sangria: 0.5,      // cm de sangria de cada lado
-    cornerRadius: 1.2, // cm (cantos arredondados)
+    sangria: 0.5,
+    cornerRadius: 1.2,
     shape: 'rect',
   },
   round: {
     name: 'Redondo ⌀19cm',
     facaW: 19, facaH: 19,
     sangria: 0.5,
-    cornerRadius: 9.5, // raio = metade
+    cornerRadius: 9.5,
     shape: 'circle',
   },
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function tpl() { return TEMPLATES[state.templateId]; }
 
+// ─── Info do modo ─────────────────────────────────────────────────────────────
 function getModeInfo() {
   const t = tpl();
-  const arteW = t.facaW + t.sangria * 2;
-  const arteH = t.facaH + t.sangria * 2;
+  const arteW = (t.facaW + t.sangria * 2).toFixed(0);
+  const arteH = (t.facaH + t.sangria * 2).toFixed(0);
+  const sang  = (t.sangria * 10).toFixed(0);
+
   if (state.modo === 'bleed') {
-    if (t.shape === 'circle') {
-      return `Envie arte em <strong>${arteW.toFixed(0)}×${arteH.toFixed(0)}cm</strong> (quadrado com sangria de ${(t.sangria*10).toFixed(0)}mm). O preview mostra onde o círculo vai cortar.`;
-    }
-    return `Envie arte em <strong>${arteW.toFixed(0)}×${arteH.toFixed(0)}cm</strong> (sangria de ${(t.sangria*10).toFixed(0)}mm cada lado). O preview mostra onde a faca vai cortar.`;
+    if (t.shape === 'circle')
+      return `Envie arte em <strong>${arteW}×${arteH}cm</strong> (quadrado com sangria de ${sang}mm). O preview mostra onde o círculo vai cortar.`;
+    return `Envie arte em <strong>${arteW}×${arteH}cm</strong> (sangria de ${sang}mm cada lado). O preview mostra onde a faca vai cortar.`;
   } else {
-    if (t.shape === 'circle') {
-      return `Envie arte em <strong>${t.facaW.toFixed(0)}×${t.facaH.toFixed(0)}cm</strong>. Sangria de ${(t.sangria*10).toFixed(0)}mm será criada automaticamente espelhando as bordas.`;
-    }
-    return `Envie arte em <strong>${t.facaW.toFixed(0)}×${t.facaH.toFixed(0)}cm</strong>. Sangria de ${(t.sangria*10).toFixed(0)}mm será criada automaticamente espelhando as bordas.`;
+    const tipo = state.sangriaTipo === 'stretch'
+      ? 'Sangria gerada esticando a borda da imagem.'
+      : 'Sangria gerada espelhando as bordas da imagem.';
+    if (t.shape === 'circle')
+      return `Envie arte em <strong>${t.facaW}×${t.facaH}cm</strong> (tamanho exato do círculo). ${tipo}`;
+    return `Envie arte em <strong>${t.facaW}×${t.facaH}cm</strong> (tamanho exato da faca). ${tipo}`;
   }
 }
 
-// ─── Seleção de template ──────────────────────────────────────────────────────
+// ─── Selecionar template ──────────────────────────────────────────────────────
 function selecionarTemplate(el) {
-  document.querySelectorAll('.template-option').forEach(o => o.classList.remove('active'));
+  document.querySelectorAll('.template-option').forEach(e => e.classList.remove('active'));
   el.classList.add('active');
   state.templateId = el.dataset.id;
 
-  // Atualiza ícone de preview_empty
   const emptyIcon = document.getElementById('preview-empty').querySelector('svg');
   if (state.templateId === 'round') {
     emptyIcon.innerHTML = '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1" opacity="0.3"/>';
@@ -478,6 +512,20 @@ function setModo(modo) {
   state.modo = modo;
   document.getElementById('tab-bleed').classList.toggle('active', modo === 'bleed');
   document.getElementById('tab-exact').classList.toggle('active', modo === 'exact');
+
+  // Mostra/esconde sub-tabs de tipo de sangria
+  const sangriaTabsEl = document.getElementById('sangria-tabs');
+  sangriaTabsEl.classList.toggle('visible', modo === 'exact');
+
+  document.getElementById('mode-info').innerHTML = getModeInfo();
+  renderPreview();
+}
+
+// ─── Tipo de sangria (espelho / stretch) ──────────────────────────────────────
+function setSangriaTipo(tipo) {
+  state.sangriaTipo = tipo;
+  document.getElementById('tab-espelho').classList.toggle('active', tipo === 'espelho');
+  document.getElementById('tab-stretch').classList.toggle('active', tipo === 'stretch');
   document.getElementById('mode-info').innerHTML = getModeInfo();
   renderPreview();
 }
@@ -491,7 +539,6 @@ function carregarImagem(file) {
     const img = new Image();
     img.onload = () => {
       state.img = img;
-      // Preview no upload-zone
       const zone = document.getElementById('upload-zone');
       zone.classList.add('has-image');
       zone.innerHTML = `<img src="${e.target.result}" alt="arte">`;
@@ -503,17 +550,9 @@ function carregarImagem(file) {
   reader.readAsDataURL(file);
 }
 
-function onFileInput(input) {
-  if (input.files[0]) carregarImagem(input.files[0]);
-}
-
-function onDragOver(e) {
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.add('drag');
-}
-function onDragLeave(e) {
-  document.getElementById('upload-zone').classList.remove('drag');
-}
+function onFileInput(input) { if (input.files[0]) carregarImagem(input.files[0]); }
+function onDragOver(e)  { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag'); }
+function onDragLeave(e) { document.getElementById('upload-zone').classList.remove('drag'); }
 function onDrop(e) {
   e.preventDefault();
   document.getElementById('upload-zone').classList.remove('drag');
@@ -564,22 +603,22 @@ function renderPreview() {
   const arteW_px   = facaW_px + sangria_px * 2;
   const arteH_px   = facaH_px + sangria_px * 2;
 
-  // Canvas é sempre retangular com cantos retos (fundo da arte)
   canvas.width  = arteW_px;
   canvas.height = arteH_px;
 
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, arteW_px, arteH_px);
 
+  // Desenha a arte de acordo com o modo
   if (state.modo === 'bleed') {
-    // Arte já tem sangria — ocupa todo o canvas retangular
     ctx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
-  } else {
-    // Arte no tamanho exato da faca — expande bordas por stretch (sem espelhar)
+  } else if (state.sangriaTipo === 'stretch') {
     desenharComStretch(ctx, state.img, facaW_px, facaH_px, sangria_px);
+  } else {
+    desenharComEspelho(ctx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
   }
 
-  // Overlay: escurece a área FORA da faca (a sangria que será cortada)
+  // Overlay escurece área fora da faca
   ctx.save();
   const facaPath = criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM);
 
@@ -589,7 +628,7 @@ function renderPreview() {
   ctx.fillStyle = 'rgba(0,0,0,0.52)';
   ctx.fill('evenodd');
 
-  // Linha pontilhada magenta da faca (igual ao exemplo real)
+  // Linha da faca
   ctx.beginPath();
   facaPath(ctx);
   ctx.strokeStyle = '#e040fb';
@@ -598,7 +637,6 @@ function renderPreview() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Label
   ctx.font = 'bold 9px DM Mono, monospace';
   ctx.fillStyle = '#e040fb';
   ctx.textAlign = 'left';
@@ -613,11 +651,20 @@ function renderPreview() {
     : `Arte: ${t.facaW}×${t.facaH}cm`;
   document.getElementById('info-arte').textContent = artaCm;
   document.getElementById('info-sangria').textContent = `sangria ${(t.sangria*10).toFixed(0)}mm`;
-  document.getElementById('info-badge').textContent = state.modo === 'bleed' ? 'COM SANGRIA' : 'AUTO-SANGRIA';
-  document.getElementById('info-badge').className = 'preview-badge ' + (state.modo === 'bleed' ? 'badge-bleed' : 'badge-cut');
+
+  let badgeText, badgeClass;
+  if (state.modo === 'bleed') {
+    badgeText = 'COM SANGRIA'; badgeClass = 'badge-bleed';
+  } else if (state.sangriaTipo === 'stretch') {
+    badgeText = 'EXPANSÃO'; badgeClass = 'badge-stretch';
+  } else {
+    badgeText = 'ESPELHO'; badgeClass = 'badge-cut';
+  }
+  document.getElementById('info-badge').textContent = badgeText;
+  document.getElementById('info-badge').className = 'preview-badge ' + badgeClass;
 }
 
-// Retorna função que traça o path da faca (sempre SEM clip do canvas — canvas é reto)
+// ─── Path da faca ─────────────────────────────────────────────────────────────
 function criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
   const ox = sangria_px;
   const oy = sangria_px;
@@ -633,55 +680,87 @@ function criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
   }
 }
 
-// ─── Expansão por stretch de borda ────────────────────────────────────────────
-// Pega uma fatia fina (~SLICE px) de cada borda da imagem original e estica
-// para preencher a área de sangria. O conteúdo central não é tocado.
-// Resultado: borda suave e contínua sem espelhar texto/elementos.
+// ─── Sangria por ESPELHO ──────────────────────────────────────────────────────
+function desenharComEspelho(ctx, img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px) {
+  const sw = sangria_px;
+
+  // Centro
+  ctx.drawImage(img, sw, sw, facaW_px, facaH_px);
+
+  // Espelho esquerda
+  ctx.save();
+  ctx.translate(sw, 0); ctx.scale(-1, 1);
+  ctx.drawImage(img, 0, sw, sw, facaH_px);
+  ctx.restore();
+
+  // Espelho direita
+  ctx.save();
+  ctx.translate(sw + facaW_px, 0); ctx.scale(-1, 1);
+  ctx.drawImage(img, -(facaW_px), sw, sw, facaH_px);
+  ctx.restore();
+
+  // Espelho topo
+  ctx.save();
+  ctx.translate(0, sw); ctx.scale(1, -1);
+  ctx.drawImage(img, sw, 0, facaW_px, sw);
+  ctx.restore();
+
+  // Espelho base
+  ctx.save();
+  ctx.translate(0, sw + facaH_px); ctx.scale(1, -1);
+  ctx.drawImage(img, sw, -(facaH_px), facaW_px, sw);
+  ctx.restore();
+
+  // Cantos (pixel de canto esticado)
+  ctx.drawImage(img, 0, 0, 1, 1, 0, 0, sw, sw);
+  ctx.drawImage(img, img.width-1, 0, 1, 1, sw+facaW_px, 0, sw, sw);
+  ctx.drawImage(img, 0, img.height-1, 1, 1, 0, sw+facaH_px, sw, sw);
+  ctx.drawImage(img, img.width-1, img.height-1, 1, 1, sw+facaW_px, sw+facaH_px, sw, sw);
+}
+
+// ─── Sangria por STRETCH (estica borda) ──────────────────────────────────────
 function desenharComStretch(ctx, img, facaW_px, facaH_px, sangria_px) {
   const sw = sangria_px;
   const iw = img.width;
   const ih = img.height;
-
-  // Espessura da fatia fonte (px da imagem original)
-  // Usa ~1.5% da menor dimensão, mínimo 2px
   const SLICE = Math.max(2, Math.round(Math.min(iw, ih) * 0.015));
 
-  // ── Centro da arte (tamanho exato da faca) ──
+  // Centro
   ctx.drawImage(img, 0, 0, iw, ih, sw, sw, facaW_px, facaH_px);
 
-  // ── Borda esquerda: fatia de 1 coluna esticada ──
-  ctx.drawImage(img,
-    0, 0, SLICE, ih,          // src: fatia esquerda
-    0, sw, sw, facaH_px      // dst: sangria esquerda
-  );
+  // Borda esquerda
+  ctx.drawImage(img, 0, 0, SLICE, ih, 0, sw, sw, facaH_px);
+  // Borda direita
+  ctx.drawImage(img, iw - SLICE, 0, SLICE, ih, sw + facaW_px, sw, sw, facaH_px);
+  // Borda superior
+  ctx.drawImage(img, 0, 0, iw, SLICE, sw, 0, facaW_px, sw);
+  // Borda inferior
+  ctx.drawImage(img, 0, ih - SLICE, iw, SLICE, sw, sw + facaH_px, facaW_px, sw);
 
-  // ── Borda direita ──
-  ctx.drawImage(img,
-    iw - SLICE, 0, SLICE, ih,
-    sw + facaW_px, sw, sw, facaH_px
-  );
-
-  // ── Borda superior ──
-  ctx.drawImage(img,
-    0, 0, iw, SLICE,
-    sw, 0, facaW_px, sw
-  );
-
-  // ── Borda inferior ──
-  ctx.drawImage(img,
-    0, ih - SLICE, iw, SLICE,
-    sw, sw + facaH_px, facaW_px, sw
-  );
-
-  // ── Cantos: pixel do canto esticado em área quadrada ──
-  // Canto TL
+  // Cantos
   ctx.drawImage(img, 0, 0, SLICE, SLICE, 0, 0, sw, sw);
-  // Canto TR
   ctx.drawImage(img, iw - SLICE, 0, SLICE, SLICE, sw + facaW_px, 0, sw, sw);
-  // Canto BL
   ctx.drawImage(img, 0, ih - SLICE, SLICE, SLICE, 0, sw + facaH_px, sw, sw);
-  // Canto BR
   ctx.drawImage(img, iw - SLICE, ih - SLICE, SLICE, SLICE, sw + facaW_px, sw + facaH_px, sw, sw);
+}
+
+// ─── Função unificada: renderiza arte+sangria em um canvas offscreen ──────────
+// Usada tanto pelo PNG quanto pelo PDF
+function renderizarArteCanvas(canvas, facaW_px, facaH_px, sangria_px) {
+  const arteW_px = facaW_px + sangria_px * 2;
+  const arteH_px = facaH_px + sangria_px * 2;
+  canvas.width  = arteW_px;
+  canvas.height = arteH_px;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, arteW_px, arteH_px);
+
+  if (state.modo === 'bleed') {
+    ctx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
+  } else if (state.sangriaTipo === 'stretch') {
+    desenharComStretch(ctx, state.img, facaW_px, facaH_px, sangria_px);
+  } else {
+    desenharComEspelho(ctx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
+  }
 }
 
 // ─── PNG cortado ──────────────────────────────────────────────────────────────
@@ -695,29 +774,20 @@ async function baixarPNG() {
     const DPI = 300;
     const PX_PER_CM = DPI / 2.54;
 
-    const facaW_px = Math.round(t.facaW * PX_PER_CM);
-    const facaH_px = Math.round(t.facaH * PX_PER_CM);
-    const sangria_px = Math.round(t.sangria * PX_PER_CM);
-    const arteW_px = facaW_px + sangria_px * 2;
-    const arteH_px = facaH_px + sangria_px * 2;
+    const facaW_px   = Math.round(t.facaW   * PX_PER_CM);
+    const facaH_px   = Math.round(t.facaH   * PX_PER_CM);
+    const sangria_px = Math.round(t.sangria  * PX_PER_CM);
+    const arteW_px   = facaW_px + sangria_px * 2;
+    const arteH_px   = facaH_px + sangria_px * 2;
 
-    // Canvas com arte completa
     const arteCanvas = document.createElement('canvas');
-    arteCanvas.width = arteW_px; arteCanvas.height = arteH_px;
-    const arteCtx = arteCanvas.getContext('2d');
+    renderizarArteCanvas(arteCanvas, facaW_px, facaH_px, sangria_px);
 
-    if (state.modo === 'bleed') {
-      arteCtx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
-    } else {
-      desenharComSangria(arteCtx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
-    }
-
-    // Canvas final: clip pela faca
+    // Clip pela faca
     const outCanvas = document.createElement('canvas');
     outCanvas.width = arteW_px; outCanvas.height = arteH_px;
     const outCtx = outCanvas.getContext('2d');
 
-    // Clippath
     outCtx.save();
     outCtx.beginPath();
     if (t.shape === 'circle') {
@@ -730,11 +800,10 @@ async function baixarPNG() {
     outCtx.drawImage(arteCanvas, 0, 0);
     outCtx.restore();
 
-    // Ajusta o canvas para tamanho da faca apenas (sem sangria)
+    // Recorta só a faca (sem sangria)
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = facaW_px; finalCanvas.height = facaH_px;
-    const finalCtx = finalCanvas.getContext('2d');
-    finalCtx.drawImage(outCanvas, sangria_px, sangria_px, facaW_px, facaH_px, 0, 0, facaW_px, facaH_px);
+    finalCanvas.getContext('2d').drawImage(outCanvas, sangria_px, sangria_px, facaW_px, facaH_px, 0, 0, facaW_px, facaH_px);
 
     const a = document.createElement('a');
     a.download = `mouse_${t.facaW}x${t.facaH}cm_cortado_preview.png`;
@@ -755,48 +824,36 @@ async function baixarPDF() {
     const { jsPDF } = window.jspdf;
     const t = tpl();
 
-    // Medidas em mm
     const sangriaMM = t.sangria * 10;
-    const arteWmm = t.facaW * 10 + sangriaMM * 2;
-    const arteHmm = t.facaH * 10 + sangriaMM * 2;
-    const facaWmm = t.facaW * 10;
-    const facaHmm = t.facaH * 10;
+    const arteWmm   = t.facaW * 10 + sangriaMM * 2;
+    const arteHmm   = t.facaH * 10 + sangriaMM * 2;
+    const facaWmm   = t.facaW * 10;
+    const facaHmm   = t.facaH * 10;
 
-    // ── Página 1: Arte com sangria ────────────────────────────────────────────
     const pdf = new jsPDF({
       unit: 'mm',
       format: [arteWmm, arteHmm],
       orientation: arteWmm >= arteHmm ? 'landscape' : 'portrait',
     });
 
-    // Renderiza arte em alta res para o PDF
     const DPI = 300;
-    const PX_PER_CM = DPI / 2.54;
-    const arteWpx = Math.round(arteWmm / 10 * PX_PER_CM);
-    const arteHpx = Math.round(arteHmm / 10 * PX_PER_CM);
-    const facaWpx = Math.round(facaWmm / 10 * PX_PER_CM);
-    const facaHpx = Math.round(facaHmm / 10 * PX_PER_CM);
-    const sangriaPx = Math.round(sangriaMM / 10 * PX_PER_CM);
+    const PX_PER_CM  = DPI / 2.54;
+    const arteWpx    = Math.round(arteWmm  / 10 * PX_PER_CM);
+    const arteHpx    = Math.round(arteHmm  / 10 * PX_PER_CM);
+    const facaWpx    = Math.round(facaWmm  / 10 * PX_PER_CM);
+    const facaHpx    = Math.round(facaHmm  / 10 * PX_PER_CM);
+    const sangriaPx  = Math.round(sangriaMM / 10 * PX_PER_CM);
 
     const arteCanvas = document.createElement('canvas');
-    arteCanvas.width = arteWpx; arteCanvas.height = arteHpx;
-    const arteCtx = arteCanvas.getContext('2d');
+    renderizarArteCanvas(arteCanvas, facaWpx, facaHpx, sangriaPx);
 
-    if (state.modo === 'bleed') {
-      arteCtx.drawImage(state.img, 0, 0, arteWpx, arteHpx);
-    } else {
-      desenharComSangria(arteCtx, state.img, facaWpx, facaHpx, sangriaPx, arteWpx, arteHpx);
-    }
-
-    // Adiciona a imagem na página
     const imgData = arteCanvas.toDataURL('image/jpeg', 0.95);
     pdf.addImage(imgData, 'JPEG', 0, 0, arteWmm, arteHmm);
 
-    // Linha de corte sutil na página 1 (apenas guia visual, cor ciano)
+    // Linha de corte ciano (guia visual)
     pdf.setDrawColor(0, 200, 255);
     pdf.setLineWidth(0.1);
     if (t.shape === 'circle') {
-      // Desenha círculo
       const cxMM = sangriaMM + facaWmm / 2;
       const cyMM = sangriaMM + facaHmm / 2;
       const rMM  = facaWmm / 2;
@@ -806,26 +863,22 @@ async function baixarPDF() {
       desenharRoundRectPDF(pdf, sangriaMM, sangriaMM, facaWmm, facaHmm, r);
     }
 
-    // ── Página 2: Gabarito da faca ────────────────────────────────────────────
+    // ── Página 2: Gabarito ────────────────────────────────────────────────────
     pdf.addPage([arteWmm, arteHmm], arteWmm >= arteHmm ? 'landscape' : 'portrait');
 
-    // Fundo branco
     pdf.setFillColor(255, 255, 255);
     pdf.rect(0, 0, arteWmm, arteHmm, 'F');
 
-    // Marcações de sangria
     pdf.setDrawColor(200, 200, 200);
     pdf.setLineWidth(0.15);
     pdf.setLineDashPattern([2, 2], 0);
     pdf.rect(sangriaMM, sangriaMM, facaWmm, facaHmm);
     pdf.setLineDashPattern([], 0);
 
-    // Textos info
     pdf.setFontSize(6);
     pdf.setTextColor(150, 150, 150);
     pdf.text(`Arte: ${arteWmm.toFixed(0)}×${arteHmm.toFixed(0)}mm  |  Faca: ${facaWmm.toFixed(0)}×${facaHmm.toFixed(0)}mm  |  Sangria: ${sangriaMM.toFixed(0)}mm`, sangriaMM, sangriaMM - 2);
 
-    // Faca (linha de corte principal)
     pdf.setDrawColor(180, 0, 0);
     pdf.setLineWidth(0.25);
     pdf.setLineDashPattern([], 0);
@@ -835,20 +888,16 @@ async function baixarPDF() {
       const cyMM = sangriaMM + facaHmm / 2;
       const rMM  = facaWmm / 2;
       desenharCirculoPDF(pdf, cxMM, cyMM, rMM);
-      // Label do diâmetro
-      pdf.setFontSize(8);
-      pdf.setTextColor(180, 0, 0);
+      pdf.setFontSize(8); pdf.setTextColor(180, 0, 0);
       pdf.text(`⌀ ${t.facaW} cm`, cxMM - 5, cyMM + rMM + 5);
     } else {
       const r = t.cornerRadius * 10;
       desenharRoundRectPDF(pdf, sangriaMM, sangriaMM, facaWmm, facaHmm, r);
-      // Cotas
       pdf.setFontSize(7); pdf.setTextColor(180, 0, 0);
       pdf.text(`${t.facaW} cm`, sangriaMM + facaWmm/2 - 5, sangriaMM + facaHmm + 6);
       pdf.text(`${t.facaH} cm`, sangriaMM - 10, sangriaMM + facaHmm/2);
     }
 
-    // Leanttro watermark
     pdf.setFontSize(6); pdf.setTextColor(200, 200, 200);
     pdf.text('Gerado por Leanttro Editor de Mouse Pad', 2, arteHmm - 2);
 
@@ -860,7 +909,6 @@ async function baixarPDF() {
 
 // ─── Helpers PDF ──────────────────────────────────────────────────────────────
 function desenharCirculoPDF(pdf, cx, cy, r) {
-  // jsPDF não tem arc nativo — aproximamos com 72 segmentos
   const steps = 72;
   const pts = [];
   for (let i = 0; i <= steps; i++) {
@@ -873,17 +921,14 @@ function desenharCirculoPDF(pdf, cx, cy, r) {
 }
 
 function desenharRoundRectPDF(pdf, x, y, w, h, r) {
-  // Garante que r não é maior que metade do menor lado
   r = Math.min(r, w/2, h/2);
   const steps = 18;
-
   const corners = [
-    { cx: x + r,     cy: y + r,     startAngle: Math.PI,       sweep: Math.PI / 2 }, // TL
-    { cx: x + w - r, cy: y + r,     startAngle: 3*Math.PI / 2, sweep: Math.PI / 2 }, // TR
-    { cx: x + w - r, cy: y + h - r, startAngle: 0,             sweep: Math.PI / 2 }, // BR
-    { cx: x + r,     cy: y + h - r, startAngle: Math.PI / 2,   sweep: Math.PI / 2 }, // BL
+    { cx: x + r,     cy: y + r,     startAngle: Math.PI,       sweep: Math.PI / 2 },
+    { cx: x + w - r, cy: y + r,     startAngle: 3*Math.PI / 2, sweep: Math.PI / 2 },
+    { cx: x + w - r, cy: y + h - r, startAngle: 0,             sweep: Math.PI / 2 },
+    { cx: x + r,     cy: y + h - r, startAngle: Math.PI / 2,   sweep: Math.PI / 2 },
   ];
-
   const pts = [];
   corners.forEach(({ cx, cy, startAngle, sweep }) => {
     for (let i = 0; i <= steps; i++) {
@@ -891,8 +936,7 @@ function desenharRoundRectPDF(pdf, x, y, w, h, r) {
       pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
     }
   });
-  pts.push(pts[0]); // fecha
-
+  pts.push(pts[0]);
   for (let i = 0; i < pts.length - 1; i++) {
     pdf.line(pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y);
   }
