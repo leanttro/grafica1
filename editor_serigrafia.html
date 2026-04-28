@@ -831,18 +831,18 @@ async function baixarSerigrafiaPDF() {
       // Monta o state desta cor
       const stateCorr = buildStateParaCor(pg);
 
-      // Se tem SVG, rasteriza para PNG em alta res antes de desenhar (garante cores no jsPDF)
-      if (stateCorr._svgParaRasterizar) {
-        const resPx = Math.round(Math.max(W, H) * 20); // ~20px por mm = ~508dpi
-        stateCorr.logoDataUrl = await svgParaPngDataUrl(stateCorr._svgParaRasterizar, resPx, resPx);
-      }
-
       // Grade de lacres com tudo em preto puro nesta cor
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const ox = oxGrade + c * (W + gapH);
           const oy = oyGrade + r * (H + gapV);
-          await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
+          // Passa stateCorr sem logo para o engine (evita rasterização interna)
+          const stateParaEngine = Object.assign({}, stateCorr, { logoDataUrl: '', logoSVGString: '' });
+          await engine.drawPDF(pdf, ox, oy, W, H, stateParaEngine);
+          // Se há SVG, desenha vetorial direto sobre o PDF
+          if (stateCorr._svgVetorial) {
+            await desenharSVGVetorial(pdf, stateCorr._svgVetorial, ox, oy, W, H);
+          }
         }
       }
 
@@ -928,19 +928,16 @@ function buildStateParaCor(pg) {
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
 
-  // SVG: recoloriza para preto na camada correta
-  // logoDataUrl continua sendo o SVG recolorizado — o drawPDF do template usa addImage
-  // Para garantir que as cores aparecem, a rasterização é feita via svgParaPngDataUrl (async)
-  // Por ora passa o dataUrl SVG recolorizado; a conversão PNG é feita em baixarSerigrafiaPDF
+  // SVG: recoloriza para preto na camada correta e usa svg2pdf para desenho vetorial direto no PDF
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
     s.logoSVGString = svgPreto;
     s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
-    s._svgParaRasterizar = svgPreto; // flag para rasterizar antes do drawPDF
+    s._svgVetorial = svgPreto; // flag para desenhar vetorial direto no PDF
   } else {
     s.logoDataUrl = '';
     s.logoSVGString = '';
-    s._svgParaRasterizar = null;
+    s._svgVetorial = null;
   }
 
   return s;
