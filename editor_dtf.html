@@ -412,15 +412,42 @@ select.mini-input {
 // ESTADO
 // ══════════════════════════════════════════════════════════════════════
 const state = {
-  imagemDataUrl:   '',   // base64 ou data:image/svg+xml para qualquer tipo
-  imagemSVGString: '',   // só se for SVG (vetorial)
-  imagemTipo:      '',   // 'svg' | 'raster'
+  imagemDataUrl:   '',
+  imagemSVGString: '',
+  imagemTipo:      '',
   imagemNome:      '',
-  imagemW:         0,    // dimensões naturais (px) do arquivo
+  imagemW:         0,
   imagemH:         0,
 };
 
 const FOLHAS = { A4:[210,297], A3:[297,420], letter:[216,279] };
+
+// ══════════════════════════════════════════════════════════════════════
+// CACHE DO TEMPLATE BRANCO
+// Carrega branco.html uma única vez e reutiliza em todas as atualizações
+// de preview — elimina o fetch repetido a cada mudança de medida.
+// ══════════════════════════════════════════════════════════════════════
+let _brancoTemplateCache = null;
+
+async function getBrancoTemplate() {
+  if (_brancoTemplateCache !== null) return _brancoTemplateCache;
+  try {
+    const res = await fetch('branco.html');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    _brancoTemplateCache = await res.text();
+  } catch(e) {
+    // Fallback inline caso o fetch falhe (ex: file://)
+    _brancoTemplateCache = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;}
+img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
+</style></head>
+<body>CHAVE_IMAGEM</body></html>`;
+  }
+  return _brancoTemplateCache;
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // UPLOAD DE IMAGEM
@@ -525,8 +552,11 @@ function mostrarInfoImagem(msg) {
 
 // ══════════════════════════════════════════════════════════════════════
 // PREVIEW
+// Usa o template branco.html (cacheado) substituindo apenas CHAVE_IMAGEM.
+// O iframe recebe o HTML via srcdoc para evitar reload de página inteira —
+// só o conteúdo muda, o frame em si permanece estável.
 // ══════════════════════════════════════════════════════════════════════
-function updatePreview() {
+async function updatePreview() {
   if (!state.imagemDataUrl) return;
 
   const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
@@ -535,10 +565,11 @@ function updatePreview() {
   const frame = document.getElementById('preview-frame');
   frame.style.aspectRatio = `${wCm} / ${hCm}`;
 
-  const html = buildPreviewHTML(wCm, hCm);
+  const html = await buildPreviewHTML();
+
   const iframe = document.getElementById('preview-iframe');
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open(); doc.write(html); doc.close();
+  // srcdoc injeta o conteúdo sem navegar — muito mais rápido que doc.write
+  iframe.srcdoc = html;
 
   document.getElementById('preview-loading').style.display = 'none';
   frame.style.display = 'block';
@@ -549,16 +580,20 @@ function updatePreview() {
   atualizarInfoMontagem();
 }
 
-function buildPreviewHTML(wCm, hCm) {
-  const src = state.imagemDataUrl;
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;}
-  img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
-</style></head>
-<body><img src="${src}" alt="arte"></body></html>`;
+async function buildPreviewHTML() {
+  const tpl = await getBrancoTemplate();
+
+  // Monta o conteúdo que vai substituir CHAVE_IMAGEM
+  let conteudo;
+  if (state.imagemTipo === 'svg' && state.imagemSVGString) {
+    // SVG inline: responsivo naturalmente via CSS do template
+    conteudo = state.imagemSVGString
+      .replace(/<svg/, '<svg style="max-width:100%;max-height:100%;display:block;"');
+  } else {
+    conteudo = `<img src="${state.imagemDataUrl}" alt="arte" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`;
+  }
+
+  return tpl.replace('CHAVE_IMAGEM', conteudo);
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -630,7 +665,12 @@ function atualizarInfoMontagem() {
     el.textContent = '⚠️ Arte maior que a área útil da folha';
   else
     el.textContent = `${cols} colunas × ${rows} linhas = ${total} artes por folha`;
-  updatePreview();
+  // Só atualiza o aspect-ratio do frame (sem recarregar o iframe)
+  if (state.imagemDataUrl) {
+    const wCm2 = parseFloat(document.getElementById('arte-w').value) || 10;
+    const hCm2 = parseFloat(document.getElementById('arte-h').value) || 10;
+    document.getElementById('preview-frame').style.aspectRatio = `${wCm2} / ${hCm2}`;
+  }
 }
 
 function onFolhaChange() {
@@ -640,7 +680,7 @@ function onFolhaChange() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MARCAS DE CORTE (idênticas ao editor_serigrafia)
+// MARCAS DE CORTE E REGISTRO
 // ══════════════════════════════════════════════════════════════════════
 function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw) {
   pdf.setLineWidth(sw);
@@ -693,7 +733,7 @@ function desenharMirasFolha(pdf, fw, fh, r, sw, numPontos) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// DESENHAR ARTE NO PDF (colorida, como aparece no preview)
+// DESENHAR ARTE NO PDF
 // ══════════════════════════════════════════════════════════════════════
 async function drawArteNoPDF(pdf, ox, oy, W, H) {
   if (!state.imagemDataUrl) return;
@@ -727,7 +767,6 @@ async function drawArteNoPDF(pdf, ox, oy, W, H) {
     }
   }
 
-  // Raster (PNG/JPG ou SVG como fallback)
   const img = new Image();
   img.src = state.imagemDataUrl;
   await new Promise(r => { img.onload = r; img.onerror = r; });
@@ -742,7 +781,7 @@ async function drawArteNoPDF(pdf, ox, oy, W, H) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// DESENHAR ARTE NO CANVAS (para PNG transparente)
+// DESENHAR ARTE NO CANVAS
 // ══════════════════════════════════════════════════════════════════════
 async function drawArteNoCanvas(ctx, ox, oy, W, H, scale) {
   if (!state.imagemDataUrl) return;
@@ -789,8 +828,6 @@ ${body}
 // ══════════════════════════════════════════════════════════════════════
 // EXPORTAÇÕES
 // ══════════════════════════════════════════════════════════════════════
-
-// PNG de Aprovação (individual, fundo branco)
 async function baixarPNG() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
@@ -835,7 +872,6 @@ async function baixarPNG() {
   finally { lbl.textContent = 'Baixar PNG de Aprovação'; }
 }
 
-// SVG individual
 function baixarSVGIndividual() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
@@ -850,7 +886,6 @@ function baixarSVGIndividual() {
   } catch(e) { alert('Erro SVG: ' + e.message); }
 }
 
-// Montagem PDF + Marcas
 async function baixarMontagemPDF() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const lbl = document.getElementById('btn-mont-label');
@@ -911,9 +946,6 @@ async function baixarMontagemPDF() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// MONTAGEM PNG TRANSPARENTE (espelho exato do PDF, sem fundo)
-// ══════════════════════════════════════════════════════════════════════
 async function baixarMontagemPNG() {
   if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
   const lbl = document.getElementById('btn-mont-png-label');
@@ -933,9 +965,7 @@ async function baixarMontagemPNG() {
     const sw     = parseFloat(document.getElementById('seri-sw').value)      || 0.15;
     const regPos = parseInt(document.getElementById('seri-reg-pos').value)   || 4;
 
-    // Resolução: 300 DPI → 11.811 px/mm
     const SCALE = 11.811;
-
     const canvasW = Math.round(fw * SCALE);
     const canvasH = Math.round(fh * SCALE);
 
@@ -943,9 +973,6 @@ async function baixarMontagemPNG() {
     canvas.width  = canvasW;
     canvas.height = canvasH;
     const ctx = canvas.getContext('2d');
-
-    // Fundo TRANSPARENTE — não preenchemos nada aqui
-
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
@@ -954,7 +981,6 @@ async function baixarMontagemPNG() {
     const oxGrade = (fw - gradeW) / 2;
     const oyGrade = (fh - gradeH) / 2;
 
-    // Desenha cada cópia da arte na posição correta
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const ox = oxGrade + c * (W + gapH);
@@ -963,13 +989,9 @@ async function baixarMontagemPNG() {
       }
     }
 
-    // Marcas de corte no canvas
     desenharMarcasCorteCanvas(ctx, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw, SCALE);
-
-    // Miras de registro no canvas
     desenharMirasFolhaCanvas(ctx, fw, fh, regR, sw, regPos, SCALE);
 
-    // Download
     const a = document.createElement('a');
     const folhaKey = document.getElementById('mont-folha').value;
     const nomeFolha = folhaKey === 'custom' ? `${fw}x${fh}mm` : folhaKey;
@@ -985,7 +1007,6 @@ async function baixarMontagemPNG() {
   }
 }
 
-// Marcas de corte no Canvas (espelho do PDF)
 function desenharMarcasCorteCanvas(ctx, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw, scale) {
   ctx.save();
   ctx.strokeStyle = '#000000';
@@ -1033,7 +1054,6 @@ function desenharMarcasCorteCanvas(ctx, oxGrade, oyGrade, gradeW, gradeH, cols, 
   ctx.restore();
 }
 
-// Miras de registro no Canvas (espelho do PDF)
 function desenharMirasFolhaCanvas(ctx, fw, fh, r, sw, numPontos, scale) {
   ctx.save();
   ctx.strokeStyle = '#000000';
@@ -1064,6 +1084,8 @@ function desenharMirasFolhaCanvas(ctx, fw, fh, r, sw, numPontos, scale) {
 // ══════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════
+// Pré-carrega o template em background assim que a página abre
+getBrancoTemplate();
 carregarMedidasSalvas();
 atualizarInfoMontagem();
 </script>
