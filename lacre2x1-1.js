@@ -14,9 +14,7 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     const ln = (x1, y, x2) => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
     const lv = (x, ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
 
-    // Borda externa: usa rect em vez de 4 linhas separadas —
-    // garante que os cantos fechem perfeitamente (linhas individuais
-    // deixam lacunas com o cap padrão "butt" do jsPDF)
+    // Borda externa
     pdf.rect(ox, oy, W, H, 'S');
 
     const topH = H * 0.70;
@@ -31,7 +29,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     ln(lW, hDest, W);
     ln(lW, hDest * 2, W);
 
-    // hInfo atualizado para flex 1.4 / (1.4 + 1.2) = 1.4/2.6
     const hInfo = botH * (1.4 / 2.6);
     const yInfo = topH + hInfo;
     ln(0, yInfo, W);
@@ -53,7 +50,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
 
     pdf.setTextColor(tr,tg,tb);
     const infoText = state.vars['CHAVE_INFO'] || 'INFO';
-    // Fonte proporcional à altura da barra (65%) em vez da largura
     const fsInfo = hInfo * 0.65 * 2.835;
     pdf.setFontSize(fsInfo);
     pdf.text(infoText, ox + W/2, oy + topH + hInfo/2 + (fsInfo/2.835)*0.35, { align:'center' });
@@ -65,19 +61,48 @@ window.TemplateEngines['lacre2x1-1.html'] = {
       pdf.text(meses[i], ox + wMes*i + wMes/2, oy + yInfo + (H-yInfo)/2 + (fsMes/2.835)*0.35, { align:'center' });
     }
 
-    if (state.logoDataUrl) {
+    if (state.logoDataUrl || state.logoSVGString) {
       const pad = bw * 2;
       const lx  = ox + pad, ly = oy + pad;
       const lw  = lW - pad*2, lh = topH - pad*2;
-      const img = new Image();
-      img.src = state.logoDataUrl;
-      await new Promise(r => { img.onload=r; img.onerror=r; });
-      const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
-      let dw, dh;
-      if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
-      const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
-      const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
-      pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
+      
+      // Se for SVG e a biblioteca svg2pdf estiver disponível, usamos ela
+      if (state.logoSVGString && window.svg2pdf) {
+         try {
+            // Em vez de calcular ratio por imagem, tentamos jogar no bounding box total 
+            // e deixar o svg2pdf se virar (ele respeita viewBox se existir)
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
+            const svgEl = svgDoc.documentElement;
+            if (!svgEl.getAttribute('viewBox')) {
+                const svgw = svgEl.getAttribute('width') || '100';
+                const svgh = svgEl.getAttribute('height') || '100';
+                svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
+            }
+            svgEl.setAttribute('width', lw);
+            svgEl.setAttribute('height', lh);
+            svgEl.style.position = 'absolute';
+            svgEl.style.visibility = 'hidden';
+            document.body.appendChild(svgEl);
+            // Aqui usamos lx e ly (já com offset) para colocar o logo no PDF
+            await window.svg2pdf(svgEl, pdf, { x: lx, y: ly, width: lw, height: lh });
+            document.body.removeChild(svgEl);
+         } catch(e) {
+             console.warn('Falha no svg2pdf dentro do template:', e);
+             // fallback silently to raster if it somehow fails
+         }
+      } else if (state.logoDataUrl) {
+         // Fallback raster antigo
+         const img = new Image();
+         img.src = state.logoDataUrl;
+         await new Promise(r => { img.onload=r; img.onerror=r; });
+         const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
+         let dw, dh;
+         if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
+         const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
+         const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
+         pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
+      }
     }
   },
 
@@ -87,7 +112,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     const topH = H * 0.70, botH = H * 0.30;
     const rW = W * 0.15, lW = W - rW;
     const hDest = topH / 3;
-    // hInfo atualizado para flex 1.4 / (1.4 + 1.2) = 1.4/2.6
     const hInfo = botH * (1.4 / 2.6), yInfo = topH + hInfo;
     const wMes = W / 12;
 
@@ -95,8 +119,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
 
     let s = `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
 
-    // Borda externa: <rect> com stroke em vez de 4 linhas separadas —
-    // os cantos fecham perfeitamente com miter join
     s += `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="none" stroke="${t}" stroke-width="${r4(bw)}" stroke-linejoin="miter"/>`;
 
     const sw = `stroke="${t}" stroke-width="${r4(bw)}" stroke-linecap="square"`;
@@ -111,7 +133,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
 
     const txt = (label, cx, cy, col, fs) => `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${col}">${label}</text>`;
 
-    // fsInfo: proporcional à altura da barra (65%) em vez da largura
     const fsDest = W * 0.08, fsInfo = hInfo * 0.65, fsMes = W * 0.05;
     s += txt('26', lW+rW/2, hDest/2, d, fsDest);
     s += txt('27', lW+rW/2, hDest + hDest/2, d, fsDest);
