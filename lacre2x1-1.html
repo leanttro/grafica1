@@ -67,19 +67,20 @@
 
         .col-destaque {
             width: 15%;
-            display: table;
-            height: 100%;
+            display: flex;
+            flex-direction: column;
             border-left: var(--border-width) solid var(--cor-texto);
-            border-collapse: collapse;
         }
 
         .cell-destaque {
-            display: table-cell;
-            vertical-align: middle;
-            text-align: center;
-            height: 33.33%;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             color: var(--cor-destaque);
             font-weight: 900;
+            /* min() garante que a fonte respeite tanto largura quanto altura,
+               evitando overflow em lacres com proporção 3:1 ou mais largos */
             font-size: min(7vw, 14vh);
             line-height: 1;
             overflow: hidden;
