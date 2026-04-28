@@ -540,16 +540,46 @@ async function handleLogoVetorial(input) {
 
 async function handleLogoSVG(file) {
   const text = await file.text();
-  state.logoSVGString = text;
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'image/svg+xml');
+  const svgEl = doc.documentElement;
+  
+  let w = svgEl.getAttribute('width');
+  let h = svgEl.getAttribute('height');
+  const vb = svgEl.getAttribute('viewBox');
+  
+  if (!vb) {
+    w = w ? parseFloat(w) : 100;
+    h = h ? parseFloat(h) : 100;
+    svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  } else {
+    const parts = vb.trim().split(/[\s,]+/);
+    if (parts.length === 4) {
+      w = parseFloat(parts[2]);
+      h = parseFloat(parts[3]);
+    }
+  }
+  
+  if (w) svgEl.setAttribute('width', w);
+  if (h) svgEl.setAttribute('height', h);
+  
+  const fixedText = new XMLSerializer().serializeToString(svgEl);
+
+  state.logoSVGString = fixedText;
   state.logoFileName  = file.name;
-  state.logoSVGColors = extractSVGColors(text);
-  // dataUrl para uso no preview HTML e no drawPDF
-  state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
+  state.logoSVGColors = extractSVGColors(fixedText);
+  state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fixedText);
   state.vars['CHAVE_LOGO'] = state.logoDataUrl;
 
   const wrap = document.getElementById('logo-svg-wrap');
   const ph   = document.getElementById('logo-placeholder');
-  if (wrap) { wrap.innerHTML = text; const s = wrap.querySelector('svg'); if(s){s.style.maxWidth='100%';s.style.maxHeight='64px';} wrap.style.display='flex'; }
+  if (wrap) { 
+    wrap.innerHTML = fixedText; 
+    const s = wrap.querySelector('svg'); 
+    if(s){ s.style.maxWidth='100%'; s.style.maxHeight='64px'; } 
+    wrap.style.display='flex'; 
+  }
   if (ph) ph.style.display = 'none';
 
   const ib = document.getElementById('logo-info-box');
@@ -563,7 +593,6 @@ async function handleLogoSVG(file) {
   updatePreview();
   atualizarPagesBadges();
 }
-
 async function handleLogoPDF(file) {
   try {
     // Feedback visual básico
@@ -735,6 +764,37 @@ async function capturarCanvas(wCm, hCm) {
   const iframe    = document.getElementById('preview-iframe');
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
+
+  // 1) Redimensionar o iframe para a proporção exata do lacre
+  const RENDER_W = 900;
+  const RENDER_H = Math.round(RENDER_W * hCm / wCm);
+  const prevW = iframe.style.width, prevH = iframe.style.height;
+  const prevPos = iframe.style.position, prevLeft = iframe.style.left;
+  iframe.style.position = 'fixed';
+  iframe.style.left     = '-9999px';
+  iframe.style.width    = RENDER_W + 'px';
+  iframe.style.height   = RENDER_H + 'px';
+  await new Promise(r => setTimeout(r, 200));
+
+  // 2) Injetar CSS compatível com html2canvas para centralização vertical.
+  //    html2canvas ignora flex align-items e transform, mas respeita line-height.
+  //    Calculamos a altura real das células APÓS o reflow.
+  const fixStyle = iframeDoc.createElement('style');
+  fixStyle.id = '__h2c_fix__';
+  let fixCSS = '';
+  const cellsDest = iframeDoc.querySelectorAll('.cell-destaque');
+  const cellsMes  = iframeDoc.querySelectorAll('.cell-mes');
+  if (cellsDest.length) {
+    const h = cellsDest[0].getBoundingClientRect().height;
+    fixCSS += `.cell-destaque{display:block!important;text-align:center!important;line-height:${h}px!important;}`;
+  }
+  if (cellsMes.length) {
+    const h = cellsMes[0].getBoundingClientRect().height;
+    fixCSS += `.cell-mes{display:block!important;text-align:center!important;line-height:${h}px!important;}`;
+  }
+  fixStyle.textContent = fixCSS;
+  iframeDoc.head.appendChild(fixStyle);
+
   if (!iframeWin.html2canvas) {
     await new Promise((resolve, reject) => {
       const s = iframeDoc.createElement('script');
@@ -744,19 +804,36 @@ async function capturarCanvas(wCm, hCm) {
     });
     await new Promise(r => setTimeout(r, 300));
   }
+
   const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
     useCORS: true, allowTaint: true,
-    backgroundColor: state.fundo, logging: false, scale: 3,
+    backgroundColor: state.fundo,
+    logging: false, scale: 3,
+    width: RENDER_W, height: RENDER_H,
+    windowWidth: RENDER_W, windowHeight: RENDER_H,
+    scrollX: 0, scrollY: 0,
   });
+
+  // 3) Limpar e restaurar
+  const inj = iframeDoc.getElementById('__h2c_fix__');
+  if (inj) inj.remove();
+  iframe.style.position = prevPos;
+  iframe.style.left     = prevLeft;
+  iframe.style.width    = prevW;
+  iframe.style.height   = prevH;
+
+  // 4) Montar canvas de saída (mesma proporção: RENDER_W:RENDER_H == wCm:hCm)
   const out = document.createElement('canvas');
   out.width = wPx; out.height = hPx;
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = state.fundo;
+  ctx.fillRect(0, 0, wPx, hPx);
   ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
+
   return { canvas: out };
 }
-
 async function baixarFotoPNG() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
