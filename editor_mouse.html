@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Mouse Pad — Leanttro</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f0f10;
+  --surface: #18181b;
+  --surface2: #222226;
+  --border: #2e2e32;
+  --text: #f0f0f1;
+  --muted: #71717a;
+  --accent: #2563eb;
+  --accent-glow: rgba(37,99,235,0.18);
+  --accent2: #16a34a;
+  --accent2-glow: rgba(22,163,74,0.18);
+  --radius: 8px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  grid-template-rows: 56px 1fr;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+.topbar-brand { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.topbar-brand span { color: var(--muted); font-weight: 400; }
+.topbar-pill {
+  font-size: 10px; font-weight: 700;
+  background: var(--accent-glow); color: var(--accent);
+  border: 1px solid rgba(37,99,235,0.3);
+  padding: 3px 9px; border-radius: 99px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+
+.panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.section-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+
+.fields { display: flex; flex-direction: column; gap: 14px; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+
+select.input-base, input[type="range"].input-base {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--sans); font-size: 13px;
+  padding: 10px 12px; outline: none; transition: border-color 0.15s;
+}
+select.input-base {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+}
+select.input-base:focus { border-color: var(--accent); }
+
+.upload-area {
+  width: 100%; height: 140px;
+  background: var(--surface2); border: 1px dashed var(--border);
+  border-radius: var(--radius); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  transition: all 0.2s; position: relative; overflow: hidden;
+}
+.upload-area:hover { border-color: var(--accent); background: rgba(37,99,235,0.05); }
+.upload-area input { display: none; }
+.upload-content { display: flex; flex-direction: column; align-items: center; color: var(--muted); font-size: 11px; }
+.upload-content svg { color: var(--accent); margin-bottom: 4px; }
+.upload-preview { display: none; width: 100%; height: 100%; object-fit: cover; opacity: 0.5; position: absolute; top:0; left:0; pointer-events: none; }
+
+.actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; background: var(--accent); border: none;
+  border-radius: var(--radius); color: #fff; font-size: 14px;
+  font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary.green { background: var(--accent2); }
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 13px;
+  font-weight: 500; cursor: pointer; font-family: var(--sans);
+  transition: border-color 0.15s;
+}
+.btn-secondary:hover { border-color: #555; }
+
+.preview-area {
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px; position: relative; overflow: hidden;
+  background-image: radial-gradient(circle at center, #1a1a1c 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.preview-label {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; white-space: nowrap; z-index: 10;
+}
+.preview-label::before, .preview-label::after { content: ''; display: block; width: 40px; height: 1px; background: var(--border); }
+
+/* Sistema visual de Preview */
+.canvas-wrapper {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+  transition: all 0.3s ease;
+  background: #ffffff;
+}
+.art-image {
+  position: absolute;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+  pointer-events: none;
+}
+.cut-overlay {
+  position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  border: 2px dashed #ff00ff;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.65); /* Escurece a sangria fora da faca */
+}
+.preview-note {
+  position: absolute; bottom: 20px;
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+  background: var(--surface); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
+}
+
+.range-slider-wrap { display: flex; align-items: center; gap: 10px; }
+.range-slider-wrap span { font-size: 11px; font-family: var(--mono); color: var(--muted); width: 30px; text-align: right; }
+input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; margin-top: -6px; }
+input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">Leanttro <span>/ Facas Mouse Pad</span></div>
+  <span class="topbar-pill">Editor</span>
+  <a href="/" class="btn-secondary" style="font-size:12px; padding:6px 14px; text-decoration:none;">Sair</a>
+</div>
+
+<div class="panel">
+
+  <div>
+    <div class="section-title">Gabarito Faca</div>
+    <div class="fields">
+      <div class="field-group">
+        <label>Selecione o Formato</label>
+        <select id="select-shape" class="input-base" onchange="changeShape()">
+          <option value="rect_22_18">Retangular 22x18cm (Cantos Arredondados)</option>
+          <option value="round_19">Redondo Ø 19cm</option>
+          <option value="rect_70_30">Gamer 70x30cm (Retangular)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Imagem / Arte</div>
+    <div class="fields">
+      <div class="field-group">
+        <label>Upload da Arte (Formato final com ou sem sangria)</label>
+        <label class="upload-area">
+          <input type="file" accept="image/png, image/jpeg" id="input-image" onchange="handleImage(this)">
+          <img id="upload-preview" class="upload-preview" src="" alt="preview">
+          <div class="upload-content">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="upload-label">Clique para selecionar</span>
+          </div>
+        </label>
+      </div>
+      <div class="field-group">
+        <label>Ajuste Fino de Escala (Zoom na sangria)</label>
+        <div class="range-slider-wrap">
+          <input type="range" id="zoom-slider" min="50" max="150" value="100" class="input-base" oninput="updateZoom()">
+          <span id="zoom-val">100%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Exportação</div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="exportMockupPNG()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="btn-png-label">Baixar PNG (Visualização Cortada)</span>
+      </button>
+      <button class="btn-primary green" onclick="exportProducaoPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        </svg>
+        <span id="btn-pdf-label">Baixar PDF de Produção (2 Págs)</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="preview-area" id="preview-area">
+  <div class="preview-label">Preview Interativo da Sangria</div>
+  
+  <div class="canvas-wrapper" id="canvas-wrapper">
+    <img id="art-image" class="art-image" src="" style="display:none;">
+    
+    <div class="cut-overlay" id="cut-overlay"></div>
+  </div>
+
+  <div class="preview-note" id="preview-note">Selecione uma arte...</div>
+</div>
+
+<script>
+// Configuração das Facas (Tamanhos em cm)
+// Sangria padrão: +1cm (0.5cm de cada lado)
+const SHAPES = {
+  'rect_22_18': { w: 22, h: 18, rx: 1.5, bleed: 1, type: 'rect', name: 'Mouse Pad 22x18cm' },
+  'round_19':   { w: 19, h: 19, rx: 9.5, bleed: 1, type: 'circle', name: 'Mouse Pad Redondo 19cm' },
+  'rect_70_30': { w: 70, h: 30, rx: 1.5, bleed: 1, type: 'rect', name: 'Mouse Pad Gamer 70x30cm' }
+};
+
+const state = {
+  activeShapeKey: 'rect_22_18',
+  imageDataUrl: null,
+  zoom: 100
+};
+
+// --- CONTROLE DE PREVIEW CSS ---
+function getActiveShape() {
+  return SHAPES[state.activeShapeKey];
+}
+
+function changeShape() {
+  state.activeShapeKey = document.getElementById('select-shape').value;
+  updatePreviewCSS();
+}
+
+function handleImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.imageDataUrl = e.target.result;
+    
+    // UI Updates
+    document.getElementById('upload-preview').src = state.imageDataUrl;
+    document.getElementById('upload-preview').style.display = 'block';
+    document.getElementById('upload-label').textContent = file.name;
+    document.getElementById('upload-label').style.color = '#fff';
+    
+    document.getElementById('art-image').src = state.imageDataUrl;
+    document.getElementById('art-image').style.display = 'block';
+    
+    // Reset Zoom
+    document.getElementById('zoom-slider').value = 100;
+    state.zoom = 100;
+    document.getElementById('zoom-val').textContent = '100%';
+    
+    updatePreviewCSS();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateZoom() {
+  state.zoom = document.getElementById('zoom-slider').value;
+  document.getElementById('zoom-val').textContent = state.zoom + '%';
+  document.getElementById('art-image').style.transform = `scale(${state.zoom / 100})`;
+}
+
+function updatePreviewCSS() {
+  const shape = getActiveShape();
+  
+  // Medidas reais
+  const cutW = shape.w;
+  const cutH = shape.h;
+  const bleedW = shape.w + shape.bleed;
+  const bleedH = shape.h + shape.bleed;
+  
+  // Escala para caber na tela
+  const containerW = document.getElementById('preview-area').clientWidth - 80;
+  const containerH = document.getElementById('preview-area').clientHeight - 80;
+  const scale = Math.min(containerW / bleedW, containerH / bleedH, 20); // max 20px per cm
+  
+  // Set wrapper (Bleed Area)
+  const wrapper = document.getElementById('canvas-wrapper');
+  wrapper.style.width = `${bleedW * scale}px`;
+  wrapper.style.height = `${bleedH * scale}px`;
+  if(shape.type === 'circle') wrapper.style.borderRadius = '50%';
+  else wrapper.style.borderRadius = `${(shape.rx + (shape.bleed/2)) * scale}px`;
+
+  // Set cut overlay
+  const overlay = document.getElementById('cut-overlay');
+  overlay.style.width = `${cutW * scale}px`;
+  overlay.style.height = `${cutH * scale}px`;
+  
+  if (shape.type === 'circle') {
+    overlay.style.borderRadius = '50%';
+  } else {
+    overlay.style.borderRadius = `${shape.rx * scale}px`;
+  }
+  
+  // Info Update
+  const info = document.getElementById('preview-note');
+  info.innerHTML = `<strong>${shape.name}</strong> • Faca: ${cutW}x${cutH}cm • Arte necessária (c/ sangria): ${bleedW}x${bleedH}cm`;
+}
+
+// Inicialização
+window.addEventListener('resize', updatePreviewCSS);
+updatePreviewCSS();
+
+// --- LÓGICA DE GERAÇÃO E EXPORTAÇÃO ---
+
+async function loadImageObj() {
+  return new Promise((resolve, reject) => {
+    if (!state.imageDataUrl) return reject('Nenhuma imagem carregada');
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = state.imageDataUrl;
+  });
+}
+
+// 1. Exportar Mockup PNG (Somente a área da faca, fundo transparente)
+async function exportMockupPNG() {
+  if (!state.imageDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const btnLabel = document.getElementById('btn-png-label');
+  btnLabel.textContent = 'Gerando PNG...';
+  
+  try {
+    const shape = getActiveShape();
+    const img = await loadImageObj();
+    
+    // Resolução de saída (ex: 300dpi = 118 px/cm)
+    const pxCm = 118;
+    const canvasW = shape.w * pxCm;
+    const canvasH = shape.h * pxCm;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+    
+    // 1. Criar Máscara de Corte
+    ctx.beginPath();
+    if (shape.type === 'circle') {
+      ctx.arc(canvasW/2, canvasH/2, canvasW/2, 0, 2 * Math.PI);
+    } else {
+      const rx = shape.rx * pxCm;
+      ctx.moveTo(rx, 0);
+      ctx.lineTo(canvasW - rx, 0);
+      ctx.quadraticCurveTo(canvasW, 0, canvasW, rx);
+      ctx.lineTo(canvasW, canvasH - rx);
+      ctx.quadraticCurveTo(canvasW, canvasH, canvasW - rx, canvasH);
+      ctx.lineTo(rx, canvasH);
+      ctx.quadraticCurveTo(0, canvasH, 0, canvasH - rx);
+      ctx.lineTo(0, rx);
+      ctx.quadraticCurveTo(0, 0, rx, 0);
+    }
+    ctx.closePath();
+    ctx.clip(); // Aplica a faca
+    
+    // 2. Desenhar Imagem com "Cover" e Zoom
+    // Precisamos simular como a imagem está preenchendo a sangria, e então desenhar centrada
+    const bleedW = (shape.w + shape.bleed) * pxCm;
+    const bleedH = (shape.h + shape.bleed) * pxCm;
+    
+    const imgRatio = img.width / img.height;
+    const bleedRatio = bleedW / bleedH;
+    
+    let drawW, drawH;
+    if (imgRatio > bleedRatio) {
+      drawH = bleedH;
+      drawW = bleedH * imgRatio;
+    } else {
+      drawW = bleedW;
+      drawH = bleedW / imgRatio;
+    }
+    
+    // Aplicar Zoom do usuário
+    const z = state.zoom / 100;
+    drawW *= z;
+    drawH *= z;
+    
+    const dx = (canvasW - drawW) / 2;
+    const dy = (canvasH - drawH) / 2;
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, dx, dy, drawW, drawH);
+    
+    // Baixar
+    const a = document.createElement('a');
+    a.download = `mockup_${shape.name.replace(/ /g, '_')}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+
+  } catch(e) {
+    alert('Erro ao gerar PNG: ' + e);
+  } finally {
+    btnLabel.textContent = 'Baixar PNG (Visualização Cortada)';
+  }
+}
+
+// 2. Exportar PDF de Produção (Pág 1: Arte com Sangria, Pág 2: Vetor da Faca)
+async function exportProducaoPDF() {
+  if (!state.imageDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const btnLabel = document.getElementById('btn-pdf-label');
+  btnLabel.textContent = 'Gerando PDF...';
+  
+  try {
+    const shape = getActiveShape();
+    const img = await loadImageObj();
+    const { jsPDF } = window.jspdf;
+    
+    // Dimensões do PDF em mm = Tamanho COM sangria
+    const pdfW = (shape.w + shape.bleed) * 10;
+    const pdfH = (shape.h + shape.bleed) * 10;
+    
+    const ori = pdfW > pdfH ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ unit: 'mm', format: [pdfW, pdfH], orientation: ori });
+    
+    // PÁGINA 1: IMAGEM (com matemática de Object-fit Cover + Zoom)
+    const imgRatio = img.width / img.height;
+    const pdfRatio = pdfW / pdfH;
+    
+    let drawW, drawH;
+    if (imgRatio > pdfRatio) {
+      drawH = pdfH; drawW = pdfH * imgRatio;
+    } else {
+      drawW = pdfW; drawH = pdfW / imgRatio;
+    }
+    
+    const z = state.zoom / 100;
+    drawW *= z; drawH *= z;
+    
+    const dx = (pdfW - drawW) / 2;
+    const dy = (pdfH - drawH) / 2;
+    
+    const format = state.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+    pdf.addImage(state.imageDataUrl, format, dx, dy, drawW, drawH, undefined, 'FAST');
+    
+    // PÁGINA 2: VETOR DA FACA
+    pdf.addPage([pdfW, pdfH], ori);
+    
+    // Fundo branco opcional para não ficar transparente na visualização
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pdfW, pdfH, 'F');
+    
+    // Linha de corte em Magenta puro (C0 M100 Y0 K0 -> RGB 255,0,255)
+    pdf.setDrawColor(255, 0, 255);
+    pdf.setLineWidth(0.5); // Linha fina
+    
+    const cutW_mm = shape.w * 10;
+    const cutH_mm = shape.h * 10;
+    const marg_x = (pdfW - cutW_mm) / 2;
+    const marg_y = (pdfH - cutH_mm) / 2;
+    
+    if (shape.type === 'circle') {
+      pdf.circle(pdfW / 2, pdfH / 2, cutW_mm / 2, 'S');
+    } else {
+      const rx_mm = shape.rx * 10;
+      pdf.roundedRect(marg_x, marg_y, cutW_mm, cutH_mm, rx_mm, rx_mm, 'S');
+    }
+    
+    pdf.save(`producao_${shape.name.replace(/ /g, '_')}.pdf`);
+
+  } catch(e) {
+    alert('Erro ao gerar PDF: ' + e);
+  } finally {
+    btnLabel.textContent = 'Baixar PDF de Produção (2 Págs)';
+  }
+}
+</script>
+</body>
+</html>
