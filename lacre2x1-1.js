@@ -14,7 +14,6 @@ window.TemplateEngines['lacre2x1-1.html'] = {
     const ln = (x1, y, x2) => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
     const lv = (x, ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
 
-    // Borda externa
     pdf.rect(ox, oy, W, H, 'S');
 
     const topH = H * 0.70;
@@ -61,48 +60,46 @@ window.TemplateEngines['lacre2x1-1.html'] = {
       pdf.text(meses[i], ox + wMes*i + wMes/2, oy + yInfo + (H-yInfo)/2 + (fsMes/2.835)*0.35, { align:'center' });
     }
 
-    if (state.logoDataUrl || state.logoSVGString) {
+    if (state.logoSVGString && state.pdfRaw && window.svg2pdf) {
       const pad = bw * 2;
       const lx  = ox + pad, ly = oy + pad;
       const lw  = lW - pad*2, lh = topH - pad*2;
       
-      // Se for SVG e a biblioteca svg2pdf estiver disponível, usamos ela
-      if (state.logoSVGString && window.svg2pdf) {
-         try {
-            // Em vez de calcular ratio por imagem, tentamos jogar no bounding box total 
-            // e deixar o svg2pdf se virar (ele respeita viewBox se existir)
-            const parser = new DOMParser();
-            const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
-            const svgEl = svgDoc.documentElement;
-            if (!svgEl.getAttribute('viewBox')) {
-                const svgw = svgEl.getAttribute('width') || '100';
-                const svgh = svgEl.getAttribute('height') || '100';
-                svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
-            }
-            svgEl.setAttribute('width', lw);
-            svgEl.setAttribute('height', lh);
-            svgEl.style.position = 'absolute';
-            svgEl.style.visibility = 'hidden';
-            document.body.appendChild(svgEl);
-            // Aqui usamos lx e ly (já com offset) para colocar o logo no PDF
-            await window.svg2pdf(svgEl, pdf, { x: lx, y: ly, width: lw, height: lh });
-            document.body.removeChild(svgEl);
-         } catch(e) {
-             console.warn('Falha no svg2pdf dentro do template:', e);
-             // fallback silently to raster if it somehow fails
-         }
-      } else if (state.logoDataUrl) {
-         // Fallback raster antigo
-         const img = new Image();
-         img.src = state.logoDataUrl;
-         await new Promise(r => { img.onload=r; img.onerror=r; });
-         const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
-         let dw, dh;
-         if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
-         const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
-         const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
-         pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
+      try {
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
+        const svgEl = svgDoc.documentElement;
+        
+        if (!svgEl.getAttribute('viewBox')) {
+            const svgw = svgEl.getAttribute('width') || '100';
+            const svgh = svgEl.getAttribute('height') || '100';
+            svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
+        }
+        svgEl.setAttribute('width', lw);
+        svgEl.setAttribute('height', lh);
+        svgEl.style.position = 'absolute';
+        svgEl.style.visibility = 'hidden';
+        document.body.appendChild(svgEl);
+        
+        await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+        document.body.removeChild(svgEl);
+      } catch(e) {
+         console.warn('Falha no svg2pdf:', e);
       }
+
+    } else if (state.logoDataUrl) {
+      const pad = bw * 2;
+      const lx  = ox + pad, ly = oy + pad;
+      const lw  = lW - pad*2, lh = topH - pad*2;
+      const img = new Image();
+      img.src = state.logoDataUrl;
+      await new Promise(r => { img.onload=r; img.onerror=r; });
+      const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
+      let dw, dh;
+      if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
+      const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
+      const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
+      pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
     }
   },
 
