@@ -16,6 +16,15 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "")
 # Extensões de arquivo que podem ser servidas ao cliente
 ALLOWED_EXTENSIONS = {".html", ".js", ".css", ".png", ".jpg", ".jpeg",
                       ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
+
+# Arquivos HTML que são de sistema (não são templates de lacre)
+SYSTEM_HTML_FILES = {
+    "home.html",
+    "editor.html",
+    "editor_dtf.html",
+    "editor_serigrafia.html",
+    "editor_mouse.html",
+}
 # ──────────────────────────────────────────────────────────────────────────────
 
 if not SECRET_KEY:
@@ -43,6 +52,21 @@ def load_users() -> dict:
             username = m.group(1).lstrip('_').lower()  # USER_Fulano → fulano
             users[username] = value
     return users
+
+
+def friendly_name(filename: str) -> str:
+    """
+    Converte o nome do arquivo em um nome amigável para exibição.
+    Ex: lacre2x1-1.html → Lacre 2x1-1
+        branco.html      → Branco
+        1x1cm_numerado.html → 1x1cm Numerado
+    """
+    name = filename.replace(".html", "")
+    # Substitui underscores por espaço, preserva hífens
+    name = name.replace("_", " ")
+    # Capitaliza cada palavra
+    name = " ".join(word.capitalize() for word in name.split())
+    return name
 
 
 LOGIN_PAGE = """<!DOCTYPE html>
@@ -229,22 +253,23 @@ def convert_pdf_to_svg():
 @app.route("/api/templates")
 @login_required
 def list_templates():
-    pattern = re.compile(r'^lacre(.*)\.html$', re.IGNORECASE)
+    """
+    Lista todos os arquivos .html do diretório que não são arquivos de sistema.
+    Qualquer novo template adicionado aparece automaticamente — sem precisar
+    alterar este arquivo.
+    """
     templates = []
 
-    for fname in os.listdir(BASE_DIR):
-        m = pattern.match(fname)
-        if m:
-            sufixo = m.group(1)
-            templates.append({
-                "file": fname,
-                "name": f"Lacre {sufixo}",
-                "order": sufixo
-            })
+    for fname in sorted(os.listdir(BASE_DIR)):
+        if not fname.endswith(".html"):
+            continue
+        if fname in SYSTEM_HTML_FILES:
+            continue
 
-    templates.sort(key=lambda t: (len(t["order"]), t["order"]))
-    for t in templates:
-        del t["order"]
+        templates.append({
+            "file": fname,
+            "name": friendly_name(fname),
+        })
 
     return jsonify(templates)
 
