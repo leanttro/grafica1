@@ -369,8 +369,8 @@ body {
     <!-- Sub-tabs de tipo de sangria (só visível no modo exact) -->
     <div class="sangria-tabs" id="sangria-tabs">
       <div class="sangria-tab active" id="tab-espelho" onclick="setSangriaTipo('espelho')">
-        <div class="sangria-tab-label">🪞 Espelho</div>
-        <div class="sangria-tab-desc">Bordas espelhadas</div>
+        <div class="sangria-tab-label">🔍 Zoom/Crop</div>
+        <div class="sangria-tab-desc">Amplia e centraliza</div>
       </div>
       <div class="sangria-tab" id="tab-stretch" onclick="setSangriaTipo('stretch')">
         <div class="sangria-tab-label">↔ Expansão</div>
@@ -658,7 +658,7 @@ function renderPreview() {
   } else if (state.sangriaTipo === 'stretch') {
     badgeText = 'EXPANSÃO'; badgeClass = 'badge-stretch';
   } else {
-    badgeText = 'ESPELHO'; badgeClass = 'badge-cut';
+    badgeText = 'ZOOM/CROP'; badgeClass = 'badge-cut';
   }
   document.getElementById('info-badge').textContent = badgeText;
   document.getElementById('info-badge').className = 'preview-badge ' + badgeClass;
@@ -680,42 +680,20 @@ function criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
   }
 }
 
-// ─── Sangria por ESPELHO ──────────────────────────────────────────────────────
+// ─── Sangria por ZOOM/CROP centralizado ──────────────────────────────────────
+// Amplia a imagem levemente para preencher a sangria — mantém centro, sem espelhar
 function desenharComEspelho(ctx, img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px) {
-  const sw = sangria_px;
+  // Escala para cobrir toda a área da arte (faca + sangria) mantendo proporção
+  const scaleX = arteW_px / img.width;
+  const scaleY = arteH_px / img.height;
+  const scale  = Math.max(scaleX, scaleY); // cover: preenche tudo
 
-  // Centro
-  ctx.drawImage(img, sw, sw, facaW_px, facaH_px);
+  const drawW = img.width  * scale;
+  const drawH = img.height * scale;
+  const offsetX = (arteW_px - drawW) / 2;
+  const offsetY = (arteH_px - drawH) / 2;
 
-  // Espelho esquerda
-  ctx.save();
-  ctx.translate(sw, 0); ctx.scale(-1, 1);
-  ctx.drawImage(img, 0, sw, sw, facaH_px);
-  ctx.restore();
-
-  // Espelho direita
-  ctx.save();
-  ctx.translate(sw + facaW_px, 0); ctx.scale(-1, 1);
-  ctx.drawImage(img, -(facaW_px), sw, sw, facaH_px);
-  ctx.restore();
-
-  // Espelho topo
-  ctx.save();
-  ctx.translate(0, sw); ctx.scale(1, -1);
-  ctx.drawImage(img, sw, 0, facaW_px, sw);
-  ctx.restore();
-
-  // Espelho base
-  ctx.save();
-  ctx.translate(0, sw + facaH_px); ctx.scale(1, -1);
-  ctx.drawImage(img, sw, -(facaH_px), facaW_px, sw);
-  ctx.restore();
-
-  // Cantos (pixel de canto esticado)
-  ctx.drawImage(img, 0, 0, 1, 1, 0, 0, sw, sw);
-  ctx.drawImage(img, img.width-1, 0, 1, 1, sw+facaW_px, 0, sw, sw);
-  ctx.drawImage(img, 0, img.height-1, 1, 1, 0, sw+facaH_px, sw, sw);
-  ctx.drawImage(img, img.width-1, img.height-1, 1, 1, sw+facaW_px, sw+facaH_px, sw, sw);
+  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
 }
 
 // ─── Sangria por STRETCH (estica borda) ──────────────────────────────────────
