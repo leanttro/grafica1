@@ -65,27 +65,37 @@ window.TemplateEngines['lacre2x1-1.html'] = {
       const lx  = ox + pad, ly = oy + pad;
       const lw  = lW - pad*2, lh = topH - pad*2;
       
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
+      const svgEl = svgDoc.documentElement;
+      
+      if (!svgEl.getAttribute('viewBox')) {
+          const svgw = svgEl.getAttribute('width') || '100';
+          const svgh = svgEl.getAttribute('height') || '100';
+          svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
+      }
+      
+      svgEl.setAttribute('width', lw);
+      svgEl.setAttribute('height', lh);
+      
+      // O SEGREDO ESTÁ AQUI: Fora da tela, mas visível para o renderizador
+      svgEl.style.position = 'absolute';
+      svgEl.style.left = '-9999px';
+      svgEl.style.top = '-9999px';
+      
+      document.body.appendChild(svgEl);
+      
       try {
-        const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
-        const svgEl = svgDoc.documentElement;
-        
-        if (!svgEl.getAttribute('viewBox')) {
-            const svgw = svgEl.getAttribute('width') || '100';
-            const svgh = svgEl.getAttribute('height') || '100';
-            svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
+        if (typeof state.pdfRaw.svg === 'function') {
+          await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+        } else if (typeof window.svg2pdf === 'function') {
+          await window.svg2pdf(svgEl, state.pdfRaw, { x: lx, y: ly, width: lw, height: lh });
         }
-        svgEl.setAttribute('width', lw);
-        svgEl.setAttribute('height', lh);
-        svgEl.style.position = 'absolute';
-        svgEl.style.visibility = 'hidden';
-        document.body.appendChild(svgEl);
-        
-        await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
-        document.body.removeChild(svgEl);
       } catch(e) {
          console.warn('Falha no svg2pdf:', e);
       }
+      
+      document.body.removeChild(svgEl);
 
     } else if (state.logoDataUrl) {
       const pad = bw * 2;
