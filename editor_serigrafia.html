@@ -223,7 +223,6 @@ select.color-hex {
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* Painel de páginas estimadas */
 .pages-panel {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
@@ -398,9 +397,6 @@ select.color-hex {
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════════
-// ESTADO
-// ══════════════════════════════════════════════════════════════════════
 window.TemplateEngines = {};
 
 const state = {
@@ -418,9 +414,6 @@ const state = {
 
 const FOLHAS = { A4:[210,297], A3:[297,420], letter:[216,279] };
 
-// ══════════════════════════════════════════════════════════════════════
-// TEMPLATE
-// ══════════════════════════════════════════════════════════════════════
 async function loadTemplateEngine(filename) {
   const jsFile = filename.replace('.html', '.js');
   if (document.querySelector(`script[src="${jsFile}"]`)) return;
@@ -457,9 +450,6 @@ async function loadTemplate(filename) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// PAINEL DINÂMICO
-// ══════════════════════════════════════════════════════════════════════
 function buildDynamicPanel() {
   const keys = [...new Set((state.templateSrc.match(/CHAVE_[A-Z0-9_]+/g) || []))];
   keys.forEach(k => {
@@ -518,9 +508,6 @@ function buildDynamicPanel() {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// LOGO VETORIAL
-// ══════════════════════════════════════════════════════════════════════
 async function handleLogoVetorial(input) {
   const file = input.files[0];
   if (!file) return;
@@ -535,7 +522,6 @@ async function handleLogoSVG(file) {
   state.logoSVGString = text;
   state.logoFileName  = file.name;
   state.logoSVGColors = extractSVGColors(text);
-  // dataUrl para uso no preview HTML e no drawPDF
   state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
   state.vars['CHAVE_LOGO'] = state.logoDataUrl;
 
@@ -561,7 +547,6 @@ async function handleLogoPDF(file) {
     if (!window.pdfjsLib) {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
     }
-    // Seta workerSrc sempre (garante mesmo se lib já estava carregada)
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
@@ -574,7 +559,7 @@ async function handleLogoPDF(file) {
     state.logoDataUrl   = dataUrl;
     state.logoSVGString = '';
     state.logoFileName  = file.name;
-    state.logoSVGColors = []; // PDF raster: sem separação de cores
+    state.logoSVGColors = [];
     state.vars['CHAVE_LOGO'] = dataUrl;
 
     const wrap = document.getElementById('logo-svg-wrap');
@@ -603,7 +588,6 @@ function loadScript(src) {
   });
 }
 
-// Extrai cores únicas de um SVG como string
 function extractSVGColors(svgText) {
   const colors = new Set();
   const parser = new DOMParser();
@@ -635,9 +619,6 @@ function normalizeHex(color) {
   return '#'+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// PREVIEW
-// ══════════════════════════════════════════════════════════════════════
 function buildHTML() {
   let html = state.templateSrc;
   for (const [key, val] of Object.entries(state.vars))
@@ -657,31 +638,15 @@ function updatePreview() {
   atualizarPagesBadges();
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// SEPARAÇÃO DE CORES — LÓGICA DE PÁGINAS
-// ══════════════════════════════════════════════════════════════════════
-/*
-  Regras:
-  - FUNDO → não vira página (é o papel)
-  - TEXTO → sempre vira página; essa página recebe marcas de corte
-  - DESTAQUE → se = texto: mesma página; se diferente: página própria
-  - Logo (cores extraídas) → cada cor do logo:
-      se já existe numa página → agrupa
-      se nova → nova página
-  - Todas as páginas recebem miras ⊕ (cantos da folha)
-*/
 function calcPaginasCores() {
   const fundo    = normalizeHex(state.fundo)    || '#ffffff';
   const texto    = normalizeHex(state.texto)    || '#000000';
   const destaque = normalizeHex(state.destaque) || '#000000';
 
-  // Ordem de inserção preservada por Map
   const mapa = new Map();
 
-  // 1. Página do lacre (texto/linhas) — tem marcas de corte
   mapa.set(texto, { cor: texto, label: 'Lacre', layers: new Set(['texto']), temCorte: true });
 
-  // 2. Destaque
   if (destaque !== fundo) {
     if (mapa.has(destaque)) {
       mapa.get(destaque).layers.add('destaque');
@@ -691,7 +656,6 @@ function calcPaginasCores() {
     }
   }
 
-  // 3. Cores do logo SVG
   state.logoSVGColors.forEach(lc => {
     if (lc === fundo) return;
     if (mapa.has(lc)) {
@@ -702,7 +666,6 @@ function calcPaginasCores() {
     }
   });
 
-  // 4. Logo sem cores separadas (PDF raster ou sem cores) → gruda na página do texto
   if (state.logoDataUrl && state.logoSVGColors.length === 0 && !mapa.get(texto)?.layers.has('logo')) {
     if (mapa.has(texto)) {
       mapa.get(texto).layers.add('logo');
@@ -727,9 +690,6 @@ function atualizarPagesBadges() {
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// GERAÇÃO DO PDF DE SERIGRAFIA
-// ══════════════════════════════════════════════════════════════════════
 async function baixarSerigrafiaPDF() {
   if (!state.templateSrc) { alert('Carregue um template primeiro.'); return; }
   const engine = window.TemplateEngines[state.templateFile];
@@ -756,30 +716,15 @@ async function baixarSerigrafiaPDF() {
     const folhaKey = document.getElementById('mont-folha').value;
     const ori      = document.getElementById('mont-orientacao').value;
 
-    const pdfRaw = new jsPDF({
+    const pdf = new jsPDF({
       unit: 'mm',
       format: (folhaKey === 'letter' || folhaKey === 'custom') ? [fw, fh] : folhaKey,
       orientation: ori,
     });
 
-    // Fila para reter logos SVG e forçar o desenho vetorial em cima do template
     let filaSVG = [];
 
-    // Proxy CMYK: intercepta setFillColor e setDrawColor e bloqueia imagens SVG
-    function rgbParaCmyk(r, g, b) {
-      if (r === 255 && g === 255 && b === 255) return [0, 0, 0, 0];
-      const c = 1 - r / 255, m = 1 - g / 255, y = 1 - b / 255;
-      const k = Math.min(c, m, y);
-      if (k >= 0.95) return [0, 0, 0, 100]; 
-      return [
-        Math.round(((c - k) / (1 - k)) * 100),
-        Math.round(((m - k) / (1 - k)) * 100),
-        Math.round(((y - k) / (1 - k)) * 100),
-        Math.round(k * 100),
-      ];
-    }
-
-    const pdf = new Proxy(pdfRaw, {
+    const pdfProxy = new Proxy(pdf, {
       get(target, prop) {
         if (prop === 'addImage') {
           return function(...args) {
@@ -794,36 +739,9 @@ async function baixarSerigrafiaPDF() {
               const strData = imgData.includes('charset=utf-8,') ? imgData.split('charset=utf-8,')[1] : imgData.split(',')[1];
               const svgStr = decodeURIComponent(strData);
               filaSVG.push({ svg: svgStr, x, y, w, h });
-              return target; // Ignora a colagem como imagem rasterizada
+              return target;
             }
             return target.addImage(...args);
-          };
-        }
-        if (prop === 'setFillColor') {
-          return function(...args) {
-            if (args.length === 3) {
-              const [c, m, y, k] = rgbParaCmyk(...args);
-              return target.setFillColor(c, m, y, k);
-            }
-            return target.setFillColor(...args);
-          };
-        }
-        if (prop === 'setDrawColor') {
-          return function(...args) {
-            if (args.length === 3) {
-              const [c, m, y, k] = rgbParaCmyk(...args);
-              return target.setDrawColor(c, m, y, k);
-            }
-            return target.setDrawColor(...args);
-          };
-        }
-        if (prop === 'setTextColor') {
-          return function(...args) {
-            if (args.length === 3) {
-              const [c, m, y, k] = rgbParaCmyk(...args);
-              return target.setTextColor(c, m, y, k);
-            }
-            return target.setTextColor(...args);
           };
         }
         const val = target[prop];
@@ -854,7 +772,7 @@ async function baixarSerigrafiaPDF() {
           const oy = oyGrade + r * (H + gapV);
           
           filaSVG = []; 
-          await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
+          await engine.drawPDF(pdfProxy, ox, oy, W, H, stateCorr);
           
           for (const item of filaSVG) {
             await desenharSVGVetorial(pdf, item.svg, item.x, item.y, item.w, item.h);
