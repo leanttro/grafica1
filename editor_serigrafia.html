@@ -765,18 +765,26 @@ async function capturarCanvas(wCm, hCm) {
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
 
-  // Forçar o corpo do iframe a ter exatamente a proporção do lacre
-  // antes de capturar, para evitar distorção no PNG gerado.
+  // Redimensionar o proprio elemento iframe para a proporcao exata do lacre
+  // para que o template CSS reflua corretamente antes da captura.
   const RENDER_W = 900;
   const RENDER_H = Math.round(RENDER_W * hCm / wCm);
-  const bodyEl = iframeDoc.body;
-  const htmlEl = iframeDoc.documentElement;
-  const prevBodyStyle   = bodyEl.getAttribute('style') || '';
-  const prevHtmlStyle   = htmlEl.getAttribute('style') || '';
-  bodyEl.style.cssText += `;width:${RENDER_W}px!important;height:${RENDER_H}px!important;overflow:hidden!important;margin:0!important;padding:0!important;`;
-  htmlEl.style.cssText += `;width:${RENDER_W}px!important;height:${RENDER_H}px!important;overflow:hidden!important;`;
-  // Aguardar o reflow
-  await new Promise(r => setTimeout(r, 120));
+
+  const prevW   = iframe.style.width;
+  const prevH   = iframe.style.height;
+  const prevPos = iframe.style.position;
+  const prevLeft= iframe.style.left;
+  const prevTop = iframe.style.top;
+  const prevVis = iframe.style.visibility;
+
+  iframe.style.position   = 'fixed';
+  iframe.style.left       = '-9999px';
+  iframe.style.top        = '0';
+  iframe.style.width      = RENDER_W + 'px';
+  iframe.style.height     = RENDER_H + 'px';
+  iframe.style.visibility = 'hidden';
+
+  await new Promise(r => setTimeout(r, 200));
 
   if (!iframeWin.html2canvas) {
     await new Promise((resolve, reject) => {
@@ -789,27 +797,28 @@ async function capturarCanvas(wCm, hCm) {
   }
 
   const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
-    useCORS: true, 
-    allowTaint: true,
-    backgroundColor: state.fundo, 
-    logging: false, 
-    scale: 3,
-    width:  RENDER_W,
-    height: RENDER_H,
+    useCORS:      true,
+    allowTaint:   true,
+    backgroundColor: state.fundo,
+    logging:      false,
+    scale:        3,
+    width:        RENDER_W,
+    height:       RENDER_H,
     windowWidth:  RENDER_W,
     windowHeight: RENDER_H,
+    scrollX:      0,
+    scrollY:      0,
   });
 
-  // Restaurar estilos originais do iframe
-  bodyEl.setAttribute('style', prevBodyStyle);
-  htmlEl.setAttribute('style', prevHtmlStyle);
+  iframe.style.position   = prevPos;
+  iframe.style.left       = prevLeft;
+  iframe.style.top        = prevTop;
+  iframe.style.width      = prevW;
+  iframe.style.height     = prevH;
+  iframe.style.visibility = prevVis;
 
-  // Desenhar o canvas capturado diretamente no output,
-  // esticando para preencher exatamente wPx × hPx.
-  // Como forçamos RENDER_W/RENDER_H com a mesma proporção,
-  // não há distorção.
   const out = document.createElement('canvas');
-  out.width = wPx; 
+  out.width  = wPx;
   out.height = hPx;
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true;
@@ -817,7 +826,7 @@ async function capturarCanvas(wCm, hCm) {
   ctx.fillStyle = state.fundo;
   ctx.fillRect(0, 0, wPx, hPx);
   ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
-  
+
   return { canvas: out };
 }
 async function baixarFotoPNG() {
