@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Branco — Leanttro</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .branco-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+        }
+
+        img.arte {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Quando não houver imagem (CHAVE_IMAGEM não substituída) */
+        .sem-arte {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #aaa;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .sem-arte svg {
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="branco-container" id="container">
+        <!-- CHAVE_IMAGEM será substituída pelo editor:
+             se for src de imagem raster: <img class="arte" src="...">
+             se for SVG inline: o próprio <svg ...> 
+             Quando vazio, mostra placeholder -->
+        CHAVE_IMAGEM
+    </div>
+
+    <script>
+        // Se o container ficou com texto puro (chave não substituída ou vazio),
+        // mostra o placeholder visual.
+        (function() {
+            const c = document.getElementById('container');
+            if (!c) return;
+            const inner = c.innerHTML.trim();
+            // Considera "sem arte" se não houver tag html relevante
+            if (!inner || inner === 'CHAVE_IMAGEM' || (!inner.includes('<img') && !inner.includes('<svg'))) {
+                c.innerHTML = `
+                    <div class="sem-arte">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <span>Sem arte</span>
+                    </div>`;
+            }
+        })();
+    </script>
+</body>
+</html>
