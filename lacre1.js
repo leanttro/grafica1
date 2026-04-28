@@ -70,7 +70,34 @@ window.TemplateEngines['lacre1.html'] = {
     txt('8',  W*0.60,  y2, W*0.20, botH, T);
     txt('9',  W*0.80,  y2, W*0.20, botH, T);
 
-    if (state.logoDataUrl) {
+    if (state.logoSVGString && state.pdfRaw && window.svg2pdf) {
+      const pad = bw * 2;
+      const lx  = ox + lW + pad, ly = oy + y1 + pad;
+      const lw  = cW - pad*2,    lh = midH - pad*2;
+
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
+      const svgEl = svgDoc.documentElement;
+      
+      if (!svgEl.getAttribute('viewBox')) {
+        const svgw = svgEl.getAttribute('width') || '100';
+        const svgh = svgEl.getAttribute('height') || '100';
+        svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
+      }
+      svgEl.setAttribute('width', lw);
+      svgEl.setAttribute('height', lh);
+      svgEl.style.position = 'absolute';
+      svgEl.style.visibility = 'hidden';
+      document.body.appendChild(svgEl);
+      
+      try {
+        await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+      } catch(e) {
+        console.error('Erro no svg2pdf:', e);
+      }
+      document.body.removeChild(svgEl);
+
+    } else if (state.logoDataUrl) {
       const pad = bw * 2;
       const lx  = ox + lW + pad, ly = oy + y1 + pad;
       const lw  = cW - pad*2,    lh = midH - pad*2;
