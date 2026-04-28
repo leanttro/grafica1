@@ -829,20 +829,10 @@ async function baixarSerigrafiaPDF() {
       pdf.rect(0, 0, fw, fh, 'F');
 
       // Monta o state desta cor
-      // Monta o state desta cor
       const stateCorr = buildStateParaCor(pg);
-      
-      // NOVA LINHA: Passe a instância original do jsPDF para os templates usarem no vetor
-      stateCorr.pdfRaw = pdfRaw;
 
-      // APAGUE OU COMENTE ESTE BLOCO INTEIRO PARA PARAR DE RASTERIZAR:
-      /*
-      // Se tem SVG, rasteriza para PNG em alta res antes de desenhar (garante cores no jsPDF)
-      if (stateCorr._svgParaRasterizar) {
-        const resPx = Math.round(Math.max(W, H) * 20); // ~20px por mm = ~508dpi
-        stateCorr.logoDataUrl = await svgParaPngDataUrl(stateCorr._svgParaRasterizar, resPx, resPx);
-      }
-      */
+      // Passa a instância original do jsPDF para os motores desenharem o vetor
+      stateCorr.pdfRaw = pdfRaw;
 
       // Grade de lacres com tudo em preto puro nesta cor
       for (let r = 0; r < rows; r++) {
@@ -937,8 +927,6 @@ function buildStateParaCor(pg) {
 
   // SVG: recoloriza para preto na camada correta
   // logoDataUrl continua sendo o SVG recolorizado — o drawPDF do template usa addImage
-  // Para garantir que as cores aparecem, a rasterização é feita via svgParaPngDataUrl (async)
-  // Por ora passa o dataUrl SVG recolorizado; a conversão PNG é feita em baixarSerigrafiaPDF
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
     s.logoSVGString = svgPreto;
