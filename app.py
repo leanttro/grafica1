@@ -178,7 +178,7 @@ def index():
 @app.route("/serigrafia")
 @login_required
 def serigrafia():
-    return send_from_directory(BASE_DIR, "editor_dtf.html")
+    return send_from_directory(BASE_DIR, "editor_serigrafia.html")
 
 @app.route("/dtf")
 @login_required
