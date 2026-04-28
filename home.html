@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leanttro — Central de Editores</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0a0a0b;
+  --surface:   #111113;
+  --surface2:  #18181b;
+  --surface3:  #222226;
+  --border:    #2a2a2e;
+  --border2:   #3a3a3e;
+  --text:      #f0f0f1;
+  --muted:     #71717a;
+  --muted2:    #52525b;
+  --accent:    #2563eb;
+  --accent-g:  rgba(37,99,235,0.12);
+  --green:     #16a34a;
+  --green-g:   rgba(22,163,74,0.12);
+  --orange:    #ea580c;
+  --orange-g:  rgba(234,88,12,0.12);
+  --violet:    #7c3aed;
+  --violet-g:  rgba(124,58,237,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,11,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px; height: 60px;
+}
+.brand {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.brand em { color: var(--muted); font-style: normal; font-weight: 400; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-user {
+  font-size: 12px; color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+.logout-btn {
+  font-size: 11px; font-weight: 600;
+  color: var(--muted2); text-decoration: none;
+  border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 6px;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.3px;
+}
+.logout-btn:hover { color: var(--text); border-color: var(--border2); }
+
+/* ── HERO ── */
+.hero {
+  position: relative; z-index: 1;
+  padding: 80px 40px 64px;
+  max-width: 1100px; margin: 0 auto;
+}
+.hero-label {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 99px;
+  margin-bottom: 28px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.hero-label span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); display: block;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(36px, 5vw, 58px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.hero h1 .accent { color: var(--accent); }
+.hero-sub {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 540px;
+  font-weight: 400;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  position: relative; z-index: 1;
+  max-width: 1100px; margin: 0 auto;
+  padding: 0 40px 48px;
+  display: flex; align-items: center; gap: 16px;
+}
+.divider-line { flex: 1; height: 1px; background: var(--border); }
+.divider-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--muted2);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── CARDS GRID ── */
+.grid {
+  position: relative; z-index: 1;
+  max-width: 1100px; margin: 0 auto;
+  padding: 0 40px 80px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; padding: 0 20px 60px; }
+  .hero { padding: 56px 20px 48px; }
+  .divider { padding: 0 20px 40px; }
+  .topbar { padding: 0 20px; }
+}
+
+/* ── CARD ── */
+.card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  text-decoration: none;
+  color: inherit;
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.card::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.card:hover { transform: translateY(-2px); }
+.card:hover::before { opacity: 1; }
+
+/* Variantes de cor por editor */
+.card-lacre { --c: var(--accent); --cg: var(--accent-g); }
+.card-serigrafia { --c: var(--green); --cg: var(--green-g); }
+.card-dtf { --c: var(--orange); --cg: var(--orange-g); }
+.card-mouse { --c: var(--violet); --cg: var(--violet-g); }
+
+.card::before { background: var(--cg); }
+.card:hover { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 20px 40px rgba(0,0,0,0.3); }
+
+/* ── CARD HEADER ── */
+.card-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 16px;
+  margin-bottom: 20px;
+}
+.card-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--cg);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--c);
+}
+.card-icon svg { width: 22px; height: 22px; }
+.card-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  color: var(--c);
+  background: var(--cg);
+  border: 1px solid color-mix(in srgb, var(--c) 25%, transparent);
+  padding: 3px 9px; border-radius: 99px;
+  letter-spacing: 1px; text-transform: uppercase;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* ── CARD BODY ── */
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px; font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.card-desc {
+  font-size: 13.5px; line-height: 1.65;
+  color: var(--muted);
+  margin-bottom: 24px;
+  flex: 1;
+}
+
+/* ── STEPS ── */
+.steps-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted2); margin-bottom: 10px;
+}
+.steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+.step {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 12.5px; color: var(--muted); line-height: 1.5;
+}
+.step-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--c);
+  background: var(--cg);
+  border: 1px solid color-mix(in srgb, var(--c) 20%, transparent);
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+
+/* ── CARD FOOTER ── */
+.card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.card-formats {
+  display: flex; gap: 6px;
+}
+.fmt-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 0.8px;
+  color: var(--muted2);
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  padding: 3px 7px; border-radius: 4px;
+}
+.card-cta {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: var(--c);
+  opacity: 0.7;
+  transition: opacity 0.15s, gap 0.15s;
+}
+.card:hover .card-cta { opacity: 1; gap: 9px; }
+.card-cta svg { width: 14px; height: 14px; }
+
+/* ── FOOTER ── */
+.footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border);
+  padding: 24px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 100%;
+}
+.footer-brand {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--muted2);
+}
+.footer-tip {
+  font-size: 12px; color: var(--muted2);
+  display: flex; align-items: center; gap: 8px;
+}
+.footer-tip kbd {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 2px 7px; border-radius: 4px;
+}
+
+/* ── ANIMATIONS ── */
+.card { animation: fadeUp 0.4s ease both; }
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-label, .hero h1, .hero-sub { animation: fadeUp 0.5s ease both; }
+.hero-label { animation-delay: 0s; }
+.hero h1    { animation-delay: 0.07s; }
+.hero-sub   { animation-delay: 0.13s; }
+
+/* ── GLOW ACCENT ── */
+.hero-glow {
+  position: absolute;
+  top: -120px; right: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(ellipse, rgba(37,99,235,0.07) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand">Leanttro <em>/ Central de Editores</em></div>
+  <div class="topbar-right">
+    <span class="topbar-user">v1.0</span>
+    <a href="/logout" class="logout-btn">Sair</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-label"><span></span>Sistema online · Todos os editores</div>
+  <h1>Escolha o <span class="accent">editor</span><br>certo para seu projeto</h1>
+  <p class="hero-sub">
+    Cada editor foi desenvolvido para um tipo específico de impressão.
+    Selecione abaixo, siga os passos e exporte o arquivo pronto para a gráfica.
+  </p>
+</section>
+
+<!-- DIVIDER -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-label">Editores disponíveis</div>
+  <div class="divider-line"></div>
+</div>
+
+<!-- CARDS -->
+<main class="grid">
+
+  <!-- LACRE / ETIQUETA -->
+  <a class="card card-lacre" href="/lacre">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <polyline points="9 12 11 14 15 10"/>
+        </svg>
+      </div>
+      <div class="card-badge">Lacre · Etiqueta</div>
+    </div>
+
+    <div class="card-title">Editor de Lacre / Etiqueta Digital</div>
+    <div class="card-desc">
+      Crie lacres adesivos personalizados com logo, cores e texto do seu cliente.
+      Ideal para e-commerce, cosméticos, confeitaria e embalagens em geral.
+      O editor calcula automaticamente quantas peças cabem por folha e exporta o PDF pronto para impressão offset ou digital.
+    </div>
+
+    <div class="steps-title">Como usar</div>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span>Escolha o template de lacre (forma e layout)</div>
+      <div class="step"><span class="step-num">2</span>Defina cores de fundo, texto e destaque</div>
+      <div class="step"><span class="step-num">3</span>Faça upload do logo do cliente (PNG, JPG ou SVG)</div>
+      <div class="step"><span class="step-num">4</span>Configure dimensões em cm e a montagem por folha</div>
+      <div class="step"><span class="step-num">5</span>Exporte PNG ou PDF pronto para gráfica</div>
+    </div>
+
+    <div class="card-footer">
+      <div class="card-formats">
+        <span class="fmt-tag">PNG</span>
+        <span class="fmt-tag">PDF</span>
+        <span class="fmt-tag">OFFSET</span>
+      </div>
+      <div class="card-cta">
+        Abrir editor
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </div>
+  </a>
+
+  <!-- SERIGRAFIA -->
+  <a class="card card-serigrafia" href="/serigrafia">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+          <circle cx="16" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div class="card-badge">Serigrafia</div>
+    </div>
+
+    <div class="card-title">Editor de Serigrafia</div>
+    <div class="card-desc">
+      Desenvolvido para impressão serigrâmica (silk screen). O diferencial é a
+      <strong style="color:var(--green);font-weight:500;">separação automática de cores por página</strong>:
+      o editor lê o SVG do logo, detecta cada tinta e gera um PDF com páginas separadas — fundo, texto, destaque e cores do logo — exatamente como a serigrafia precisa para gravar as telas.
+    </div>
+
+    <div class="steps-title">Como usar</div>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span>Selecione o template de lacre desejado</div>
+      <div class="step"><span class="step-num">2</span>Faça upload do logo em SVG ou PDF vetorial</div>
+      <div class="step"><span class="step-num">3</span>Defina as cores: fundo, texto e destaque</div>
+      <div class="step"><span class="step-num">4</span>Veja as cores detectadas e as páginas geradas</div>
+      <div class="step"><span class="step-num">5</span>Exporte o PDF com separação de cores por tela</div>
+    </div>
+
+    <div class="card-footer">
+      <div class="card-formats">
+        <span class="fmt-tag">SVG</span>
+        <span class="fmt-tag">PDF</span>
+        <span class="fmt-tag">SILK</span>
+      </div>
+      <div class="card-cta">
+        Abrir editor
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </div>
+  </a>
+
+  <!-- DTF -->
+  <a class="card card-dtf" href="/dtf">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="card-badge">DTF · Transfer</div>
+    </div>
+
+    <div class="card-title">Editor DTF / Transfer</div>
+    <div class="card-desc">
+      Para impressão DTF (Direct To Film) e transfer em geral. Aceita SVG e PDF vetorial — o servidor converte PDF para SVG automaticamente.
+      Calcula montagem em grade para aproveitar ao máximo cada folha, com suporte a diferentes formatos de papel e configuração de margens e espaçamento.
+    </div>
+
+    <div class="steps-title">Como usar</div>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span>Faça upload da arte em SVG, PDF vetorial, PNG ou JPG</div>
+      <div class="step"><span class="step-num">2</span>Informe as dimensões da arte em cm (largura × altura)</div>
+      <div class="step"><span class="step-num">3</span>Salve medidas frequentes para reutilizar depois</div>
+      <div class="step"><span class="step-num">4</span>Configure o tamanho da folha e o espaçamento da grade</div>
+      <div class="step"><span class="step-num">5</span>Exporte o PDF de montagem otimizado</div>
+    </div>
+
+    <div class="card-footer">
+      <div class="card-formats">
+        <span class="fmt-tag">SVG</span>
+        <span class="fmt-tag">PDF</span>
+        <span class="fmt-tag">DTF</span>
+      </div>
+      <div class="card-cta">
+        Abrir editor
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </div>
+  </a>
+
+  <!-- MOUSE PAD -->
+  <a class="card card-mouse" href="/mousepad">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="4" width="18" height="16" rx="5"/>
+          <line x1="12" y1="4" x2="12" y2="20"/>
+          <circle cx="16.5" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div class="card-badge">Mouse Pad</div>
+    </div>
+
+    <div class="card-title">Editor de Mouse Pad</div>
+    <div class="card-desc">
+      Específico para mouse pads personalizados nos formatos retangular (22×18cm) e redondo (⌀19cm).
+      O <strong style="color:var(--violet);font-weight:500;">modo sangria inteligente</strong> permite enviar a arte já com sangria ou deixar o editor expandir as bordas automaticamente. O contorno de corte é exibido em linha pontilhada magenta — igual ao padrão usado pelas gráficas.
+    </div>
+
+    <div class="steps-title">Como usar</div>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span>Escolha o formato: retangular ou redondo</div>
+      <div class="step"><span class="step-num">2</span>Selecione o modo: arte com sangria ou tamanho exato</div>
+      <div class="step"><span class="step-num">3</span>Faça upload da arte (PNG, JPG ou WEBP)</div>
+      <div class="step"><span class="step-num">4</span>Confira o preview com o contorno de corte</div>
+      <div class="step"><span class="step-num">5</span>Baixe o PNG final ou exporte em PDF</div>
+    </div>
+
+    <div class="card-footer">
+      <div class="card-formats">
+        <span class="fmt-tag">PNG</span>
+        <span class="fmt-tag">PDF</span>
+        <span class="fmt-tag">SUBLIMAÇÃO</span>
+      </div>
+      <div class="card-cta">
+        Abrir editor
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </div>
+  </a>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-brand">Leanttro Tecnologia © 2025</div>
+  <div class="footer-tip">
+    <kbd>clique</kbd> em qualquer card para abrir o editor
+  </div>
+</footer>
+
+</body>
+</html>
