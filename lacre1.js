@@ -84,17 +84,27 @@ window.TemplateEngines['lacre1.html'] = {
         const svgh = svgEl.getAttribute('height') || '100';
         svgEl.setAttribute('viewBox', `0 0 ${parseFloat(svgw)} ${parseFloat(svgh)}`);
       }
+      
       svgEl.setAttribute('width', lw);
       svgEl.setAttribute('height', lh);
+      
+      // O SEGREDO ESTÁ AQUI: Fora da tela, mas visível para o renderizador
       svgEl.style.position = 'absolute';
-      svgEl.style.visibility = 'hidden';
+      svgEl.style.left = '-9999px';
+      svgEl.style.top = '-9999px';
+      
       document.body.appendChild(svgEl);
       
       try {
-        await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+        if (typeof state.pdfRaw.svg === 'function') {
+          await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+        } else if (typeof window.svg2pdf === 'function') {
+          await window.svg2pdf(svgEl, state.pdfRaw, { x: lx, y: ly, width: lw, height: lh });
+        }
       } catch(e) {
         console.error('Erro no svg2pdf:', e);
       }
+      
       document.body.removeChild(svgEl);
 
     } else if (state.logoDataUrl) {
