@@ -828,19 +828,6 @@ async function baixarPDF() {
     const imgData = arteCanvas.toDataURL('image/jpeg', 0.95);
     pdf.addImage(imgData, 'JPEG', 0, 0, arteWmm, arteHmm);
 
-    // Linha de corte ciano (guia visual)
-    pdf.setDrawColor(0, 200, 255);
-    pdf.setLineWidth(0.1);
-    if (t.shape === 'circle') {
-      const cxMM = sangriaMM + facaWmm / 2;
-      const cyMM = sangriaMM + facaHmm / 2;
-      const rMM  = facaWmm / 2;
-      desenharCirculoPDF(pdf, cxMM, cyMM, rMM);
-    } else {
-      const r = t.cornerRadius * 10;
-      desenharRoundRectPDF(pdf, sangriaMM, sangriaMM, facaWmm, facaHmm, r);
-    }
-
     // ── Página 2: Gabarito ────────────────────────────────────────────────────
     pdf.addPage([arteWmm, arteHmm], arteWmm >= arteHmm ? 'landscape' : 'portrait');
 
