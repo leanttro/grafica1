@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor DTF — Leanttro</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
+<style>
+:root {
+  --bg:        #0f0f10;
+  --surface:   #18181b;
+  --surface2:  #222226;
+  --border:    #2e2e32;
+  --text:      #f0f0f1;
+  --muted:     #71717a;
+  --accent:    #e05c00;
+  --accent-glow: rgba(224,92,0,0.18);
+  --accent2:   #16a34a;
+  --accent2-glow: rgba(22,163,74,0.18);
+  --radius:    8px;
+  --mono:      'DM Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  grid-template-rows: 56px 1fr;
+}
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+}
+.topbar-brand { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.topbar-brand span { color: var(--muted); font-weight: 400; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-pill {
+  font-size: 10px; font-weight: 700;
+  background: rgba(224,92,0,0.12); color: #fb923c;
+  border: 1px solid rgba(224,92,0,0.25);
+  padding: 3px 9px; border-radius: 99px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.section-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.divider { height: 1px; background: var(--border); margin: 2px 0; }
+.fetch-error {
+  font-size: 12px; color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--radius); padding: 10px 12px; display: none;
+}
+.fields { display: flex; flex-direction: column; gap: 14px; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.color-hex {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  padding: 8px 12px; outline: none; transition: border-color 0.15s;
+  width: 100%;
+}
+.color-hex:focus { border-color: var(--accent); }
+select.color-hex {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+}
+.logo-preview-box {
+  width: 100%; height: 120px;
+  background: var(--surface2); border: 1px dashed var(--border);
+  border-radius: var(--radius); display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+  position: relative;
+}
+.logo-placeholder { color: var(--muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.logo-placeholder svg { opacity: 0.35; }
+.logo-preview-box img { max-width: 100%; max-height: 116px; object-fit: contain; }
+.logo-svg-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 4px; }
+.logo-svg-wrap svg { max-width: 100%; max-height: 112px; }
+.logo-info-box {
+  font-size: 10px; color: var(--muted); font-family: var(--mono);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; line-height: 1.6;
+  display: none;
+}
+.logo-info-box.visible { display: block; }
+.logo-info-box strong { color: var(--text); font-weight: 600; }
+.btn-upload {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 13px;
+  font-weight: 500; cursor: pointer; font-family: var(--sans);
+  transition: border-color 0.15s;
+}
+.btn-upload:hover { border-color: #555; }
+.btn-upload input { display: none; }
+.montagem-config {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.montagem-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.montagem-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+.mini-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 3px; display: block;
+}
+.mini-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+  font-family: var(--mono); font-size: 12px;
+  padding: 6px 10px; outline: none; transition: border-color 0.15s;
+}
+.mini-input:focus { border-color: var(--accent); }
+select.mini-input {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px;
+}
+.montagem-info {
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+  padding: 6px 8px; background: var(--bg); border-radius: 6px;
+  border: 1px solid var(--border); text-align: center;
+}
+.seri-config {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; background: var(--accent); border: none;
+  border-radius: var(--radius); color: #fff; font-size: 14px;
+  font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary.green { background: var(--accent2); }
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 13px;
+  font-weight: 500; cursor: pointer; font-family: var(--sans);
+  transition: border-color 0.15s; text-decoration: none;
+}
+.btn-secondary:hover { border-color: #555; }
+.preview-area {
+  background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px; gap: 16px; position: relative;
+}
+.preview-label {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.preview-label::before, .preview-label::after {
+  content: ''; display: block; width: 40px; height: 1px; background: var(--border);
+}
+.preview-frame {
+  width: min(460px, 100%); border-radius: 4px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative;
+  transition: aspect-ratio 0.2s ease;
+}
+.preview-frame iframe { width: 100%; height: 100%; border: none; display: block; }
+.preview-note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.preview-loading {
+  width: min(460px, 100%); aspect-ratio: 1/1;
+  border-radius: 4px; background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 12px; flex-direction: column; gap: 10px;
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.custom-sheet-row { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.custom-sheet-row.visible { display: grid; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">Leanttro <span>/ DTF</span></div>
+  <div class="topbar-right">
+    <span class="topbar-pill">Editor DTF</span>
+    <a href="/" class="btn-secondary" style="font-size:12px;padding:6px 14px;">← Lacres</a>
+    <a href="/logout" class="btn-secondary" style="font-size:12px;padding:6px 14px;">Sair</a>
+  </div>
+</div>
+
+<div class="panel">
+
+  <!-- IMAGEM -->
+  <div>
+    <div class="section-title">Imagem / Arte</div>
+    <div class="fields">
+      <div class="field-group">
+        <label>Arquivo — SVG, PDF, PNG ou JPG</label>
+        <div class="logo-preview-box" id="img-box">
+          <div class="logo-placeholder" id="img-placeholder">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Sem arte</span>
+          </div>
+          <div id="img-svg-wrap" class="logo-svg-wrap" style="display:none;"></div>
+          <img id="img-raster" src="" alt="" style="display:none; max-width:100%; max-height:116px; object-fit:contain;">
+        </div>
+        <div class="logo-info-box" id="img-info-box"></div>
+        <label class="btn-upload" style="margin-top:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload SVG / PDF / PNG / JPG
+          <input type="file" accept=".svg,.pdf,.png,.jpg,.jpeg,.webp" onchange="handleImagem(this)">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIDAS -->
+  <div>
+    <div class="section-title">Medidas da Arte (cm)</div>
+    <div class="fields">
+      <div class="field-group">
+        <div class="row-2">
+          <input type="number" id="arte-w" class="color-hex" placeholder="Largura" value="10" step="0.1" min="0.5" oninput="atualizarInfoMontagem()">
+          <input type="number" id="arte-h" class="color-hex" placeholder="Altura"  value="10" step="0.1" min="0.5" oninput="atualizarInfoMontagem()">
+        </div>
+        <button class="btn-secondary" onclick="salvarMedida()" style="margin-top:6px;font-size:11px;padding:6px;">Salvar Medida Atual</button>
+        <select id="medidas-salvas" class="color-hex" style="margin-top:6px;" onchange="carregarMedida(this.value)">
+          <option value="">Medidas Salvas...</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONTAGEM -->
+  <div>
+    <div class="section-title">Montagem para Impressão</div>
+    <div class="montagem-config">
+      <div class="montagem-row">
+        <div>
+          <span class="mini-label">Folha / Rolo</span>
+          <select id="mont-folha" class="mini-input" onchange="onFolhaChange()">
+            <option value="A4">A4 (210×297mm)</option>
+            <option value="A3">A3 (297×420mm)</option>
+            <option value="letter">Carta (216×279mm)</option>
+            <option value="custom">Personalizado...</option>
+          </select>
+          <div class="custom-sheet-row" id="custom-sheet-row">
+            <div>
+              <span class="mini-label">Larg. (mm)</span>
+              <input type="number" id="custom-fw" class="mini-input" value="210" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
+            </div>
+            <div>
+              <span class="mini-label">Alt. (mm)</span>
+              <input type="number" id="custom-fh" class="mini-input" value="297" min="50" max="2000" step="1" oninput="atualizarInfoMontagem()">
+            </div>
+          </div>
+        </div>
+        <div>
+          <span class="mini-label">Orientação</span>
+          <select id="mont-orientacao" class="mini-input" onchange="atualizarInfoMontagem()">
+            <option value="portrait">Retrato</option>
+            <option value="landscape">Paisagem</option>
+          </select>
+        </div>
+      </div>
+      <div class="montagem-row triple">
+        <div>
+          <span class="mini-label">Margem (mm)</span>
+          <input type="number" id="mont-margem" class="mini-input" value="5" min="0" max="30" step="1" oninput="atualizarInfoMontagem()">
+        </div>
+        <div>
+          <span class="mini-label">Espaço H (mm)</span>
+          <input type="number" id="mont-gap-h" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
+        </div>
+        <div>
+          <span class="mini-label">Espaço V (mm)</span>
+          <input type="number" id="mont-gap-v" class="mini-input" value="3" min="0" max="30" step="0.5" oninput="atualizarInfoMontagem()">
+        </div>
+      </div>
+      <div class="montagem-info" id="mont-info">Calculando...</div>
+    </div>
+  </div>
+
+  <!-- MARCAS -->
+  <div>
+    <div class="section-title">Marcas de Corte e Registro</div>
+    <div class="seri-config">
+      <div class="montagem-row">
+        <div>
+          <span class="mini-label">Comp. corte (mm)</span>
+          <input type="number" id="seri-cut-len" class="mini-input" value="5" min="2" max="20" step="0.5">
+        </div>
+        <div>
+          <span class="mini-label">Gap da marca (mm)</span>
+          <input type="number" id="seri-cut-gap" class="mini-input" value="2" min="0.5" max="10" step="0.5">
+        </div>
+      </div>
+      <div class="montagem-row">
+        <div>
+          <span class="mini-label">Raio mira ⊕ (mm)</span>
+          <input type="number" id="seri-reg-r" class="mini-input" value="3" min="1" max="10" step="0.5">
+        </div>
+        <div>
+          <span class="mini-label">Espessura traço (mm)</span>
+          <input type="number" id="seri-sw" class="mini-input" value="0.15" min="0.05" max="1" step="0.05">
+        </div>
+      </div>
+      <div>
+        <span class="mini-label">Posição das miras ⊕</span>
+        <select id="seri-reg-pos" class="mini-input">
+          <option value="4">4 cantos da folha</option>
+          <option value="8">8 pontos (cantos + meios)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div>
+    <div class="section-title">Ações</div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="baixarPNG()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="btn-png-label">Baixar PNG de Aprovação</span>
+      </button>
+      <button class="btn-secondary" onclick="baixarSVGIndividual()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span id="btn-svg-label">Baixar SVG (vetor editável)</span>
+      </button>
+      <button class="btn-primary green" onclick="baixarMontagemPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+        <span id="btn-mont-label">Baixar Montagem PDF + Marcas</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- PREVIEW -->
+<div class="preview-area">
+  <div class="preview-label">Preview ao vivo</div>
+
+  <div class="preview-loading" id="preview-loading">
+    <div class="spinner"></div>
+    <span>Aguardando arte…</span>
+  </div>
+
+  <div class="preview-frame" id="preview-frame" style="display:none; aspect-ratio: 1/1;">
+    <iframe id="preview-iframe" title="Preview DTF"></iframe>
+  </div>
+
+  <div class="preview-note" id="preview-note" style="display:none;"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════════════════════════════
+const state = {
+  imagemDataUrl:   '',   // base64 ou data:image/svg+xml para qualquer tipo
+  imagemSVGString: '',   // só se for SVG (vetorial)
+  imagemTipo:      '',   // 'svg' | 'raster'
+  imagemNome:      '',
+  imagemW:         0,    // dimensões naturais (px) do arquivo
+  imagemH:         0,
+};
+
+const FOLHAS = { A4:[210,297], A3:[297,420], letter:[216,279] };
+
+// ══════════════════════════════════════════════════════════════════════
+// UPLOAD DE IMAGEM
+// ══════════════════════════════════════════════════════════════════════
+async function handleImagem(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'svg') {
+    await handleSVG(file);
+  } else if (ext === 'pdf') {
+    await handlePDF(file);
+  } else {
+    await handleRaster(file);
+  }
+  updatePreview();
+}
+
+async function handleSVG(file) {
+  const text = await file.text();
+  state.imagemSVGString = text;
+  state.imagemDataUrl   = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
+  state.imagemTipo      = 'svg';
+  state.imagemNome      = file.name;
+
+  // Extrair dimensões do viewBox ou width/height
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(text, 'image/svg+xml');
+  const svgEl  = doc.documentElement;
+  const vb     = svgEl.getAttribute('viewBox');
+  if (vb) {
+    const parts = vb.split(/[\s,]+/);
+    state.imagemW = parseFloat(parts[2]) || 100;
+    state.imagemH = parseFloat(parts[3]) || 100;
+  } else {
+    state.imagemW = parseFloat(svgEl.getAttribute('width'))  || 100;
+    state.imagemH = parseFloat(svgEl.getAttribute('height')) || 100;
+  }
+
+  // Preview no painel
+  const wrap = document.getElementById('img-svg-wrap');
+  const ph   = document.getElementById('img-placeholder');
+  const rst  = document.getElementById('img-raster');
+  if (wrap) { wrap.innerHTML = text; const s = wrap.querySelector('svg'); if(s){s.style.maxWidth='100%';s.style.maxHeight='112px';} wrap.style.display='flex'; }
+  if (ph)  ph.style.display  = 'none';
+  if (rst) rst.style.display = 'none';
+  mostrarInfoImagem(`SVG vetorial — ${Math.round(state.imagemW)}×${Math.round(state.imagemH)}px`);
+}
+
+async function handlePDF(file) {
+  const ib = document.getElementById('img-info-box');
+  if (ib) { ib.classList.add('visible'); ib.innerHTML = `<strong>${file.name}</strong><br><span style="color:var(--accent);">Processando PDF no servidor...</span>`; }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/convert-pdf-to-svg', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error(await res.text() || 'Falha na conversão.');
+    const svgText = await res.text();
+    const fakeSVG = new File([svgText], file.name.replace('.pdf', '.svg'), { type: 'image/svg+xml' });
+    await handleSVG(fakeSVG);
+    mostrarInfoImagem(`PDF → SVG — ${file.name}`);
+  } catch(e) {
+    if (ib) ib.innerHTML = `<strong>${file.name}</strong><br><span style="color:#f87171;">Erro na conversão: ${e.message}</span>`;
+    console.error(e);
+  }
+}
+
+async function handleRaster(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      state.imagemDataUrl   = e.target.result;
+      state.imagemSVGString = '';
+      state.imagemTipo      = 'raster';
+      state.imagemNome      = file.name;
+
+      const img = new Image();
+      img.onload = () => {
+        state.imagemW = img.naturalWidth;
+        state.imagemH = img.naturalHeight;
+
+        const ph   = document.getElementById('img-placeholder');
+        const wrap = document.getElementById('img-svg-wrap');
+        const rst  = document.getElementById('img-raster');
+        if (ph)   ph.style.display   = 'none';
+        if (wrap) wrap.style.display = 'none';
+        if (rst)  { rst.src = e.target.result; rst.style.display = 'block'; }
+        mostrarInfoImagem(`Raster — ${img.naturalWidth}×${img.naturalHeight}px — ${file.name}`);
+        resolve();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function mostrarInfoImagem(msg) {
+  const ib = document.getElementById('img-info-box');
+  if (!ib) return;
+  ib.classList.add('visible');
+  ib.innerHTML = `<strong>${state.imagemNome}</strong><br>${msg}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PREVIEW
+// ══════════════════════════════════════════════════════════════════════
+function updatePreview() {
+  if (!state.imagemDataUrl) return;
+
+  const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
+  const hCm = parseFloat(document.getElementById('arte-h').value) || 10;
+
+  const frame = document.getElementById('preview-frame');
+  frame.style.aspectRatio = `${wCm} / ${hCm}`;
+
+  const html = buildPreviewHTML(wCm, hCm);
+  const iframe = document.getElementById('preview-iframe');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+
+  document.getElementById('preview-loading').style.display = 'none';
+  frame.style.display = 'block';
+  const note = document.getElementById('preview-note');
+  note.style.display = 'block';
+  note.textContent = `${state.imagemNome} — ${wCm}×${hCm}cm`;
+
+  atualizarInfoMontagem();
+}
+
+function buildPreviewHTML(wCm, hCm) {
+  const src = state.imagemDataUrl;
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;}
+  img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
+</style></head>
+<body><img src="${src}" alt="arte"></body></html>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MEDIDAS
+// ══════════════════════════════════════════════════════════════════════
+function salvarMedida() {
+  const w = document.getElementById('arte-w').value;
+  const h = document.getElementById('arte-h').value;
+  if (!w || !h) return;
+  const nome = prompt('Nome para essa medida:');
+  if (!nome) return;
+  const salvas = JSON.parse(localStorage.getItem('leanttro_medidas_dtf') || '{}');
+  salvas[nome] = { w, h };
+  localStorage.setItem('leanttro_medidas_dtf', JSON.stringify(salvas));
+  carregarMedidasSalvas();
+}
+
+function carregarMedidasSalvas() {
+  const salvas = JSON.parse(localStorage.getItem('leanttro_medidas_dtf') || '{}');
+  const sel = document.getElementById('medidas-salvas');
+  sel.innerHTML = '<option value="">Medidas Salvas...</option>';
+  for (const [nome, val] of Object.entries(salvas))
+    sel.innerHTML += `<option value="${val.w}|${val.h}">${nome} (${val.w}×${val.h}cm)</option>`;
+}
+
+function carregarMedida(val) {
+  if (!val) return;
+  const [w, h] = val.split('|');
+  document.getElementById('arte-w').value = w;
+  document.getElementById('arte-h').value = h;
+  updatePreview();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MONTAGEM
+// ══════════════════════════════════════════════════════════════════════
+function calcMontagem() {
+  const wCm = parseFloat(document.getElementById('arte-w').value) || 1;
+  const hCm = parseFloat(document.getElementById('arte-h').value) || 1;
+  const folhaKey = document.getElementById('mont-folha').value;
+  const ori  = document.getElementById('mont-orientacao').value;
+  const marg = parseFloat(document.getElementById('mont-margem').value) || 5;
+  const gapH = parseFloat(document.getElementById('mont-gap-h').value) || 0;
+  const gapV = parseFloat(document.getElementById('mont-gap-v').value) || 0;
+
+  let fw, fh;
+  if (folhaKey === 'custom') {
+    fw = parseFloat(document.getElementById('custom-fw').value) || 210;
+    fh = parseFloat(document.getElementById('custom-fh').value) || 297;
+  } else {
+    [fw, fh] = FOLHAS[folhaKey];
+  }
+  if (ori === 'landscape') [fw, fh] = [fh, fw];
+
+  const W = wCm * 10, H = hCm * 10;
+  const areaW = fw - marg * 2, areaH = fh - marg * 2;
+  const TOL = 0.001;
+  const colsRaw = Math.max(0, Math.floor((areaW + gapH + TOL) / (W + gapH)));
+  const rowsRaw = Math.max(0, Math.floor((areaH + gapV + TOL) / (H + gapV)));
+  const cols = (colsRaw * W + (colsRaw - 1) * gapH) <= areaW + TOL ? colsRaw : colsRaw - 1;
+  const rows = (rowsRaw * H + (rowsRaw - 1) * gapV) <= areaH + TOL ? rowsRaw : rowsRaw - 1;
+  return { wCm, hCm, W, H, fw, fh, marg, gapH, gapV, cols, rows, total: cols * rows };
+}
+
+function atualizarInfoMontagem() {
+  const { wCm, hCm, cols, rows, total } = calcMontagem();
+  const el = document.getElementById('mont-info');
+  if (cols <= 0 || rows <= 0)
+    el.textContent = '⚠️ Arte maior que a área útil da folha';
+  else
+    el.textContent = `${cols} colunas × ${rows} linhas = ${total} artes por folha`;
+  updatePreview();
+}
+
+function onFolhaChange() {
+  const val = document.getElementById('mont-folha').value;
+  document.getElementById('custom-sheet-row').classList.toggle('visible', val === 'custom');
+  atualizarInfoMontagem();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MARCAS DE CORTE (idênticas ao editor_serigrafia)
+// ══════════════════════════════════════════════════════════════════════
+function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw) {
+  pdf.setLineWidth(sw);
+  pdf.setLineDash([1, 1], 0);
+
+  const xE = oxGrade, xD = oxGrade + gradeW;
+  const yT = oyGrade, yB = oyGrade + gradeH;
+  const xPontaE = xE - gapH / 2, xPontaD = xD + gapH / 2;
+  const yPontaT = yT - gapV / 2, yPontaB = yB + gapV / 2;
+
+  pdf.line(xPontaE, yPontaT - gap - len, xPontaE, yPontaT - gap);
+  pdf.line(xPontaD, yPontaT - gap - len, xPontaD, yPontaT - gap);
+  pdf.line(xPontaE, yPontaB + gap, xPontaE, yPontaB + gap + len);
+  pdf.line(xPontaD, yPontaB + gap, xPontaD, yPontaB + gap + len);
+
+  pdf.line(xPontaE - gap - len, yPontaT, xPontaE - gap, yPontaT);
+  pdf.line(xPontaE - gap - len, yPontaB, xPontaE - gap, yPontaB);
+  pdf.line(xPontaD + gap, yPontaT, xPontaD + gap + len, yPontaT);
+  pdf.line(xPontaD + gap, yPontaB, xPontaD + gap + len, yPontaB);
+
+  if (gapH > 0) {
+    for (let c = 0; c < cols - 1; c++) {
+      const xGap = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
+      pdf.line(xGap, yT - gap - len, xGap, yT - gap);
+      pdf.line(xGap, yB + gap,       xGap, yB + gap + len);
+    }
+  }
+  if (gapV > 0) {
+    for (let r = 0; r < rows - 1; r++) {
+      const yGap = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
+      pdf.line(xE - gap - len, yGap, xE - gap, yGap);
+      pdf.line(xD + gap,       yGap, xD + gap + len, yGap);
+    }
+  }
+  pdf.setLineDash([], 0);
+}
+
+function desenharMirasFolha(pdf, fw, fh, r, sw, numPontos) {
+  pdf.setLineWidth(sw);
+  const m = r * 2.5;
+  let pts = [[m,m],[fw-m,m],[m,fh-m],[fw-m,fh-m]];
+  if (numPontos >= 8) {
+    pts = pts.concat([[fw/2,m],[fw/2,fh-m],[m,fh/2],[fw-m,fh/2]]);
+  }
+  pts.forEach(([cx,cy]) => {
+    pdf.circle(cx, cy, r, 'S');
+    pdf.line(cx-r, cy, cx+r, cy);
+    pdf.line(cx, cy-r, cx, cy+r);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// DESENHAR ARTE NO PDF (colorida, como aparece no preview)
+// ══════════════════════════════════════════════════════════════════════
+async function drawArteNoPDF(pdf, ox, oy, W, H) {
+  if (!state.imagemDataUrl) return;
+
+  if (state.imagemTipo === 'svg' && state.imagemSVGString && window.svg2pdf) {
+    try {
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(state.imagemSVGString, 'image/svg+xml');
+      const svgEl  = svgDoc.documentElement;
+      if (!svgEl.getAttribute('viewBox')) {
+        const sw = svgEl.getAttribute('width')  || '100';
+        const sh = svgEl.getAttribute('height') || '100';
+        svgEl.setAttribute('viewBox', `0 0 ${parseFloat(sw)} ${parseFloat(sh)}`);
+      }
+      svgEl.setAttribute('width',  W);
+      svgEl.setAttribute('height', H);
+      svgEl.style.position   = 'absolute';
+      svgEl.style.left       = '-9999px';
+      svgEl.style.top        = '-9999px';
+      svgEl.style.visibility = 'hidden';
+      document.body.appendChild(svgEl);
+      if (typeof pdf.svg === 'function') {
+        await pdf.svg(svgEl, { x: ox, y: oy, width: W, height: H });
+      } else {
+        await window.svg2pdf(svgEl, pdf, { x: ox, y: oy, width: W, height: H });
+      }
+      document.body.removeChild(svgEl);
+      return;
+    } catch(e) {
+      console.warn('svg2pdf falhou, usando raster:', e);
+    }
+  }
+
+  // Raster (PNG/JPG ou SVG como fallback)
+  const img = new Image();
+  img.src = state.imagemDataUrl;
+  await new Promise(r => { img.onload = r; img.onerror = r; });
+  const iw = img.naturalWidth  || W;
+  const ih = img.naturalHeight || H;
+  const ir = iw / ih, br = W / H;
+  let dw, dh;
+  if (ir > br) { dw = W; dh = W / ir; } else { dh = H; dw = H * ir; }
+  const dx = ox + (W - dw) / 2, dy = oy + (H - dh) / 2;
+  const fmt = state.imagemDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+  pdf.addImage(state.imagemDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SVG INDIVIDUAL
+// ══════════════════════════════════════════════════════════════════════
+function buildSVGIndividual(W, H) {
+  const r4 = v => Math.round(v * 10000) / 10000;
+  let body = `<rect x="0" y="0" width="${r4(W)}" height="${r4(H)}" fill="#ffffff"/>`;
+
+  if (state.imagemTipo === 'svg' && state.imagemSVGString) {
+    // Embed o SVG original dentro do viewBox
+    const src = state.imagemSVGString;
+    body += `<image x="0" y="0" width="${r4(W)}" height="${r4(H)}" href="${state.imagemDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+  } else if (state.imagemDataUrl) {
+    body += `<image x="0" y="0" width="${r4(W)}" height="${r4(H)}" href="${state.imagemDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}mm" height="${H}mm" viewBox="0 0 ${r4(W)} ${r4(H)}">
+${body}
+</svg>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// EXPORTAÇÕES
+// ══════════════════════════════════════════════════════════════════════
+async function baixarPNG() {
+  if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
+  const hCm = parseFloat(document.getElementById('arte-h').value) || 10;
+  const lbl = document.getElementById('btn-png-label');
+  lbl.textContent = 'Gerando...';
+
+  try {
+    const PX_PER_CM = 400 / 2.54;
+    const wPx = Math.round(wCm * PX_PER_CM);
+    const hPx = Math.round(hCm * PX_PER_CM);
+
+    const iframe    = document.getElementById('preview-iframe');
+    const iframeWin = iframe.contentWindow;
+    const iframeDoc = iframe.contentDocument || iframeWin.document;
+
+    if (!iframeWin.html2canvas) {
+      await new Promise((resolve, reject) => {
+        const s = iframeDoc.createElement('script');
+        s.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+        s.onload = resolve; s.onerror = reject;
+        iframeDoc.head.appendChild(s);
+      });
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    const srcCanvas = await iframeWin.html2canvas(iframeDoc.body, {
+      useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, scale: 3,
+    });
+    const out = document.createElement('canvas');
+    out.width = wPx; out.height = hPx;
+    const ctx = out.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
+
+    const a = document.createElement('a');
+    a.download = `dtf_${wCm}x${hCm}cm_aprovacao.png`;
+    a.href = out.toDataURL('image/png');
+    a.click();
+  } catch(e) { alert('Erro PNG: ' + e.message); }
+  finally { lbl.textContent = 'Baixar PNG de Aprovação'; }
+}
+
+function baixarSVGIndividual() {
+  if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const wCm = parseFloat(document.getElementById('arte-w').value) || 10;
+  const hCm = parseFloat(document.getElementById('arte-h').value) || 10;
+  const W = wCm * 10, H = hCm * 10;
+  try {
+    const svg = buildSVGIndividual(W, H);
+    const a = document.createElement('a');
+    a.download = `dtf_${wCm}x${hCm}cm.svg`;
+    a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    a.click();
+  } catch(e) { alert('Erro SVG: ' + e.message); }
+}
+
+async function baixarMontagemPDF() {
+  if (!state.imagemDataUrl) { alert('Carregue uma arte primeiro.'); return; }
+  const lbl = document.getElementById('btn-mont-label');
+  lbl.textContent = 'Gerando…';
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const { wCm, hCm, W, H, fw, fh, marg, gapH, gapV, cols, rows } = calcMontagem();
+
+    if (cols <= 0 || rows <= 0) {
+      alert('A arte é maior que a área útil da folha. Ajuste as medidas ou margens.');
+      return;
+    }
+
+    const cutLen = parseFloat(document.getElementById('seri-cut-len').value) || 5;
+    const cutGap = parseFloat(document.getElementById('seri-cut-gap').value) || 2;
+    const regR   = parseFloat(document.getElementById('seri-reg-r').value)   || 3;
+    const sw     = parseFloat(document.getElementById('seri-sw').value)      || 0.15;
+    const regPos = parseInt(document.getElementById('seri-reg-pos').value)   || 4;
+
+    const folhaKey = document.getElementById('mont-folha').value;
+    const ori      = document.getElementById('mont-orientacao').value;
+
+    const pdf = new jsPDF({
+      unit: 'mm',
+      format: (folhaKey === 'letter' || folhaKey === 'custom') ? [fw, fh] : folhaKey,
+      orientation: ori,
+    });
+
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, fw, fh, 'F');
+
+    const gradeW  = cols * W + (cols - 1) * gapH;
+    const gradeH  = rows * H + (rows - 1) * gapV;
+    const oxGrade = (fw - gradeW) / 2;
+    const oyGrade = (fh - gradeH) / 2;
+
+    // Desenha cada cópia da arte na posição correta
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const ox = oxGrade + c * (W + gapH);
+        const oy = oyGrade + r * (H + gapV);
+        await drawArteNoPDF(pdf, ox, oy, W, H);
+      }
+    }
+
+    // Marcas de corte
+    pdf.setDrawColor(0, 0, 0);
+    desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
+
+    // Miras de registro
+    desenharMirasFolha(pdf, fw, fh, regR, sw, regPos);
+
+    const nomeFolha = folhaKey === 'custom' ? `${fw}x${fh}mm` : folhaKey;
+    pdf.save(`dtf_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}.pdf`);
+
+  } catch(e) {
+    alert('Erro na montagem: ' + e.message);
+    console.error(e);
+  } finally {
+    lbl.textContent = 'Baixar Montagem PDF + Marcas';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════
+carregarMedidasSalvas();
+atualizarInfoMontagem();
+</script>
+</body>
+</html>
