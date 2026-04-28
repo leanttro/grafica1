@@ -539,7 +539,6 @@ function atualizarBotoes(enabled) {
 }
 
 // ─── Render Preview ───────────────────────────────────────────────────────────
-// Retorna o canvas de preview renderizado
 function renderPreview() {
   const canvas = document.getElementById('preview-canvas');
   const empty  = document.getElementById('preview-empty');
@@ -557,62 +556,57 @@ function renderPreview() {
   info.style.display   = 'flex';
 
   const t = tpl();
-  const PX_PER_CM = 96; // preview resolution (px/cm)
+  const PX_PER_CM = 96;
 
-  // Dimensões da faca e da arte em pixels de preview
-  const facaW_px = t.facaW * PX_PER_CM;
-  const facaH_px = t.facaH * PX_PER_CM;
+  const facaW_px   = t.facaW * PX_PER_CM;
+  const facaH_px   = t.facaH * PX_PER_CM;
   const sangria_px = t.sangria * PX_PER_CM;
-  const arteW_px = facaW_px + sangria_px * 2;
-  const arteH_px = facaH_px + sangria_px * 2;
+  const arteW_px   = facaW_px + sangria_px * 2;
+  const arteH_px   = facaH_px + sangria_px * 2;
 
-  // O canvas mostra a arte completa (com sangria)
+  // Canvas é sempre retangular com cantos retos (fundo da arte)
   canvas.width  = arteW_px;
   canvas.height = arteH_px;
 
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, arteW_px, arteH_px);
 
-  // Desenha a arte
   if (state.modo === 'bleed') {
-    // Arte já tem sangria — desenha em tamanho cheio
+    // Arte já tem sangria — ocupa todo o canvas retangular
     ctx.drawImage(state.img, 0, 0, arteW_px, arteH_px);
   } else {
-    // Arte sem sangria — espelha nas bordas
-    desenharComSangria(ctx, state.img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px);
+    // Arte no tamanho exato da faca — expande bordas por stretch (sem espelhar)
+    desenharComStretch(ctx, state.img, facaW_px, facaH_px, sangria_px);
   }
 
-  // Overlay: área que SERÁ CORTADA (fora da faca) fica mais escura
+  // Overlay: escurece a área FORA da faca (a sangria que será cortada)
   ctx.save();
+  const facaPath = criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM);
 
-  // Cria o path da faca
-  const facaPath = criarPathFaca(ctx, t, sangria_px, facaW_px, facaH_px, PX_PER_CM);
-
-  // Clip inverso: fill fora da faca
   ctx.beginPath();
   ctx.rect(0, 0, arteW_px, arteH_px);
-  facaPath(ctx); // subtrai a faca (usando evenodd ou fill-rule)
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  facaPath(ctx);
+  ctx.fillStyle = 'rgba(0,0,0,0.52)';
   ctx.fill('evenodd');
 
-  // Linha da faca
+  // Linha pontilhada magenta da faca (igual ao exemplo real)
   ctx.beginPath();
   facaPath(ctx);
-  ctx.strokeStyle = '#ef4444';
-  ctx.lineWidth = 2.5;
-  ctx.setLineDash([10, 6]);
+  ctx.strokeStyle = '#e040fb';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 5]);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Label CORTE
-  ctx.font = 'bold 10px DM Mono, monospace';
-  ctx.fillStyle = '#ef4444';
+  // Label
+  ctx.font = 'bold 9px DM Mono, monospace';
+  ctx.fillStyle = '#e040fb';
   ctx.textAlign = 'left';
-  ctx.fillText('LINHA DE CORTE', sangria_px + 6, sangria_px - 4);
+  ctx.fillText('LINHA DE CORTE', sangria_px + 5, sangria_px - 3);
 
   ctx.restore();
 
-  // Atualiza info
+  // Info bar
   document.getElementById('info-template').textContent = t.name;
   const artaCm = state.modo === 'bleed'
     ? `Arte: ${(t.facaW + t.sangria*2).toFixed(0)}×${(t.facaH + t.sangria*2).toFixed(0)}cm`
@@ -623,73 +617,71 @@ function renderPreview() {
   document.getElementById('info-badge').className = 'preview-badge ' + (state.modo === 'bleed' ? 'badge-bleed' : 'badge-cut');
 }
 
-// Cria uma função que traça o path da faca no ctx
-function criarPathFaca(ctx, t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
-  const ox = sangria_px; // offset X da faca dentro da arte
+// Retorna função que traça o path da faca (sempre SEM clip do canvas — canvas é reto)
+function criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
+  const ox = sangria_px;
   const oy = sangria_px;
 
   if (t.shape === 'circle') {
     const cx = ox + facaW_px / 2;
     const cy = oy + facaH_px / 2;
     const r  = facaW_px / 2;
-    return (c) => {
-      c.arc(cx, cy, r, 0, Math.PI * 2);
-    };
+    return (c) => { c.arc(cx, cy, r, 0, Math.PI * 2); };
   } else {
-    // Rect com cantos arredondados
     const r = t.cornerRadius * PX_PER_CM;
-    return (c) => {
-      c.roundRect(ox, oy, facaW_px, facaH_px, r);
-    };
+    return (c) => { c.roundRect(ox, oy, facaW_px, facaH_px, r); };
   }
 }
 
-// Desenha arte com sangria espelhada nas bordas
-function desenharComSangria(ctx, img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px) {
-  // Centro = faca exata, bordas = reflexo espelhado
+// ─── Expansão por stretch de borda ────────────────────────────────────────────
+// Pega uma fatia fina (~SLICE px) de cada borda da imagem original e estica
+// para preencher a área de sangria. O conteúdo central não é tocado.
+// Resultado: borda suave e contínua sem espelhar texto/elementos.
+function desenharComStretch(ctx, img, facaW_px, facaH_px, sangria_px) {
   const sw = sangria_px;
+  const iw = img.width;
+  const ih = img.height;
 
-  // Centro da arte
-  ctx.drawImage(img, sw, sw, facaW_px, facaH_px);
+  // Espessura da fatia fonte (px da imagem original)
+  // Usa ~1.5% da menor dimensão, mínimo 2px
+  const SLICE = Math.max(2, Math.round(Math.min(iw, ih) * 0.015));
 
-  // Espelho esquerda
-  ctx.save();
-  ctx.translate(sw, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(img, 0, sw, sw, facaH_px);
-  ctx.restore();
+  // ── Centro da arte (tamanho exato da faca) ──
+  ctx.drawImage(img, 0, 0, iw, ih, sw, sw, facaW_px, facaH_px);
 
-  // Espelho direita
-  ctx.save();
-  ctx.translate(sw + facaW_px, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(img, -(facaW_px), sw, sw, facaH_px);
-  ctx.restore();
+  // ── Borda esquerda: fatia de 1 coluna esticada ──
+  ctx.drawImage(img,
+    0, 0, SLICE, ih,          // src: fatia esquerda
+    0, sw, sw, facaH_px      // dst: sangria esquerda
+  );
 
-  // Espelho topo
-  ctx.save();
-  ctx.translate(0, sw);
-  ctx.scale(1, -1);
-  ctx.drawImage(img, sw, 0, facaW_px, sw);
-  ctx.restore();
+  // ── Borda direita ──
+  ctx.drawImage(img,
+    iw - SLICE, 0, SLICE, ih,
+    sw + facaW_px, sw, sw, facaH_px
+  );
 
-  // Espelho base
-  ctx.save();
-  ctx.translate(0, sw + facaH_px);
-  ctx.scale(1, -1);
-  ctx.drawImage(img, sw, -(facaH_px), facaW_px, sw);
-  ctx.restore();
+  // ── Borda superior ──
+  ctx.drawImage(img,
+    0, 0, iw, SLICE,
+    sw, 0, facaW_px, sw
+  );
 
-  // Cantos (aproximado: cor média)
-  ctx.fillStyle = '#cccccc';
-  // canto TL
-  ctx.drawImage(img, 0, 0, 1, 1, 0, 0, sw, sw);
-  // canto TR
-  ctx.drawImage(img, img.width-1, 0, 1, 1, sw+facaW_px, 0, sw, sw);
-  // canto BL
-  ctx.drawImage(img, 0, img.height-1, 1, 1, 0, sw+facaH_px, sw, sw);
-  // canto BR
-  ctx.drawImage(img, img.width-1, img.height-1, 1, 1, sw+facaW_px, sw+facaH_px, sw, sw);
+  // ── Borda inferior ──
+  ctx.drawImage(img,
+    0, ih - SLICE, iw, SLICE,
+    sw, sw + facaH_px, facaW_px, sw
+  );
+
+  // ── Cantos: pixel do canto esticado em área quadrada ──
+  // Canto TL
+  ctx.drawImage(img, 0, 0, SLICE, SLICE, 0, 0, sw, sw);
+  // Canto TR
+  ctx.drawImage(img, iw - SLICE, 0, SLICE, SLICE, sw + facaW_px, 0, sw, sw);
+  // Canto BL
+  ctx.drawImage(img, 0, ih - SLICE, SLICE, SLICE, 0, sw + facaH_px, sw, sw);
+  // Canto BR
+  ctx.drawImage(img, iw - SLICE, ih - SLICE, SLICE, SLICE, sw + facaW_px, sw + facaH_px, sw, sw);
 }
 
 // ─── PNG cortado ──────────────────────────────────────────────────────────────
