@@ -178,7 +178,12 @@ def index():
 @app.route("/serigrafia")
 @login_required
 def serigrafia():
-    return send_from_directory(BASE_DIR, "editor_serigrafia.html")
+    return send_from_directory(BASE_DIR, "editor_dtf.html")
+
+@app.route("/dtf")
+@login_required
+def dtf():
+    return send_from_directory(BASE_DIR, "editor_dtf.html")
 
 @app.route("/api/convert-pdf-to-svg", methods=["POST"])
 @login_required
