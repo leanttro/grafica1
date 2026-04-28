@@ -764,7 +764,20 @@ async function capturarCanvas(wCm, hCm) {
   const iframe    = document.getElementById('preview-iframe');
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
-  
+
+  // Forçar o corpo do iframe a ter exatamente a proporção do lacre
+  // antes de capturar, para evitar distorção no PNG gerado.
+  const RENDER_W = 900;
+  const RENDER_H = Math.round(RENDER_W * hCm / wCm);
+  const bodyEl = iframeDoc.body;
+  const htmlEl = iframeDoc.documentElement;
+  const prevBodyStyle   = bodyEl.getAttribute('style') || '';
+  const prevHtmlStyle   = htmlEl.getAttribute('style') || '';
+  bodyEl.style.cssText += `;width:${RENDER_W}px!important;height:${RENDER_H}px!important;overflow:hidden!important;margin:0!important;padding:0!important;`;
+  htmlEl.style.cssText += `;width:${RENDER_W}px!important;height:${RENDER_H}px!important;overflow:hidden!important;`;
+  // Aguardar o reflow
+  await new Promise(r => setTimeout(r, 120));
+
   if (!iframeWin.html2canvas) {
     await new Promise((resolve, reject) => {
       const s = iframeDoc.createElement('script');
@@ -780,26 +793,30 @@ async function capturarCanvas(wCm, hCm) {
     allowTaint: true,
     backgroundColor: state.fundo, 
     logging: false, 
-    scale: 3
+    scale: 3,
+    width:  RENDER_W,
+    height: RENDER_H,
+    windowWidth:  RENDER_W,
+    windowHeight: RENDER_H,
   });
-  
+
+  // Restaurar estilos originais do iframe
+  bodyEl.setAttribute('style', prevBodyStyle);
+  htmlEl.setAttribute('style', prevHtmlStyle);
+
+  // Desenhar o canvas capturado diretamente no output,
+  // esticando para preencher exatamente wPx × hPx.
+  // Como forçamos RENDER_W/RENDER_H com a mesma proporção,
+  // não há distorção.
   const out = document.createElement('canvas');
   out.width = wPx; 
   out.height = hPx;
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  
   ctx.fillStyle = state.fundo;
   ctx.fillRect(0, 0, wPx, hPx);
-  
-  const scale = Math.min(wPx / srcCanvas.width, hPx / srcCanvas.height);
-  const nw = srcCanvas.width * scale;
-  const nh = srcCanvas.height * scale;
-  const nx = (wPx - nw) / 2;
-  const ny = (hPx - nh) / 2;
-  
-  ctx.drawImage(srcCanvas, nx, ny, nw, nh);
+  ctx.drawImage(srcCanvas, 0, 0, wPx, hPx);
   
   return { canvas: out };
 }
