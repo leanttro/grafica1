@@ -50,9 +50,8 @@
 
        .area-logo {
             flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            place-items: center;
             padding: 2vw;
             overflow: hidden;
             min-width: 0;
@@ -78,13 +77,11 @@
 
         .cell-destaque {
             flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            /* display:grid + place-items funciona melhor que flex no html2canvas */
+            display: grid;
+            place-items: center;
             color: var(--cor-destaque);
             font-weight: 900;
-            /* min() garante que a fonte respeite tanto largura quanto altura,
-               evitando overflow em lacres com proporção 3:1 ou mais largos */
             font-size: min(7vw, 14vh);
             line-height: 1;
             overflow: hidden;
@@ -126,9 +123,8 @@
 
         .cell-mes {
             flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            place-items: center;
             font-weight: 900;
             font-size: min(4.5vw, 11vh);
             color: var(--cor-texto);
