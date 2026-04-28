@@ -60,9 +60,13 @@
         }
         
         img.logo {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+            /* object-fit: contain nao e suportado pelo html2canvas —
+               ele estica a imagem. max-width + max-height preserva proporcao. */
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            display: block;
         }
 
         .col-destaque {
