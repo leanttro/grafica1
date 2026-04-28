@@ -762,15 +762,15 @@ async function baixarSerigrafiaPDF() {
       orientation: ori,
     });
 
-    // Proxy CMYK: intercepta setFillColor e setDrawColor
-    // Preto RGB (0,0,0) → CMYK (0,0,0,100) — tinta preta 100% pura, sem mistura CMY
-    // Branco RGB (255,255,255) → CMYK (0,0,0,0) — papel limpo
-    // Qualquer outro escuro próximo de preto → também vira 100K
+    // Fila para reter logos SVG e forçar o desenho vetorial em cima do template
+    let filaSVG = [];
+
+    // Proxy CMYK: intercepta setFillColor e setDrawColor e bloqueia imagens SVG
     function rgbParaCmyk(r, g, b) {
       if (r === 255 && g === 255 && b === 255) return [0, 0, 0, 0];
       const c = 1 - r / 255, m = 1 - g / 255, y = 1 - b / 255;
       const k = Math.min(c, m, y);
-      if (k >= 0.95) return [0, 0, 0, 100]; // preto puro 100K
+      if (k >= 0.95) return [0, 0, 0, 100]; 
       return [
         Math.round(((c - k) / (1 - k)) * 100),
         Math.round(((m - k) / (1 - k)) * 100),
@@ -778,8 +778,27 @@ async function baixarSerigrafiaPDF() {
         Math.round(k * 100),
       ];
     }
+
     const pdf = new Proxy(pdfRaw, {
       get(target, prop) {
+        if (prop === 'addImage') {
+          return function(...args) {
+            const imgData = args[0];
+            if (typeof imgData === 'string' && imgData.includes('image/svg+xml')) {
+              let x, y, w, h;
+              if (typeof args[1] === 'string') {
+                x = args[2]; y = args[3]; w = args[4]; h = args[5];
+              } else {
+                x = args[1]; y = args[2]; w = args[3]; h = args[4];
+              }
+              const strData = imgData.includes('charset=utf-8,') ? imgData.split('charset=utf-8,')[1] : imgData.split(',')[1];
+              const svgStr = decodeURIComponent(strData);
+              filaSVG.push({ svg: svgStr, x, y, w, h });
+              return target; // Ignora a colagem como imagem rasterizada
+            }
+            return target.addImage(...args);
+          };
+        }
         if (prop === 'setFillColor') {
           return function(...args) {
             if (args.length === 3) {
@@ -824,27 +843,21 @@ async function baixarSerigrafiaPDF() {
       const pg = paginas[pi];
       if (pi > 0) pdf.addPage();
 
-      // Fundo branco (o papel)
       pdf.setFillColor(255, 255, 255);
       pdf.rect(0, 0, fw, fh, 'F');
 
-      // Monta o state desta cor
       const stateCorr = buildStateParaCor(pg);
 
-      // Grade de lacres com tudo em preto puro nesta cor
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const ox = oxGrade + c * (W + gapH);
           const oy = oyGrade + r * (H + gapV);
-          // Se há SVG vetorial, desenha diretamente no PDF (vetorial puro via svg2pdf)
-          // e passa state sem logo para o engine evitar duplicação/rasterização
-          if (stateCorr._svgVetorial && window.svg2pdf) {
-            const stateParaEngine = Object.assign({}, stateCorr, { logoDataUrl: '', logoSVGString: '' });
-            await engine.drawPDF(pdf, ox, oy, W, H, stateParaEngine);
-            await desenharSVGVetorial(pdf, stateCorr._svgVetorial, ox, oy, W, H);
-          } else {
-            // Sem svg2pdf disponível ou sem SVG: passa o dataUrl recolorido para o engine
-            await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
+          
+          filaSVG = []; 
+          await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
+          
+          for (const item of filaSVG) {
+            await desenharSVGVetorial(pdf, item.svg, item.x, item.y, item.w, item.h);
           }
         }
       }
@@ -852,12 +865,10 @@ async function baixarSerigrafiaPDF() {
       pdf.setDrawColor(0, 0, 0);
       pdf.setLineWidth(sw);
 
-      // Marca de corte central por coluna/linha — só na página do lacre, fora da grade
       if (pg.temCorte) {
         desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
       }
 
-      // Miras ⊕ nos cantos da folha — em TODAS as páginas
       desenharMirasFolha(pdf, fw, fh, regR, sw, regPos);
     }
 
@@ -871,15 +882,12 @@ async function baixarSerigrafiaPDF() {
   }
 }
 
-// Desenha SVG vetorial direto no PDF usando svg2pdf.js (sem rasterizar)
-// Retorna true se conseguiu, false se fallback para PNG
 async function desenharSVGVetorial(pdf, svgString, dx, dy, dw, dh) {
   try {
     if (!window.svg2pdf) return false;
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
     const svgEl = svgDoc.documentElement;
-    // Garante viewBox e dimensões para o svg2pdf escalar corretamente
     if (!svgEl.getAttribute('viewBox')) {
       const w = svgEl.getAttribute('width') || '100';
       const h = svgEl.getAttribute('height') || '100';
@@ -887,7 +895,6 @@ async function desenharSVGVetorial(pdf, svgString, dx, dy, dw, dh) {
     }
     svgEl.setAttribute('width', dw);
     svgEl.setAttribute('height', dh);
-    // svg2pdf precisa do elemento no DOM temporariamente
     svgEl.style.position = 'absolute';
     svgEl.style.visibility = 'hidden';
     document.body.appendChild(svgEl);
@@ -895,34 +902,14 @@ async function desenharSVGVetorial(pdf, svgString, dx, dy, dw, dh) {
     document.body.removeChild(svgEl);
     return true;
   } catch(e) {
-    console.warn('svg2pdf falhou, usando PNG fallback:', e);
+    console.warn('svg2pdf falhou:', e);
     return false;
   }
 }
 
-// Fallback: rasteriza SVG para PNG (usado só se svg2pdf não estiver disponível)
-async function svgParaPngDataUrl(svgString, wPx, hPx) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = wPx; canvas.height = hPx;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, wPx, hPx);
-      ctx.drawImage(img, 0, 0, wPx, hPx);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-// Monta o state para uma página de cor específica.
-// Tudo vira preto onde aparece; branco onde não aparece (invisível sobre papel branco).
 function buildStateParaCor(pg) {
   const s = Object.assign({}, state);
-  s.fundo = '#ffffff'; // papel sempre branco
+  s.fundo = '#ffffff'; 
 
   const temTexto    = pg.layers.has('texto');
   const temDestaque = pg.layers.has('destaque');
@@ -931,22 +918,18 @@ function buildStateParaCor(pg) {
   s.texto    = temTexto    ? '#000000' : '#ffffff';
   s.destaque = temDestaque ? '#000000' : '#ffffff';
 
-  // SVG: recoloriza para preto na camada correta e usa svg2pdf para desenho vetorial direto no PDF
   if (temLogo && state.logoSVGString) {
     const svgPreto = recolorirSVGParaPreto(state.logoSVGString, pg.cor);
     s.logoSVGString = svgPreto;
     s.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPreto);
-    s._svgVetorial = svgPreto; // flag para desenhar vetorial direto no PDF
   } else {
     s.logoDataUrl = '';
     s.logoSVGString = '';
-    s._svgVetorial = null;
   }
 
   return s;
 }
 
-// Recoloriza o SVG: pixels da cor alvo → preto; demais cores → branco (invisível no papel)
 function recolorirSVGParaPreto(svgText, corAlvo) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, 'image/svg+xml');
@@ -972,37 +955,30 @@ function recolorirSVGParaPreto(svgText, corAlvo) {
   return new XMLSerializer().serializeToString(doc.documentElement);
 }
 
-// Tracinho de corte NO MEIO entre lacres — 1 marca central por coluna/linha, fora da grade
-// Chamado uma vez por página (não por lacre), desenhando as marcas na borda externa da grade
 function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw) {
   pdf.setLineWidth(sw);
   pdf.setLineDash([1, 1], 0);
 
-  const xE = oxGrade;           // borda esquerda da grade
-  const xD = oxGrade + gradeW;  // borda direita da grade
-  const yT = oyGrade;           // borda superior da grade
-  const yB = oyGrade + gradeH;  // borda inferior da grade
+  const xE = oxGrade;           
+  const xD = oxGrade + gradeW;  
+  const yT = oyGrade;           
+  const yB = oyGrade + gradeH;  
 
-  // 4 cantos — tracos de ponta ficam a gapH/2 da borda horizontal e gapV/2 da borda vertical
-  // igual ao editor.html de referencia: xEsq = oxGrade - gapH/2, yTop = oyGrade - gapV/2
-  const xPontaE = xE - gapH / 2;  // posicao X do traco vertical esquerdo de ponta
-  const xPontaD = xD + gapH / 2;  // posicao X do traco vertical direito de ponta
-  const yPontaT = yT - gapV / 2;  // posicao Y do traco horizontal superior de ponta
-  const yPontaB = yB + gapV / 2;  // posicao Y do traco horizontal inferior de ponta
+  const xPontaE = xE - gapH / 2;  
+  const xPontaD = xD + gapH / 2;  
+  const yPontaT = yT - gapV / 2;  
+  const yPontaB = yB + gapV / 2;  
 
-  // Tracos verticais de ponta (esq e dir, acima e abaixo da grade)
   pdf.line(xPontaE, yPontaT - gap - len, xPontaE, yPontaT - gap);
   pdf.line(xPontaD, yPontaT - gap - len, xPontaD, yPontaT - gap);
   pdf.line(xPontaE, yPontaB + gap, xPontaE, yPontaB + gap + len);
   pdf.line(xPontaD, yPontaB + gap, xPontaD, yPontaB + gap + len);
 
-  // Tracos horizontais de ponta (sup e inf, esq e dir da grade)
   pdf.line(xPontaE - gap - len, yPontaT, xPontaE - gap, yPontaT);
   pdf.line(xPontaE - gap - len, yPontaB, xPontaE - gap, yPontaB);
   pdf.line(xPontaD + gap, yPontaT, xPontaD + gap + len, yPontaT);
   pdf.line(xPontaD + gap, yPontaB, xPontaD + gap + len, yPontaB);
 
-  // 1 traco vertical por gap de coluna — na margem acima e abaixo, alinhado ao meio do gap
   if (gapH > 0) {
     for (let c = 0; c < cols - 1; c++) {
       const xGap = oxGrade + (c + 1) * W + c * gapH + gapH / 2;
@@ -1011,7 +987,6 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
     }
   }
 
-  // 1 traco horizontal por gap de linha — na margem esquerda e direita, alinhado ao meio do gap
   if (gapV > 0) {
     for (let r = 0; r < rows - 1; r++) {
       const yGap = oyGrade + (r + 1) * H + r * gapV + gapV / 2;
@@ -1023,10 +998,9 @@ function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, 
   pdf.setLineDash([], 0);
 }
 
-// Miras ⊕ nos cantos (e meios) da folha
 function desenharMirasFolha(pdf, fw, fh, r, sw, numPontos) {
   pdf.setLineWidth(sw);
-  const m = r * 2.5; // distância da borda
+  const m = r * 2.5; 
   let pts = [
     [m,      m],
     [fw - m, m],
@@ -1048,9 +1022,6 @@ function desenharMirasFolha(pdf, fw, fh, r, sw, numPontos) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// MONTAGEM
-// ══════════════════════════════════════════════════════════════════════
 function calcMontagem() {
   const wCm  = parseFloat(document.getElementById('lacre-w').value) || 1;
   const hCm  = parseFloat(document.getElementById('lacre-h').value) || 1;
@@ -1097,9 +1068,6 @@ function onFolhaChange() {
   atualizarInfoMontagem();
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// HELPERS DE COR
-// ══════════════════════════════════════════════════════════════════════
 function dynColor(key, val) {
   state.vars[key] = val;
   const sw = document.getElementById(`swatch-${key}`);
@@ -1118,14 +1086,7 @@ function dynHex(key, val) {
   updatePreview();
 }
 function dynText(key, val) { state.vars[key] = val; updatePreview(); }
-function hexToRgb(hex) {
-  const h = hex.replace('#','');
-  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
-}
 
-// ══════════════════════════════════════════════════════════════════════
-// TEMPLATES E MEDIDAS
-// ══════════════════════════════════════════════════════════════════════
 function selectTemplate(el) {
   document.querySelectorAll('.template-option').forEach(o => o.classList.remove('active'));
   el.classList.add('active');
@@ -1157,9 +1118,6 @@ function carregarMedida(val) {
   atualizarInfoMontagem();
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════════════════
 document.getElementById('lacre-w').value     = 1;
 document.getElementById('lacre-h').value     = 1;
 document.getElementById('mont-margem').value = 5;
