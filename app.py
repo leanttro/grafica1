@@ -1,5 +1,6 @@
 import os
 import re
+import fitz  # PyMuPDF - Requer: pip install PyMuPDF
 from flask import (
     Flask, send_from_directory, jsonify,
     request, session, redirect, url_for, Response
@@ -179,6 +180,32 @@ def index():
 def serigrafia():
     return send_from_directory(BASE_DIR, "editor_serigrafia.html")
 
+@app.route("/api/convert-pdf-to-svg", methods=["POST"])
+@login_required
+def convert_pdf_to_svg():
+    if 'file' not in request.files:
+        return Response("Nenhum arquivo enviado.", status=400)
+    
+    file = request.files['file']
+    if file.filename == '':
+        return Response("Arquivo inválido.", status=400)
+
+    try:
+        # Lê o PDF em memória
+        pdf_bytes = file.read()
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        # Pega a primeira página
+        page = doc[0]
+        
+        # Extrai o conteúdo vetorial como código SVG
+        svg_content = page.get_svg_image()
+        doc.close()
+        
+        return Response(svg_content, mimetype="image/svg+xml")
+    except Exception as e:
+        return Response(f"Erro ao converter PDF: {str(e)}", status=500)
+
 @app.route("/api/templates")
 @login_required
 def list_templates():
@@ -195,7 +222,7 @@ def list_templates():
                 "order": sufixo
             })
 
-    # Ordenação numérica correta (evita lacre2 > lacre10 na ordem lexicográfica)
+    # Ordenação numérica correta
     templates.sort(key=lambda t: (len(t["order"]), t["order"]))
     for t in templates:
         del t["order"]
@@ -206,13 +233,9 @@ def list_templates():
 @app.route("/<path:filename>")
 @login_required
 def static_files(filename):
-    # Bloqueia qualquer arquivo fora das extensões permitidas
-    # (impede servir app.py, .env, arquivos de config, etc.)
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return Response("Acesso negado.", status=403)
-
-    # send_from_directory já usa safe_join internamente e rejeita path traversal
     return send_from_directory(BASE_DIR, filename)
 
 
