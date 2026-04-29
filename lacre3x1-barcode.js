@@ -331,15 +331,18 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     for (let i=1; i<12; i++) s += line(wMes*i, topH, wMes*i, H);
 
     const txt = (label, cx, cy, col, fs, extra='') =>
-      `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${col}"${extra}>${label}</text>`;
+      `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="auto" fill="${col}"${extra}>${label}</text>`;
 
+    // Offset vertical para simular centralização (equivale ao +0.35*fs do drawPDF)
+    // dominant-baseline varia por navegador, então calculamos o Y explicitamente:
+    // cy = centro_da_celula + fs*0.35  (capline aprox. = 70% do fs, metade = 35%)
     const fsAno = Math.min(anosW*0.55, hAno*0.65);
     ['26','27','28','29'].forEach((a,i) =>
-      s += txt(a, W-anosW/2, hAno*i+hAno/2, d, fsAno));
+      s += txt(a, W-anosW/2, hAno*i + hAno/2 + fsAno*0.35, d, fsAno));
 
     const fsMes = Math.min(wMes*0.70, mesH*0.65);
     ['J','F','M','A','M','J','J','A','S','O','N','D'].forEach((m,i) =>
-      s += txt(m, wMes*i+wMes/2, topH+mesH/2, t, fsMes));
+      s += txt(m, wMes*i+wMes/2, topH + mesH/2 + fsMes*0.35, t, fsMes));
 
     const padC      = bw*2;
     const centAreaH = topH - padC*2;
