@@ -519,9 +519,10 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
               <option value="QR">QR Code</option>
             </select>
           </div>
-          <div class="montagem-row">
+          <!-- Linha: Posição + Altura -->
+          <div class="montagem-row" id="barcode-pos-row">
             <div>
-              <span class="mini-label">Posição</span>
+              <span class="mini-label">Posição (genérico)</span>
               <select id="barcode-pos" class="mini-input">
                 <option value="bottom-overlay">Sobre o lacre (baixo)</option>
                 <option value="top-overlay">Sobre o lacre (topo)</option>
@@ -533,6 +534,21 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
               <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
             </div>
           </div>
+
+          <!-- Linha: Largura % + Posição Y % — para templates com handlesBarcodeInternally -->
+          <div class="montagem-row" id="barcode-internal-row" style="display:none;">
+            <div>
+              <span class="mini-label">Largura (%)</span>
+              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1"
+                     title="Largura do barcode em % da área central da etiqueta">
+            </div>
+            <div>
+              <span class="mini-label">Pos. Y (%)</span>
+              <input type="number" id="barcode-offset-y" class="mini-input" value="60" min="10" max="90" step="1"
+                     title="Posição vertical do centro do barcode em % da área central">
+            </div>
+          </div>
+
           <div class="montagem-row">
             <div>
               <span class="mini-label">Cor barras</span>
