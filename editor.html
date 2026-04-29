@@ -452,7 +452,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
       <div class="num-toggle">
         <span class="num-toggle-label">Ativar numeração automática</span>
         <label class="toggle-switch">
-          <input type="checkbox" id="num-ativo" onchange="toggleNumBody(); updatePreview();">
+          <input type="checkbox" id="num-ativo" onchange="toggleNumBody()">
           <span class="toggle-track"></span>
         </label>
       </div>
@@ -461,7 +461,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
         <div class="montagem-row">
           <div>
             <span class="mini-label">Número Inicial</span>
-            <input type="number" id="num-inicio" class="mini-input" value="1" min="0" step="1" oninput="updatePreview()">
+            <input type="number" id="num-inicio" class="mini-input" value="1" min="0" step="1">
           </div>
           <div>
             <span class="mini-label">Número Final</span>
@@ -476,11 +476,11 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
         </div>
         <div>
           <span class="mini-label">Prefixo (opcional)</span>
-          <input type="text" id="num-prefixo" class="mini-input" placeholder="Ex: LT-" style="font-family:var(--mono);" oninput="updatePreview()">
+          <input type="text" id="num-prefixo" class="mini-input" placeholder="Ex: LT-" style="font-family:var(--mono);">
         </div>
         <div>
           <span class="mini-label">Dígitos mínimos (zeros à esq.)</span>
-          <input type="number" id="num-digits" class="mini-input" value="0" min="0" max="10" step="1" placeholder="0 = sem padding" oninput="updatePreview()">
+          <input type="number" id="num-digits" class="mini-input" value="0" min="0" max="10" step="1" placeholder="0 = sem padding">
         </div>
 
         <div class="montagem-row triple" style="margin-top:6px; margin-bottom:8px;">
@@ -503,14 +503,14 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
         <div class="num-toggle" style="margin-top:2px;">
           <span class="num-toggle-label" style="font-size:11px;">Código de barras</span>
           <label class="toggle-switch">
-            <input type="checkbox" id="barcode-ativo" onchange="toggleBarcodeOpts(); updatePreview();">
+            <input type="checkbox" id="barcode-ativo" onchange="toggleBarcodeOpts()">
             <span class="toggle-track"></span>
           </label>
         </div>
         <div id="barcode-opts" class="hidden" style="display:flex;flex-direction:column;gap:8px;">
           <div>
             <span class="mini-label">Tipo</span>
-            <select id="barcode-tipo" class="mini-input" onchange="toggleQROpts(); updatePreview();">
+            <select id="barcode-tipo" class="mini-input">
               <option value="CODE128">CODE 128 (padrão)</option>
               <option value="CODE39">CODE 39</option>
               <option value="EAN13">EAN-13</option>
@@ -521,7 +521,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           <div class="montagem-row" id="barcode-pos-row">
             <div>
               <span class="mini-label">Posição (genérico)</span>
-              <select id="barcode-pos" class="mini-input" onchange="updatePreview()">
+              <select id="barcode-pos" class="mini-input">
                 <option value="bottom-overlay">Sobre o lacre (baixo)</option>
                 <option value="top-overlay">Sobre o lacre (topo)</option>
                 <option value="below">Abaixo do lacre</option>
@@ -529,7 +529,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             </div>
             <div>
               <span class="mini-label">Altura (mm)</span>
-              <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5" oninput="updatePreview()">
+              <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
             </div>
           </div>
 
@@ -571,7 +571,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
         <div id="qr-opts" class="hidden" style="margin-top:4px;">
           <span class="mini-label">Sufixo/URL no QR (opcional)</span>
-          <input type="text" id="qr-sufixo" class="mini-input" placeholder="https://seusite.com/v/" style="font-family:var(--mono);" oninput="updatePreview()">
+          <input type="text" id="qr-sufixo" class="mini-input" placeholder="https://seusite.com/v/" style="font-family:var(--mono);">
           <div style="font-size:10px; color:var(--muted); margin-top:4px;">O número será acrescentado após o sufixo.</div>
         </div>
       </div>
@@ -874,6 +874,7 @@ function toggleBarcodeOpts() {
   opts.classList.toggle('hidden', !ativo);
   if (!ativo) document.getElementById('qr-opts').classList.add('hidden');
   else toggleQROpts();
+  document.getElementById('barcode-tipo').onchange = toggleQROpts;
   atualizarBarcodeRows();
 }
 
@@ -922,12 +923,14 @@ function formatNum(n, cfg) {
 
 function gerarBarcodeDataUrl(texto, cfg) {
   return new Promise((resolve) => {
+    const W = 300, H = Math.round(cfg.bAltura * 11.81);
     const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
 
     if (cfg.bTipo === 'QR') {
       const content = cfg.qrSufixo + texto;
       QRCode.toCanvas(canvas, content, {
-        width: 600, margin: 0,
+        width: W, margin: 0,
         color: { dark: cfg.bCor, light: cfg.bFundo }
       }, (err) => {
         resolve(err ? null : canvas.toDataURL('image/png'));
@@ -938,11 +941,11 @@ function gerarBarcodeDataUrl(texto, cfg) {
           format:       cfg.bTipo,
           lineColor:    cfg.bCor,
           background:   cfg.bFundo,
-          width:        4,
-          height:       160,
+          width:        2,
+          height:       H * 0.75,
           displayValue: true,
-          fontSize:     40,
-          margin:       10,
+          fontSize:     H * 0.18,
+          margin:       2,
         });
         resolve(canvas.toDataURL('image/png'));
       } catch(e) {
@@ -1163,39 +1166,33 @@ function buildBarcodePreviewScript() {
     container.innerHTML = '';
 
     ${tipo === 'QR' ? `
+    var canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.objectFit = 'contain';
+    container.appendChild(canvas);
     if (typeof QRCode !== 'undefined') {
-      var canvas = document.createElement('canvas');
-      QRCode.toCanvas(canvas, '${qrSuf}${texto}', {width: 600, margin:0, color:{dark:'${cor}',light:'${fundo}'}}, function(){
-        var img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'contain';
-        container.appendChild(img);
-      });
+      QRCode.toCanvas(canvas, '${qrSuf}${texto}', {width: 120, margin:0, color:{dark:'${cor}',light:'${fundo}'}}, function(){});
     } else {
       container.textContent = '${texto}';
     }
     ` : `
+    var canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    container.appendChild(canvas);
     if (typeof JsBarcode !== 'undefined') {
       try {
-        var canvas = document.createElement('canvas');
         JsBarcode(canvas, '${texto}', {
           format: '${tipo}',
           lineColor: '${cor}',
           background: '${fundo}',
-          width: 4,
-          height: 160,
+          width: 1.5,
+          height: 30,
           displayValue: true,
-          fontSize: 40,
-          margin: 10,
+          fontSize: 9,
+          margin: 2,
         });
-        var img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'fill';
-        container.appendChild(img);
       } catch(e) { container.textContent = '${texto}'; }
     } else {
       container.textContent = '${texto}';
@@ -1210,29 +1207,45 @@ function buildBarcodePreviewScript() {
   }
 })();
 <\/script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="(function(){var c=document.getElementById('barcode-container');if(c&&c.querySelector('img')===null){var ev=new Event('DOMContentLoaded');document.dispatchEvent(ev);}})()"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="(function(){var c=document.getElementById('barcode-container');if(c&&c.querySelector('canvas')&&c.querySelector('canvas').width===0){var ev=new Event('DOMContentLoaded');document.dispatchEvent(ev);}})()"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
 `;
 }
 
 function updatePreview() {
   if (!state.templateSrc) return;
-  const numCfg = getNumConfig();
-
   state.fundo    = state.vars['CHAVE_COR_FUNDO']    || '#ffffff';
   state.texto    = state.vars['CHAVE_COR_TEXTO']    || '#000000';
   state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
   state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
 
-  state.vars['CHAVE_NUMERO'] = numCfg.ativo ? formatNum(numCfg.inicio, numCfg) : '0001';
-  state.vars['NUM_TAM'] = numCfg.nTam;
-  state.vars['NUM_X'] = numCfg.nX;
-  state.vars['NUM_Y'] = numCfg.nY;
-
-  const iframe = document.getElementById('preview-iframe');
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  const html = buildHTML() + buildBarcodePreviewScript();
-  doc.open(); doc.write(html); doc.close();
+  const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
+  if (engine && engine.drawSVG) {
+    // Renderiza preview via SVG engine vetorial — igual ao que vai para o PDF/SVG
+    const wCm = parseFloat(document.getElementById('lacre-w').value) || 1;
+    const hCm = parseFloat(document.getElementById('lacre-h').value) || 1;
+    const W = wCm * 10, H = hCm * 10;
+    const numCfg = getNumConfig();
+    const stateLocal = Object.assign({}, state);
+    if (numCfg.ativo) {
+      stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
+    }
+    stateLocal.numCfg = numCfg;
+    const svgBody = engine.drawSVG(W, H, 0, 0, stateLocal);
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ${W} ${H}">${svgBody}</svg>`;
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const iframe = document.getElementById('preview-iframe');
+    const prev = iframe.src;
+    iframe.src = url;
+    if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+  } else {
+    // Fallback: renderiza via HTML do template
+    const iframe = document.getElementById('preview-iframe');
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const html = buildHTML() + buildBarcodePreviewScript();
+    doc.open(); doc.write(html); doc.close();
+  }
   atualizarBarcodeRows();
 }
 
@@ -1368,6 +1381,31 @@ async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
   const hPx = Math.round(hCm * PX_PER_CM);
+
+  const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
+  if (engine && engine.drawSVG) {
+    const W = wCm * 10, H = hCm * 10;
+    const numCfg = getNumConfig();
+    const stateLocal = Object.assign({}, state);
+    if (numCfg.ativo) {
+      stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
+    }
+    stateLocal.numCfg = numCfg;
+    const svgBody = engine.drawSVG(W, H, 0, 0, stateLocal);
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wPx}" height="${hPx}" viewBox="0 0 ${W} ${H}">${svgBody}</svg>`;
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    URL.revokeObjectURL(url);
+    const out = document.createElement('canvas');
+    out.width = wPx; out.height = hPx;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(img, 0, 0, wPx, hPx);
+    return { canvas: out };
+  }
+
+  // Fallback: html2canvas sobre o iframe
   const iframe    = document.getElementById('preview-iframe');
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
