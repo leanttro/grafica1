@@ -1231,7 +1231,7 @@ function updatePreview() {
       stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
     }
     stateLocal.numCfg = numCfg;
-    const BORDER = 1; // 1mm white border
+    const BORDER = 0.5; // 0.5mm white border (visual only)
     const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
     const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ${W + BORDER*2} ${H + BORDER*2}"><rect x="0" y="0" width="${W + BORDER*2}" height="${H + BORDER*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
@@ -1392,7 +1392,7 @@ async function capturarCanvas(wCm, hCm) {
       stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
     }
     stateLocal.numCfg = numCfg;
-    const BORDER_C = 1; // 1mm white border
+    const BORDER_C = 0.5; // 0.5mm white border (visual only)
     const svgBody = engine.drawSVG(W, H, BORDER_C, BORDER_C, stateLocal);
     const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wPx}" height="${hPx}" viewBox="0 0 ${W + BORDER_C*2} ${H + BORDER_C*2}"><rect x="0" y="0" width="${W + BORDER_C*2}" height="${H + BORDER_C*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
@@ -1556,7 +1556,7 @@ async function baixarMontagemPDF() {
           }
           stateLocal.numCfg = numCfg;
 
-          await engine.drawPDF(pdf, ox + 1, oy + 1, W, H, stateLocal);
+          await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
 
           if (numCfg.ativo && numCfg.barcode && !engine.handlesBarcodeInternally) {
             await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
@@ -1619,10 +1619,10 @@ function baixarSVGIndividual() {
   try {
     const engine = window.TemplateEngines[state.templateFile];
     if (!engine) throw new Error('Motor JS não encontrado para este template.');
-    const svgContent = engine.drawSVG(W, H, 1, 1, state);
+    const svgContent = engine.drawSVG(W, H, 0.5, 0.5, state);
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W+2}mm" height="${H+2}mm" viewBox="0 0 ${W+2} ${H+2}">
-<rect x="0" y="0" width="${W+2}" height="${H+2}" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W+1}mm" height="${H+1}mm" viewBox="0 0 ${W+1} ${H+1}">
+<rect x="0" y="0" width="${W+1}" height="${H+1}" fill="#ffffff"/>
 ${svgContent}
 </svg>`;
     const a = document.createElement('a');
@@ -1664,7 +1664,7 @@ function baixarMontagemSVG() {
           stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numAtual, numCfg) });
         }
         stateLocal.numCfg = numCfg;
-        body += engine.drawSVG(W, H, ox + 1, oy + 1, stateLocal);
+        body += engine.drawSVG(W, H, ox, oy, stateLocal);
         indice++;
       }
     }
