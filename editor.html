@@ -533,11 +533,17 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             </div>
           </div>
 
-          <div class="montagem-row" id="barcode-internal-row" style="display:none;">
+          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
             <div>
-              <span class="mini-label">Aumento Proporcional (%)</span>
+              <span class="mini-label">Largura (%)</span>
+              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1"
+                     title="Largura do barcode em % da área central da etiqueta"
+                     oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Altura (%)</span>
               <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1"
-                     title="Tamanho proporcional do barcode"
+                     title="Altura do barcode em % da área central da etiqueta"
                      oninput="updatePreview()">
             </div>
             <div>
@@ -547,7 +553,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
                      oninput="updatePreview()">
             </div>
           </div>
-          <input type="hidden" id="barcode-largura" value="95">
 
           <div class="montagem-row">
             <div>
@@ -938,11 +943,6 @@ function toggleBarcodeOpts() {
 
 function atualizarBarcodeRows() {
   const engine = state.templateFile ? window.TemplateEngines?.[state.templateFile] : null;
-  // Se engine ainda não carregou, tenta novamente em 200ms
-  if (state.templateFile && !engine) {
-    setTimeout(atualizarBarcodeRows, 200);
-    return;
-  }
   const interno = !!(engine && engine.handlesBarcodeInternally);
   document.getElementById('barcode-pos-row').style.display    = interno ? 'none' : '';
   document.getElementById('barcode-internal-row').style.display = interno ? '' : 'none';
@@ -969,7 +969,7 @@ function getNumConfig() {
     bTipo:      document.getElementById('barcode-tipo').value,
     bPos:       document.getElementById('barcode-pos').value,
     bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
-    bLargura:   parseFloat(document.getElementById('barcode-largura').value) || 95,
+    bLargura:   parseFloat(document.getElementById('barcode-largura').value) || 85,
     bAlturaPct: parseFloat(document.getElementById('barcode-altura-pct')?.value) || 40,
     bOffsetY:   parseFloat(document.getElementById('barcode-offset-y').value) || 60,
     bCor:       document.getElementById('barcode-cor').value,
