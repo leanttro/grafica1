@@ -1445,12 +1445,13 @@ async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
   const hPx = Math.round(hCm * PX_PER_CM);
+  const W = wCm * 10, H = hCm * 10; // mm
+  const S = wPx / W; // pixels por mm
 
   const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
 
-  // Preferência: drawCanvas direto (sem SVG/viewBox, igual ao PDF)
+  // Preferência: drawCanvas — mesma lógica do drawPDF, coordenadas em mm, ctx.scale(S,S) interno
   if (engine && engine.drawCanvas) {
-    const W = wCm * 10, H = hCm * 10;
     const numCfg = getNumConfig();
     const stateLocal = Object.assign({}, state);
     if (numCfg.ativo) {
@@ -1460,14 +1461,12 @@ async function capturarCanvas(wCm, hCm) {
     const out = document.createElement('canvas');
     out.width = wPx; out.height = hPx;
     const ctx = out.getContext('2d');
-    // S = pixels por mm
-    const S = wPx / W;
+    // ox=0, oy=0 em mm; drawCanvas aplica ctx.scale(S,S) internamente
     await engine.drawCanvas(ctx, 0, 0, W, H, S, stateLocal);
     return { canvas: out };
   }
 
   if (engine && engine.drawSVG) {
-    const W = wCm * 10, H = hCm * 10;
     const numCfg = getNumConfig();
     const stateLocal = Object.assign({}, state);
     if (numCfg.ativo) {
