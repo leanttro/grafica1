@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root {
   --bg:        #0f0f10;
@@ -114,7 +116,65 @@ select.color-hex {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
 }
-.logo-preview-box {
+.logo-tools {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+}
+.logo-tools-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.num-config {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.num-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+}
+.num-toggle-label { font-size: 12px; font-weight: 600; }
+.toggle-switch {
+  position: relative; width: 38px; height: 20px; flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 10px;
+  cursor: pointer; transition: background 0.2s;
+}
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px;
+  transition: transform 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: var(--accent); }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+.num-body { display: flex; flex-direction: column; gap: 8px; }
+.num-body.hidden { display: none; }
+.new-badge {
+  display: inline-block; font-size: 8px; font-weight: 700;
+  background: rgba(22,163,74,0.12); color: #4ade80;
+  border: 1px solid rgba(22,163,74,0.25);
+  padding: 1px 5px; border-radius: 99px; letter-spacing: 0.5px;
+  text-transform: uppercase; vertical-align: middle; margin-left: 5px;
+}
+.btn-tool {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 8px; border-radius: var(--radius); font-size: 11px;
+  font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.15s, border-color 0.15s;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text);
+}
+.btn-tool:hover { border-color: #555; }
+.btn-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+.tool-status {
+  font-size: 10px; color: var(--muted); font-family: var(--mono);
+  min-height: 14px; text-align: center;
+}
+
   width: 100%; height: 72px;
   background: var(--surface2); border: 1px dashed var(--border);
   border-radius: var(--radius); display: flex;
@@ -363,6 +423,135 @@ select.color-hex {
           <option value="4">4 cantos da folha</option>
           <option value="8">8 pontos (cantos + meios)</option>
         </select>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">
+      Numeração Sequencial
+      <span class="new-badge">Novo</span>
+    </div>
+    <div class="num-config">
+      <div class="num-toggle">
+        <span class="num-toggle-label">Ativar numeração automática</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="num-ativo" onchange="toggleNumBody()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="num-body hidden" id="num-body">
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Número Inicial</span>
+            <input type="number" id="num-inicio" class="mini-input" value="1" min="0" step="1">
+          </div>
+          <div>
+            <span class="mini-label">Número Final</span>
+            <input type="number" id="num-final" class="mini-input" value="" min="0" step="1" placeholder="(opcional)">
+          </div>
+        </div>
+        <div class="montagem-row">
+          <div>
+            <span class="mini-label">Incremento</span>
+            <input type="number" id="num-incremento" class="mini-input" value="1" min="1" step="1">
+          </div>
+        </div>
+        <div>
+          <span class="mini-label">Prefixo (opcional)</span>
+          <input type="text" id="num-prefixo" class="mini-input" placeholder="Ex: LT-" style="font-family:var(--mono);">
+        </div>
+        <div>
+          <span class="mini-label">Dígitos mínimos (zeros à esq.)</span>
+          <input type="number" id="num-digits" class="mini-input" value="0" min="0" max="10" step="1" placeholder="0 = sem padding">
+        </div>
+
+        <div class="montagem-row triple" style="margin-top:6px; margin-bottom:8px;">
+          <div>
+            <span class="mini-label">Tam. Texto (%)</span>
+            <input type="number" id="num-tam" class="mini-input" value="100" min="10" step="1" oninput="updatePreview()">
+          </div>
+          <div>
+            <span class="mini-label">Pos. X (%)</span>
+            <input type="number" id="num-x" class="mini-input" value="50" step="1" oninput="updatePreview()">
+          </div>
+          <div>
+            <span class="mini-label">Pos. Y (%)</span>
+            <input type="number" id="num-y" class="mini-input" value="72" step="1" oninput="updatePreview()">
+          </div>
+        </div>
+
+        <div style="height:1px; background:var(--border);"></div>
+
+        <div class="num-toggle" style="margin-top:2px;">
+          <span class="num-toggle-label" style="font-size:11px;">Código de barras</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="barcode-ativo" onchange="toggleBarcodeOpts()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div id="barcode-opts" class="hidden" style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <span class="mini-label">Tipo</span>
+            <select id="barcode-tipo" class="mini-input">
+              <option value="CODE128">CODE 128 (padrão)</option>
+              <option value="CODE39">CODE 39</option>
+              <option value="EAN13">EAN-13</option>
+              <option value="EAN8">EAN-8</option>
+              <option value="QR">QR Code</option>
+            </select>
+          </div>
+          <div class="montagem-row" id="barcode-pos-row">
+            <div>
+              <span class="mini-label">Posição</span>
+              <select id="barcode-pos" class="mini-input">
+                <option value="bottom-overlay">Sobre o lacre (baixo)</option>
+                <option value="top-overlay">Sobre o lacre (topo)</option>
+                <option value="below">Abaixo do lacre</option>
+              </select>
+            </div>
+            <div>
+              <span class="mini-label">Altura (mm)</span>
+              <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
+            </div>
+          </div>
+
+          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
+            <div>
+              <span class="mini-label">Largura (%)</span>
+              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1" oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Altura (%)</span>
+              <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1" oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Pos. Y (%)</span>
+              <input type="number" id="barcode-offset-y" class="mini-input" value="60" min="10" max="90" step="1" oninput="updatePreview()">
+            </div>
+          </div>
+
+          <div class="montagem-row">
+            <div>
+              <span class="mini-label">Cor barras</span>
+              <input type="color" id="barcode-cor" value="#000000" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;" oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Cor fundo</span>
+              <input type="color" id="barcode-fundo" value="#ffffff" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;" oninput="updatePreview()">
+            </div>
+          </div>
+          <div style="font-size:10px; color:var(--muted); font-family:var(--mono); padding:6px 8px; background:var(--bg); border-radius:6px; border:1px solid var(--border);">
+            ⚡ Barcode gerado no cliente — 100% offline, sem servidor.
+          </div>
+        </div>
+
+        <div id="qr-opts" class="hidden" style="margin-top:4px;">
+          <span class="mini-label">Sufixo/URL no QR (opcional)</span>
+          <input type="text" id="qr-sufixo" class="mini-input" placeholder="https://seusite.com/v/" style="font-family:var(--mono);">
+          <div style="font-size:10px; color:var(--muted); margin-top:4px;">O número será acrescentado após o sufixo.</div>
+        </div>
       </div>
     </div>
   </div>
