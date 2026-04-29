@@ -540,23 +540,25 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             <div>
               <span class="mini-label">Largura (%)</span>
               <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1"
-                     title="Largura do barcode em % da área central da etiqueta">
+                     title="Largura do barcode em % da área central da etiqueta"
+                     oninput="updatePreview()">
             </div>
             <div>
               <span class="mini-label">Pos. Y (%)</span>
               <input type="number" id="barcode-offset-y" class="mini-input" value="60" min="10" max="90" step="1"
-                     title="Posição vertical do centro do barcode em % da área central">
+                     title="Posição vertical do centro do barcode em % da área central"
+                     oninput="updatePreview()">
             </div>
           </div>
 
           <div class="montagem-row">
             <div>
               <span class="mini-label">Cor barras</span>
-              <input type="color" id="barcode-cor" value="#000000" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;">
+              <input type="color" id="barcode-cor" value="#000000" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;" oninput="updatePreview()">
             </div>
             <div>
               <span class="mini-label">Cor fundo</span>
-              <input type="color" id="barcode-fundo" value="#ffffff" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;">
+              <input type="color" id="barcode-fundo" value="#ffffff" style="width:100%;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;background:transparent;" oninput="updatePreview()">
             </div>
           </div>
           <div style="font-size:10px; color:var(--muted); font-family:var(--mono); padding:6px 8px; background:var(--bg); border-radius:6px; border:1px solid var(--border);">
@@ -898,6 +900,14 @@ function toggleBarcodeOpts() {
   if (!ativo) document.getElementById('qr-opts').classList.add('hidden');
   else toggleQROpts();
   document.getElementById('barcode-tipo').onchange = toggleQROpts;
+  atualizarBarcodeRows();
+}
+
+function atualizarBarcodeRows() {
+  const engine = state.templateFile ? window.TemplateEngines?.[state.templateFile] : null;
+  const interno = !!(engine && engine.handlesBarcodeInternally);
+  document.getElementById('barcode-pos-row').style.display    = interno ? 'none' : '';
+  document.getElementById('barcode-internal-row').style.display = interno ? '' : 'none';
 }
 
 function toggleQROpts() {
@@ -918,6 +928,8 @@ function getNumConfig() {
     bTipo:      document.getElementById('barcode-tipo').value,
     bPos:       document.getElementById('barcode-pos').value,
     bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
+    bLargura:   parseFloat(document.getElementById('barcode-largura').value) || 85,
+    bOffsetY:   parseFloat(document.getElementById('barcode-offset-y').value) || 60,
     bCor:       document.getElementById('barcode-cor').value,
     bFundo:     document.getElementById('barcode-fundo').value,
     qrSufixo:   document.getElementById('qr-sufixo').value || '',
@@ -1122,6 +1134,80 @@ function buildHTML() {
   return html;
 }
 
+function buildBarcodePreviewScript() {
+  const numCfg = getNumConfig();
+  if (!numCfg.ativo || !numCfg.barcode) return '';
+  const engine = state.templateFile ? window.TemplateEngines?.[state.templateFile] : null;
+  if (!engine || !engine.handlesBarcodeInternally) return '';
+
+  const texto = formatNum(numCfg.inicio, numCfg);
+  const tipo  = numCfg.bTipo === 'QR' ? 'QR' : numCfg.bTipo;
+  const cor   = numCfg.bCor;
+  const fundo = numCfg.bFundo;
+  const larg  = numCfg.bLargura;  // %
+  const posY  = numCfg.bOffsetY;  // %
+  const qrSuf = numCfg.qrSufixo || '';
+
+  return `
+<script>
+(function() {
+  function injectBarcode() {
+    var container = document.getElementById('barcode-container');
+    if (!container) return;
+    container.style.position = 'absolute';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)';
+    container.style.top = ${posY} + '%';
+    container.style.width = ${larg} + '%';
+    container.style.zIndex = '10';
+    container.innerHTML = '';
+
+    ${tipo === 'QR' ? `
+    var canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    container.appendChild(canvas);
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(canvas, '${qrSuf}${texto}', {width: 120, margin:0, color:{dark:'${cor}',light:'${fundo}'}}, function(){});
+    } else {
+      container.textContent = '${texto}';
+    }
+    ` : `
+    var canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    container.appendChild(canvas);
+    if (typeof JsBarcode !== 'undefined') {
+      try {
+        JsBarcode(canvas, '${texto}', {
+          format: '${tipo}',
+          lineColor: '${cor}',
+          background: '${fundo}',
+          width: 1.5,
+          height: 30,
+          displayValue: true,
+          fontSize: 9,
+          margin: 2,
+        });
+      } catch(e) { container.textContent = '${texto}'; }
+    } else {
+      container.textContent = '${texto}';
+    }
+    `}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectBarcode);
+  } else {
+    injectBarcode();
+  }
+})();
+<\/script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" onload="(function(){var c=document.getElementById('barcode-container');if(c&&c.querySelector('canvas')&&c.querySelector('canvas').width===0){var ev=new Event('DOMContentLoaded');document.dispatchEvent(ev);}})()"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
+`;
+}
+
 function updatePreview() {
   if (!state.templateSrc) return;
   state.fundo    = state.vars['CHAVE_COR_FUNDO']    || '#ffffff';
@@ -1130,7 +1216,10 @@ function updatePreview() {
   state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
   const iframe = document.getElementById('preview-iframe');
   const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open(); doc.write(buildHTML()); doc.close();
+  const html = buildHTML() + buildBarcodePreviewScript();
+  doc.open(); doc.write(html); doc.close();
+  // Atualiza visibilidade dos controles de barcode para este engine
+  atualizarBarcodeRows();
 }
 
 function dynColor(key, val) {
@@ -1424,10 +1513,11 @@ async function baixarMontagemPDF() {
               CHAVE_NUMERO: stateLocal.numeroFormatado,
             });
           }
+          stateLocal.numCfg = numCfg;
 
           await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
 
-          if (numCfg.ativo && numCfg.barcode) {
+          if (numCfg.ativo && numCfg.barcode && !engine.handlesBarcodeInternally) {
             await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
           }
 
@@ -1534,6 +1624,7 @@ function baixarMontagemSVG() {
           const numAtual = numCfg.inicio + indice * numCfg.incremento;
           stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numAtual, numCfg) });
         }
+        stateLocal.numCfg = numCfg;
         body += engine.drawSVG(W, H, ox, oy, stateLocal);
         indice++;
       }
