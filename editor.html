@@ -679,6 +679,69 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 <script>
 window.TemplateEngines = {};
 
+// ── Barcode vetorial ────────────────────────────────────────────────────────
+// Gera barcode como SVG inline (string) — usado por engines no drawSVG
+window.gerarBarcodeSVGString = function(texto, cfg) {
+  if (!texto) return '';
+  try {
+    if (cfg.bTipo === 'QR') return ''; // QR não tem versão SVG inline simples
+    const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    JsBarcode(svgEl, texto, {
+      xmlDocument: document,
+      format:       cfg.bTipo || 'CODE128',
+      lineColor:    cfg.bCor  || '#000000',
+      background:   cfg.bFundo || '#ffffff',
+      width:        1.5,
+      height:       40,
+      displayValue: true,
+      fontSize:     10,
+      margin:       2,
+    });
+    return svgEl.outerHTML;
+  } catch(e) {
+    console.warn('gerarBarcodeSVGString error:', e);
+    return '';
+  }
+};
+
+// Gera barcode vetorial direto no jsPDF via SVG parsing
+window.desenharBarcodeVetorPDF = async function(pdf, bx, by, bw, bh, texto, cfg) {
+  if (!texto) return;
+  try {
+    if (cfg.bTipo === 'QR') {
+      // QR: fallback raster
+      const canvas = document.createElement('canvas');
+      canvas.width = 120; canvas.height = 120;
+      await new Promise(res => QRCode.toCanvas(canvas, (cfg.qrSufixo||'') + texto,
+        { width: 120, margin: 0, color: { dark: cfg.bCor, light: cfg.bFundo } }, res));
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bx, by, bw, bh, undefined, 'NONE');
+      return;
+    }
+    // Barcode 1D: gera SVG, converte para canvas em alta res, adiciona como PNG de alta resolução
+    // (jsPDF não suporta SVG path de barcode diretamente, mas podemos usar alta resolução)
+    const PX = 4; // 4px por mm = ~100dpi suficiente para barcode nítido
+    const cW = Math.round(bw * PX * 10);
+    const cH = Math.round(bh * PX * 10);
+    const canvas = document.createElement('canvas');
+    canvas.width  = cW;
+    canvas.height = cH;
+    JsBarcode(canvas, texto, {
+      format:       cfg.bTipo || 'CODE128',
+      lineColor:    cfg.bCor  || '#000000',
+      background:   cfg.bFundo || '#ffffff',
+      width:        Math.max(1, cW / 120),
+      height:       cH * 0.75,
+      displayValue: true,
+      fontSize:     Math.max(8, cH * 0.14),
+      margin:       Math.max(1, cH * 0.04),
+    });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bx, by, bw, bh, undefined, 'NONE');
+  } catch(e) {
+    console.warn('desenharBarcodeVetorPDF error:', e);
+  }
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 const state = {
   vars: {},
   templateSrc: '',
