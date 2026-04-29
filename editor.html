@@ -1212,17 +1212,78 @@ function buildBarcodePreviewScript() {
 `;
 }
 
-function updatePreview() {
+async function updatePreview() {
   if (!state.templateSrc) return;
-  state.fundo    = state.vars['CHAVE_COR_FUNDO']    || '#ffffff';
-  state.texto    = state.vars['CHAVE_COR_TEXTO']    || '#000000';
-  state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
-  state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
+  
   const iframe = document.getElementById('preview-iframe');
   const doc = iframe.contentDocument || iframe.contentWindow.document;
-  const html = buildHTML() + buildBarcodePreviewScript();
-  doc.open(); doc.write(html); doc.close();
+  
+  // Pegamos as medidas definidas na interface para o preview
+  const wCm = parseFloat(document.getElementById('lacre-w').value) || 1;
+  const hCm = parseFloat(document.getElementById('lacre-h').value) || 1;
+  const W = wCm * 10, H = hCm * 10;
+
+  const engine = window.TemplateEngines[state.templateFile];
+  if (engine) {
+    // Geramos o SVG real com todas as variáveis aplicadas (posições, escalas, etc)
+    const svgContent = engine.drawSVG(W, H, 0, 0, state);
+    const fullHTML = `
+      <style>
+        body { margin: 0; display: flex; align-items: center; justify-content: center; background: ${state.vars['CHAVE_COR_FUNDO'] || '#fff'}; height: 100vh; overflow: hidden; }
+        svg { width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
+      </style>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">${svgContent}</svg>`;
+    
+    doc.open();
+    doc.write(fullHTML);
+    doc.close();
+  }
+  
   atualizarBarcodeRows();
+}
+
+// 2. CORREÇÃO DO PNG: Removendo dependência do iframe para evitar borrões
+async function baixarFotoPNG() {
+  if (!state.templateSrc) return;
+  const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
+  const hCm = parseFloat(document.getElementById('lacre-h').value) || 5;
+  const lbl = document.getElementById('btn-png-label');
+  lbl.textContent = 'Gerando...';
+
+  try {
+    const W = wCm * 10, H = hCm * 10;
+    const engine = window.TemplateEngines[state.templateFile];
+    const svgContent = engine.drawSVG(W, H, 0, 0, state);
+    
+    // Criamos um Blob do SVG para renderizar no Canvas em alta definição
+    const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">${svgContent}</svg>`;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      // 400 DPI (aprox 15.75 pixels por mm)
+      canvas.width = W * 15.75;
+      canvas.height = H * 15.75;
+      ctx.fillStyle = state.vars['CHAVE_COR_FUNDO'] || '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      const a = document.createElement('a');
+      a.download = `lacre_${wCm}x${hCm}cm.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      URL.revokeObjectURL(url);
+      lbl.textContent = 'Baixar PNG (400 DPI)';
+    };
+    img.src = url;
+  } catch(e) { 
+    alert('Erro PNG: ' + e.message); 
+    lbl.textContent = 'Baixar PNG (400 DPI)';
+  }
 }
 
 function dynColor(key, val) {
