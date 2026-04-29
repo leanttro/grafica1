@@ -29,14 +29,10 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     }
   },
 
-  // targetW, targetH: dimensões em pixels do espaço de destino (opcional).
-  // Quando fornecidos, o barcode é gerado exatamente nesse tamanho — sem esticamento.
-  _gerarBarcodeDataUrl: function(texto, cfg, targetW, targetH) {
+  _gerarBarcodeDataUrl: function(texto, cfg) {
     return new Promise((resolve) => {
       if (!texto) { resolve(null); return; }
-      const SCALE = 3;
-      const W = targetW ? Math.round(targetW * SCALE) : 600;
-      const H = targetH ? Math.round(targetH * SCALE) : 160;
+      const W = 600, H = 160;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
 
@@ -52,8 +48,8 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             format:       cfg.bTipo || 'CODE128',
             lineColor:    cfg.bCor  || '#000000',
             background:   cfg.bFundo || '#ffffff',
-            width:        Math.max(1, Math.floor(W / 120)),
-            height:       Math.round(H * 0.78),
+            width:        2,
+            height:       H,
             displayValue: false,
             margin:       0,
           });
@@ -122,7 +118,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
     const numCfg    = state.numCfg || {};
 
-    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
+    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
     const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
     const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
@@ -141,10 +137,10 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         pdf.text(infoText, infoX, infoY, { align:'center' });
       }
 
-      const bW = centW * bLarguraPct;
-      const bH = centAreaH * bAlturaPct;
-      const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg, bW * 10, bH * 10);
+      const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
       if (bDataUrl) {
+        const bW = centW * bLarguraPct;
+        const bH = centAreaH * bAlturaPct;
         const bx = ox + logoW + (centW - bW) / 2;
         const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
         const byClipped = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
@@ -293,7 +289,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numCfg    = state.numCfg || {};
     const temBarcode = numCfg.ativo && numCfg.barcode && numero;
 
-    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
+    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
     const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
 
@@ -416,149 +412,4 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
     return s;
   }
-};
-
-// ── drawCanvas: idêntico ao drawPDF em mm, ctx.scale(S,S) para pixels ──
-window.TemplateEngines['lacre3x1-barcode.html'].drawCanvas = async function(ctx, ox, oy, W, H, S, state) {
-  ctx.save();
-  ctx.scale(S, S);
-  // daqui em diante tudo em mm, igual drawPDF
-
-  const bw = Math.max((7 / 500) * W, 0.1);
-  const css = hex => hex || '#000000';
-
-  const topH  = H * 0.70, mesH  = H * 0.30;
-  const logoW = W * 0.18, anosW = W * 0.12;
-  const centW = W - logoW - anosW;
-  const hAno  = topH / 4, wMes  = W / 12;
-
-  // Fundo
-  ctx.fillStyle = css(state.fundo);
-  ctx.fillRect(ox, oy, W, H);
-
-  // Borda
-  ctx.strokeStyle = css(state.texto);
-  ctx.lineWidth = bw;
-  ctx.strokeRect(ox + bw/2, oy + bw/2, W - bw, H - bw);
-
-  const ln = (x1, y, x2) => { ctx.beginPath(); ctx.moveTo(ox+x1,oy+y);  ctx.lineTo(ox+x2,oy+y);  ctx.stroke(); };
-  const lv = (x, ya, yb) => { ctx.beginPath(); ctx.moveTo(ox+x,oy+ya); ctx.lineTo(ox+x,oy+yb); ctx.stroke(); };
-
-  ln(0, topH, W);
-  lv(logoW, 0, topH);
-  lv(W - anosW, 0, topH);
-  for (let i = 1; i < 4;  i++) ln(W - anosW, hAno*i, W);
-  for (let i = 1; i < 12; i++) lv(wMes*i, topH, H);
-
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-  // Anos
-  const fsAno = Math.min(anosW * 0.55, hAno * 0.65);
-  ctx.font = `bold ${fsAno}px Arial,Helvetica,sans-serif`;
-  ctx.fillStyle = css(state.destaque);
-  ['26','27','28','29'].forEach((a, i) => ctx.fillText(a, ox + W - anosW/2, oy + hAno*i + hAno/2));
-
-  // Meses
-  const fsMes = Math.min(wMes * 0.70, mesH * 0.65);
-  ctx.font = `bold ${fsMes}px Arial,Helvetica,sans-serif`;
-  ctx.fillStyle = css(state.texto);
-  ['J','F','M','A','M','J','J','A','S','O','N','D'].forEach((m, i) =>
-    ctx.fillText(m, ox + wMes*i + wMes/2, oy + topH + mesH/2));
-
-  const padC      = bw * 2;
-  const centAreaY = oy + padC;
-  const centAreaH = topH - padC * 2;
-  const infoText  = state.vars?.['CHAVE_INFO'] || '';
-  const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
-  const numCfg    = state.numCfg || {};
-
-  const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
-  const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
-  const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY   ?? 60, 10),  90) / 100;
-  const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
-
-  const dtxt = (txt, cx, cy, fs, cor, alpha) => {
-    ctx.font = `bold ${fs}px Arial,Helvetica,sans-serif`;
-    ctx.fillStyle = css(cor);
-    ctx.globalAlpha = alpha ?? 1;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(txt, cx, cy);
-    ctx.globalAlpha = 1;
-  };
-
-  // Calcula dimensões do barcode em mm (igual drawPDF)
-  const bW = centW * bLarguraPct;
-  const bH = centAreaH * bAlturaPct;
-  const bx = ox + logoW + (centW - bW) / 2;
-  const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
-  const byC = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
-
-  if (temBarcode) {
-    if (infoText) {
-      const si  = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
-      const pxi = parseFloat(state.vars['CHAVE_INFO_X']   ?? 50)  / 100;
-      const pyi = parseFloat(state.vars['CHAVE_INFO_Y']   ?? 22)  / 100;
-      dtxt(infoText, ox + logoW + centW*pxi, centAreaY + centAreaH*pyi,
-           Math.min(centW*0.20, centAreaH*0.28)*si, state.texto);
-    }
-
-    // Passa dimensões reais em pixels para gerar barcode sem esticamento
-    const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg, bW * S, bH * S);
-    if (bDataUrl) {
-      const bImg = new Image();
-      await new Promise(r => { bImg.onload = r; bImg.onerror = r; bImg.src = bDataUrl; });
-      ctx.drawImage(bImg, bx, byC, bW, bH);
-
-      if (numCfg.bTipo !== 'QR') {
-        const sn  = parseFloat(numCfg.nTam ?? 100) / 100;
-        const pxn = parseFloat(numCfg.nX   ?? 50)  / 100;
-        const pyn = parseFloat(numCfg.nY   ?? 72)  / 100;
-        dtxt(numero, ox + logoW + centW*pxn, centAreaY + centAreaH*pyn,
-             Math.min(centW*0.13, centAreaH*0.20)*sn, numCfg.bCor || state.texto);
-      }
-    }
-  } else {
-    if (infoText) {
-      const si  = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
-      const pxi = parseFloat(state.vars['CHAVE_INFO_X']   ?? 50)  / 100;
-      const pyi = parseFloat(state.vars['CHAVE_INFO_Y']   ?? 28)  / 100;
-      dtxt(infoText, ox + logoW + centW*pxi, centAreaY + centAreaH*pyi,
-           Math.min(centW*0.20, centAreaH*0.30)*si, state.texto);
-    }
-    if (numero) {
-      let sn = 1, pxn = 0.5, pyn = 0.72;
-      if (numCfg.ativo) {
-        sn  = parseFloat(numCfg.nTam ?? 100) / 100;
-        pxn = parseFloat(numCfg.nX   ?? 50)  / 100;
-        pyn = parseFloat(numCfg.nY   ?? 72)  / 100;
-      } else {
-        sn  = parseFloat(state.vars['CHAVE_NUMERO_TAM'] ?? 100) / 100;
-        pxn = parseFloat(state.vars['CHAVE_NUMERO_X']   ?? 50)  / 100;
-        pyn = parseFloat(state.vars['CHAVE_NUMERO_Y']   ?? 72)  / 100;
-      }
-      dtxt(numero, ox + logoW + centW*pxn, centAreaY + centAreaH*pyn,
-           Math.min(centW*0.14, centAreaH*0.22)*sn, state.texto, 0.85);
-    }
-  }
-
-  // Logo
-  if (state.logoDataUrl) {
-    const pad = bw * 2;
-    const lx = ox + pad, ly = oy + pad;
-    const lw = logoW - pad*2, lh = topH - pad*2;
-    const img = new Image();
-    await new Promise(r => { img.onload = r; img.onerror = r; img.src = state.logoDataUrl; });
-    if (img.naturalWidth) {
-      const ir = img.naturalWidth / img.naturalHeight, br = lw / lh;
-      let dw, dh;
-      if (ir > br) { dw = lw; dh = lw / ir; } else { dh = lh; dw = lh * ir; }
-      const sc = parseFloat(state.vars['LOGO_TAM'] ?? 100) / 100;
-      const px = parseFloat(state.vars['LOGO_X']   ?? 50)  / 100;
-      const py = parseFloat(state.vars['LOGO_Y']   ?? 50)  / 100;
-      dw *= sc; dh *= sc;
-      ctx.drawImage(img, lx + (lw-dw)*px, ly + (lh-dh)*py, dw, dh);
-    }
-  }
-
-  ctx.restore();
 };
