@@ -112,7 +112,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     });
 
     const padC  = bw * 2;
-    const centX = ox + logoW + centW / 2;
     const centAreaY = oy + padC;
     const centAreaH = topH - padC * 2;
     const infoText  = state.vars?.['CHAVE_INFO'] || '';
@@ -120,6 +119,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numCfg    = state.numCfg || {};
 
     const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
+    const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
     const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
 
@@ -127,52 +127,68 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
     if (temBarcode) {
       if (infoText) {
-        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.28) * 2.835;
+        const scaleInfo = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
+        const pxInfo = parseFloat(state.vars['CHAVE_INFO_X'] ?? 50) / 100;
+        const pyInfo = parseFloat(state.vars['CHAVE_INFO_Y'] ?? 22) / 100;
+        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.28) * 2.835 * scaleInfo;
         pdf.setFontSize(fsInfo);
-        const infoY = centAreaY + centAreaH * 0.22 + (fsInfo/2.835)*0.35;
-        pdf.text(infoText, centX, infoY, { align:'center' });
+        const infoX = ox + logoW + centW * pxInfo;
+        const infoY = centAreaY + centAreaH * pyInfo + (fsInfo/2.835)*0.35;
+        pdf.text(infoText, infoX, infoY, { align:'center' });
       }
 
       const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
       if (bDataUrl) {
         const bW = centW * bLarguraPct;
-        const bH = Math.min(centAreaH * 0.40, numCfg.bAltura || 8);
+        const bH = centAreaH * bAlturaPct;
         const bx = ox + logoW + (centW - bW) / 2;
         const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
         const byClipped = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
         pdf.addImage(bDataUrl, 'PNG', bx, byClipped, bW, bH, undefined, 'NONE');
 
         if (numCfg.bTipo !== 'QR') {
-          const espacoAbaixo = (centAreaY + centAreaH) - (byClipped + bH);
           let corR = tr, corG = tg, corB = tb;
           if (numCfg.bCor) [corR, corG, corB] = hexToRgb(numCfg.bCor);
           pdf.setTextColor(corR, corG, corB);
 
-          if (espacoAbaixo >= 1.5) {
-            const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.60) * 2.835;
-            pdf.setFontSize(fsNumAbaixo);
-            const numAbaixoY  = byClipped + bH + (fsNumAbaixo/2.835) * 0.85;
-            pdf.text(numero, centX, numAbaixoY, { align:'center' });
-          } else {
-            const fsNum2 = Math.min(centW * 0.12, 2.5) * 2.835;
-            pdf.setFontSize(fsNum2);
-            pdf.text(numero, centX, byClipped + bH + 1.6, { align:'center' });
-          }
+          const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+          const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+          const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+          const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * 2.835 * scaleNum;
+          pdf.setFontSize(fsNumAbaixo);
+          const numX = ox + logoW + centW * pxNum;
+          const numY = centAreaY + centAreaH * pyNum + (fsNumAbaixo/2.835)*0.35;
+          pdf.text(numero, numX, numY, { align:'center' });
         }
       }
 
     } else {
       if (infoText) {
-        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.30) * 2.835;
+        const scaleInfo = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
+        const pxInfo = parseFloat(state.vars['CHAVE_INFO_X'] ?? 50) / 100;
+        const pyInfo = parseFloat(state.vars['CHAVE_INFO_Y'] ?? 28) / 100;
+        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.30) * 2.835 * scaleInfo;
         pdf.setFontSize(fsInfo);
-        const infoY = centAreaY + centAreaH * 0.28 + (fsInfo/2.835)*0.35;
-        pdf.text(infoText, centX, infoY, { align:'center' });
+        const infoX = ox + logoW + centW * pxInfo;
+        const infoY = centAreaY + centAreaH * pyInfo + (fsInfo/2.835)*0.35;
+        pdf.text(infoText, infoX, infoY, { align:'center' });
       }
       if (numero) {
-        const fsNum = Math.min(centW * 0.14, centAreaH * 0.22) * 2.835;
+        let scaleNum = 1, pxNum = 0.5, pyNum = 0.72;
+        if (numCfg.ativo) {
+            scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+            pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+            pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+        } else {
+            scaleNum = parseFloat(state.vars['CHAVE_NUMERO_TAM'] ?? 100) / 100;
+            pxNum = parseFloat(state.vars['CHAVE_NUMERO_X'] ?? 50) / 100;
+            pyNum = parseFloat(state.vars['CHAVE_NUMERO_Y'] ?? 72) / 100;
+        }
+        const fsNum = Math.min(centW * 0.14, centAreaH * 0.22) * 2.835 * scaleNum;
         pdf.setFontSize(fsNum);
-        const numY = centAreaY + centAreaH * 0.72 + (fsNum/2.835)*0.35;
-        pdf.text(numero, centX, numY, { align:'center' });
+        const numX = ox + logoW + centW * pxNum;
+        const numY = centAreaY + centAreaH * pyNum + (fsNum/2.835)*0.35;
+        pdf.text(numero, numX, numY, { align:'center' });
       }
     }
 
@@ -180,23 +196,32 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       const pad = bw * 2;
       const lx = ox + pad, ly = oy + pad;
       const lw = logoW - pad*2, lh = topH - pad*2;
+      const scale = parseFloat(state.vars['LOGO_TAM'] ?? 100) / 100;
+      const px = parseFloat(state.vars['LOGO_X'] ?? 50) / 100;
+      const py = parseFloat(state.vars['LOGO_Y'] ?? 50) / 100;
+
+      const dw = lw * scale;
+      const dh = lh * scale;
+      const dx = lx + (lw - dw) * px;
+      const dy = ly + (lh - dh) * py;
+
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(state.logoSVGString, 'image/svg+xml');
       const svgEl  = svgDoc.documentElement;
       if (!svgEl.getAttribute('viewBox')) {
         svgEl.setAttribute('viewBox', `0 0 ${svgEl.getAttribute('width')||100} ${svgEl.getAttribute('height')||100}`);
       }
-      svgEl.setAttribute('width', lw);
-      svgEl.setAttribute('height', lh);
+      svgEl.setAttribute('width', dw);
+      svgEl.setAttribute('height', dh);
       svgEl.style.position = 'absolute';
       svgEl.style.left = '-9999px';
       svgEl.style.top  = '-9999px';
       document.body.appendChild(svgEl);
       try {
         if (typeof state.pdfRaw.svg === 'function') {
-          await state.pdfRaw.svg(svgEl, { x: lx, y: ly, width: lw, height: lh });
+          await state.pdfRaw.svg(svgEl, { x: dx, y: dy, width: dw, height: dh });
         } else if (typeof window.svg2pdf === 'function') {
-          await window.svg2pdf(svgEl, state.pdfRaw, { x: lx, y: ly, width: lw, height: lh });
+          await window.svg2pdf(svgEl, state.pdfRaw, { x: dx, y: dy, width: dw, height: dh });
         }
       } catch(e) { console.warn('svg2pdf:', e); }
       document.body.removeChild(svgEl);
@@ -211,7 +236,14 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
       let dw, dh;
       if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
-      const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
+      
+      const scale = parseFloat(state.vars['LOGO_TAM'] ?? 100) / 100;
+      const px = parseFloat(state.vars['LOGO_X'] ?? 50) / 100;
+      const py = parseFloat(state.vars['LOGO_Y'] ?? 50) / 100;
+      dw *= scale; dh *= scale;
+      const dx = lx + (lw - dw) * px;
+      const dy = ly + (lh - dh) * py;
+      
       const fmt = state.logoDataUrl.startsWith('data:image/png')?'PNG':'JPEG';
       pdf.addImage(state.logoDataUrl, fmt, dx, dy, dw, dh, undefined, 'NONE');
     }
@@ -251,7 +283,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       s += txt(m, wMes*i+wMes/2, topH+mesH/2, t, fsMes));
 
     const padC      = bw*2;
-    const centX     = logoW + centW/2;
     const centAreaH = topH - padC*2;
     const infoText  = state.vars?.['CHAVE_INFO'] || '';
     const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
@@ -259,16 +290,21 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const temBarcode = numCfg.ativo && numCfg.barcode && numero;
 
     const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
+    const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
 
     if (temBarcode) {
       if (infoText) {
-        const fsInfo = Math.min(centW*0.20, centAreaH*0.28);
-        s += txt(infoText, centX, padC + centAreaH*0.22, t, fsInfo);
+        const scaleInfo = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
+        const pxInfo = parseFloat(state.vars['CHAVE_INFO_X'] ?? 50) / 100;
+        const pyInfo = parseFloat(state.vars['CHAVE_INFO_Y'] ?? 22) / 100;
+        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.28) * scaleInfo;
+        const infoX = logoW + centW * pxInfo;
+        s += txt(infoText, infoX, padC + centAreaH * pyInfo, t, fsInfo);
       }
 
       const bW = centW * bLarguraPct;
-      const bH = Math.min(centAreaH * 0.38, 10);
+      const bH = centAreaH * bAlturaPct;
       const bx = logoW + (centW - bW) / 2;
       const by = padC + centAreaH * bOffsetYPct - bH / 2;
       const byClipped = Math.max(padC, Math.min(by, padC + centAreaH - bH));
@@ -298,32 +334,58 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           s += `</g>`;
           
           if (numCfg.bTipo !== 'QR') {
-            const espacoAbaixo = (padC + centAreaH) - (byClipped + bH);
-            if (espacoAbaixo >= 1.5) {
-              const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.60);
-              const numAbaixoY  = byClipped + bH + fsNumAbaixo * 0.85;
-              s += txt(numero, centX, padC + numAbaixoY, numCfg.bCor || t, fsNumAbaixo);
-            } else {
-              const fsNum2 = Math.min(centW * 0.12, 2.5);
-              s += txt(numero, centX, padC + byClipped + bH + 1.6, numCfg.bCor || t, fsNum2);
-            }
+            const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+            const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+            const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+            const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * scaleNum;
+            const numX = logoW + centW * pxNum;
+            s += txt(numero, numX, padC + centAreaH * pyNum, numCfg.bCor || t, fsNumAbaixo);
           }
         } catch(e) {
           s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-          if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.6, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+          if (numCfg.bTipo !== 'QR') {
+            const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+            const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+            const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+            const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * scaleNum;
+            const numX = logoW + centW * pxNum;
+            s += txt(numero, numX, padC + centAreaH * pyNum, numCfg.bCor || t, fsNumAbaixo);
+          }
         }
       } else {
         s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-        if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.6, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+        if (numCfg.bTipo !== 'QR') {
+          const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+          const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+          const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+          const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * scaleNum;
+          const numX = logoW + centW * pxNum;
+          s += txt(numero, numX, padC + centAreaH * pyNum, numCfg.bCor || t, fsNumAbaixo);
+        }
       }
     } else {
       if (infoText) {
-        const fsInfo = Math.min(centW*0.20, centAreaH*0.30);
-        s += txt(infoText, centX, padC + centAreaH*0.28, t, fsInfo);
+        const scaleInfo = parseFloat(state.vars['CHAVE_INFO_TAM'] ?? 100) / 100;
+        const pxInfo = parseFloat(state.vars['CHAVE_INFO_X'] ?? 50) / 100;
+        const pyInfo = parseFloat(state.vars['CHAVE_INFO_Y'] ?? 28) / 100;
+        const fsInfo = Math.min(centW * 0.20, centAreaH * 0.30) * scaleInfo;
+        const infoX = logoW + centW * pxInfo;
+        s += txt(infoText, infoX, padC + centAreaH * pyInfo, t, fsInfo);
       }
       if (numero) {
-        const fsNum = Math.min(centW*0.14, centAreaH*0.22);
-        s += txt(numero, centX, padC + centAreaH*0.72, t, fsNum, ' opacity="0.85"');
+        let scaleNum = 1, pxNum = 0.5, pyNum = 0.72;
+        if (numCfg.ativo) {
+            scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+            pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+            pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+        } else {
+            scaleNum = parseFloat(state.vars['CHAVE_NUMERO_TAM'] ?? 100) / 100;
+            pxNum = parseFloat(state.vars['CHAVE_NUMERO_X'] ?? 50) / 100;
+            pyNum = parseFloat(state.vars['CHAVE_NUMERO_Y'] ?? 72) / 100;
+        }
+        const fsNum = Math.min(centW * 0.14, centAreaH * 0.22) * scaleNum;
+        const numX = logoW + centW * pxNum;
+        s += txt(numero, numX, padC + centAreaH * pyNum, t, fsNum, ' opacity="0.85"');
       }
     }
 
@@ -336,7 +398,14 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         const ir = img.naturalWidth/img.naturalHeight, br = lw/lh;
         let dw, dh;
         if (ir>br){dw=lw;dh=lw/ir;}else{dh=lh;dw=lh*ir;}
-        const dx = lx+(lw-dw)/2, dy = ly+(lh-dh)/2;
+        
+        const scale = parseFloat(state.vars['LOGO_TAM'] ?? 100) / 100;
+        const px = parseFloat(state.vars['LOGO_X'] ?? 50) / 100;
+        const py = parseFloat(state.vars['LOGO_Y'] ?? 50) / 100;
+        dw *= scale; dh *= scale;
+        const dx = lx + (lw - dw) * px;
+        const dy = ly + (lh - dh) * py;
+        
         s += `<image x="${r4(ox+dx)}" y="${r4(oy+dy)}" width="${r4(dw)}" height="${r4(dh)}" href="${state.logoDataUrl}" preserveAspectRatio="xMidYMid meet"/>`;
       }
     }
