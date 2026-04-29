@@ -533,17 +533,11 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             </div>
           </div>
 
-          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
+          <div class="montagem-row" id="barcode-internal-row" style="display:none;">
             <div>
-              <span class="mini-label">Largura (%)</span>
-              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1"
-                     title="Largura do barcode em % da área central da etiqueta"
-                     oninput="updatePreview()">
-            </div>
-            <div>
-              <span class="mini-label">Altura (%)</span>
+              <span class="mini-label">Aumento Proporcional (%)</span>
               <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1"
-                     title="Altura do barcode em % da área central da etiqueta"
+                     title="Tamanho proporcional do barcode"
                      oninput="updatePreview()">
             </div>
             <div>
@@ -553,6 +547,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
                      oninput="updatePreview()">
             </div>
           </div>
+          <input type="hidden" id="barcode-largura" value="85">
 
           <div class="montagem-row">
             <div>
@@ -1445,25 +1440,8 @@ async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
   const hPx = Math.round(hCm * PX_PER_CM);
-  const W = wCm * 10, H = hCm * 10; // mm
-  const S = wPx / W; // pixels por mm
 
   const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
-
-  if (engine && engine.drawCanvas) {
-    const numCfg = getNumConfig();
-    const stateLocal = Object.assign({}, state);
-    if (numCfg.ativo) {
-      stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
-    }
-    stateLocal.numCfg = numCfg;
-    const out = document.createElement('canvas');
-    out.width = wPx; out.height = hPx;
-    const ctx = out.getContext('2d');
-    await engine.drawCanvas(ctx, 0, 0, W, H, S, stateLocal);
-    return { canvas: out };
-  }
-
   if (engine && engine.drawSVG) {
     const W = wCm * 10, H = hCm * 10;
     const numCfg = getNumConfig();
