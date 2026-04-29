@@ -314,17 +314,23 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
-          // Reserva espaço inferior para o número (25% da altura total)
-          const bHbarras = bH * 0.75;
-          const bHnum    = bH * 0.25;
-          // font-size mínimo de 2mm para garantir legibilidade no SVG de montagem
-          const fsNumSVG = Math.max(bHnum * 0.80, 2.0);
-          // Insere como grupo escalado para caber no espaço
+          // Barcode ocupa bH inteiro (sem numero interno - evita distorcao)
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
           s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
-          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bHbarras)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
-          s += `<text x="${r4(bW/2)}" y="${r4(bHbarras + bHnum * 0.82)}" font-family="monospace,Courier,Arial" font-size="${r4(fsNumSVG)}" font-weight="normal" text-anchor="middle" dominant-baseline="auto" fill="${numCfg.bCor||'#000000'}">${numero}</text>`;
+          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
           s += `</g>`;
+          // Numero desenhado abaixo do barcode com txt() - mesmo sistema do modo texto
+          const espacoAbaixo = (padC + centAreaH) - (byClipped + bH);
+          // Se tiver espaco suficiente, coloca abaixo; caso contrario coloca sobreposto ao fundo do barcode
+          if (espacoAbaixo >= 1.5) {
+            const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.70);
+            const numAbaixoY  = byClipped + bH + espacoAbaixo * 0.55;
+            s += txt(numero, centX, padC + numAbaixoY, numCfg.bCor || t, fsNumAbaixo);
+          } else {
+            // Sem espaco: coloca logo abaixo mesmo que fique no limite
+            const fsNum2 = Math.min(centW * 0.12, 2.5);
+            s += txt(numero, centX, padC + byClipped + bH + 2.0, numCfg.bCor || t, fsNum2);
+          }
         } catch(e) {
           // Fallback: retângulo placeholder
           s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
