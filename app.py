@@ -194,6 +194,26 @@ def logout():
 
 # ── Rotas protegidas ───────────────────────────────────────────────────────────
 
+def inject_api_keys(filename: str) -> Response:
+    """Lê o HTML e injeta as chaves de API do ENV como variáveis JS."""
+    filepath = os.path.join(BASE_DIR, filename)
+    with open(filepath, 'r', encoding='utf-8') as f:
+        html = f.read()
+
+    removebg_key  = os.environ.get('REMOVEBG_KEY', '')
+    photoroom_key = os.environ.get('PHOTOROOM_KEY', '')
+
+    script = (
+        f'<script>'
+        f'var REMOVEBG_API_KEY = "{removebg_key}";'
+        f'var PHOTOROOM_API_KEY = "{photoroom_key}";'
+        f'</script>'
+    )
+    # Injeta logo antes do primeiro <script>
+    html = html.replace('<script', script + '\n<script', 1)
+    return Response(html, mimetype='text/html')
+
+
 @app.route("/")
 @login_required
 def index():
@@ -205,28 +225,28 @@ def index():
 @login_required
 def lacre():
     """Editor de Lacre / Etiqueta Digital."""
-    return send_from_directory(BASE_DIR, "editor.html")
+    return inject_api_keys("editor.html")
 
 
 @app.route("/serigrafia")
 @login_required
 def serigrafia():
     """Editor de Serigrafia."""
-    return send_from_directory(BASE_DIR, "editor_serigrafia.html")
+    return inject_api_keys("editor_serigrafia.html")
 
 
 @app.route("/dtf")
 @login_required
 def dtf():
     """Editor DTF / Transfer."""
-    return send_from_directory(BASE_DIR, "editor_dtf.html")
+    return inject_api_keys("editor_dtf.html")
 
 
 @app.route("/mousepad")
 @login_required
 def mousepad():
     """Editor de Mouse Pad."""
-    return send_from_directory(BASE_DIR, "editor_mouse.html")
+    return inject_api_keys("editor_mouse.html")
 
 
 @app.route("/api/convert-pdf-to-svg", methods=["POST"])
