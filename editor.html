@@ -734,25 +734,22 @@ async function melhorarImagem() {
 }
 
 // ═══════════════════════════════════════════
-// REMOÇÃO DE FUNDO (Transformers.js — cliente puro)
-// Modelo: RMBG-1.4 via Hugging Face
+// REMOÇÃO DE FUNDO (@imgly/background-removal)
+// Roda 100% no navegador via WASM/ONNX
 // ═══════════════════════════════════════════
 
 let _bgRemoverLoaded = false;
-let _bgPipeline = null;
+let _bgRemoveLib = null;
 
 async function carregarBgRemover() {
   if (_bgRemoverLoaded) return true;
   try {
-    if (!window.__esm_transformers__) {
-      // importa dinamicamente o módulo ESM
-      const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
-      window.__esm_transformers__ = mod;
-    }
+    const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/background-removal.js');
+    _bgRemoveLib = mod;
     _bgRemoverLoaded = true;
     return true;
   } catch(e) {
-    console.error('Transformers não carregou:', e);
+    console.error('Background-removal não carregou:', e);
     return false;
   }
 }
@@ -773,45 +770,24 @@ async function removerFundo() {
   }
 
   try {
-    const { pipeline, env } = window.__esm_transformers__;
-    // Permite carregar de CDN externo
-    env.allowRemoteModels = true;
-    env.useBrowserCache  = true;
-
-    if (!_bgPipeline) {
-      statusEl.textContent = 'Baixando modelo RMBG (~180 MB na 1ª vez)…';
-      _bgPipeline = await pipeline('image-segmentation', 'briaai/RMBG-1.4');
-    }
-
     statusEl.textContent = 'Removendo fundo…';
 
-    // converte dataURL → Blob → URL objeto
+    // converte dataURL → Blob
     const resp = await fetch(state.logoDataUrl);
     const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
 
-    const [result] = await _bgPipeline(url, { threshold: 0.5 });
-    URL.revokeObjectURL(url);
+    const resultBlob = await _bgRemoveLib.removeBackground(blob, {
+      progress: (key, current, total) => {
+        if (total > 0) statusEl.textContent = `Processando… ${Math.round(current/total*100)}%`;
+      }
+    });
 
-    // result.mask é um tensor; precisamos compor a imagem
-    const canvas = document.createElement('canvas');
-    const img    = new Image();
-    img.src = state.logoDataUrl;
-    await new Promise(r => { img.onload = r; });
-    canvas.width  = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
+    const novaUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(resultBlob);
+    });
 
-    // aplica máscara (alpha)
-    const maskData = result.mask.data;
-    const imgData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    for (let i = 0; i < maskData.length; i++) {
-      imgData.data[i * 4 + 3] = maskData[i] > 0 ? 255 : 0;
-    }
-    ctx.putImageData(imgData, 0, 0);
-
-    const novaUrl = canvas.toDataURL('image/png');
     state.logoDataUrl = novaUrl;
     state.vars['CHAVE_LOGO'] = novaUrl;
     const imgEl = document.getElementById('logo-img');
