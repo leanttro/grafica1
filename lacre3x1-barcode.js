@@ -306,18 +306,23 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             background:   numCfg.bFundo || '#ffffff',
             width:        2,
             height:       60,
-            displayValue: true,
-            fontSize:     12,
-            margin:       3,
+            displayValue: false,
+            margin:       2,
             xmlDocument:  document,
           });
           // Pega viewBox do SVG gerado para escalar corretamente
-          const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||80}`;
+          const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
+          // Reserva espaço inferior para o número (20% da altura total)
+          const bHbarras = bH * 0.78;
+          const bHnum    = bH * 0.22;
+          const fsNumSVG = Math.min(bHnum * 0.85, bW * 0.07);
           // Insere como grupo escalado para caber no espaço
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
-          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+          s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
+          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bHbarras)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+          s += `<text x="${r4(bW/2)}" y="${r4(bHbarras + bHnum * 0.85)}" font-family="monospace,Courier,Arial" font-size="${r4(fsNumSVG)}" font-weight="normal" text-anchor="middle" dominant-baseline="auto" fill="${numCfg.bCor||'#000000'}">${numero}</text>`;
           s += `</g>`;
         } catch(e) {
           // Fallback: retângulo placeholder
