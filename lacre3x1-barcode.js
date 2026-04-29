@@ -29,7 +29,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     }
   },
 
-  _gerarBarcodeDataUrl: function(texto, cfg) {
+  _gerarBarcodeDataUrl: function(texto, cfg, targetW) {
     return new Promise((resolve) => {
       if (!texto) { resolve(null); return; }
       const W = 600, H = 160;
@@ -44,11 +44,13 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         }, (err) => resolve(err ? null : canvas.toDataURL('image/png')));
       } else {
         try {
+          // barWidth proporcional à largura real (targetW em mm, referência 2 para 60mm)
+          const barWidth = targetW ? Math.max(1, Math.round(targetW / 30)) : 2;
           JsBarcode(canvas, texto, {
             format:       cfg.bTipo || 'CODE128',
             lineColor:    cfg.bCor  || '#000000',
             background:   cfg.bFundo || '#ffffff',
-            width:        2,
+            width:        barWidth,
             height:       H,
             displayValue: false,
             margin:       0,
@@ -152,20 +154,23 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
           svgEl.style.display = 'none';
           document.body.appendChild(svgEl);
+          // bW está em mm, referência: 2px para ~60mm. Proporcional para barras mais largas/finas
+          const barWidthPDF = Math.max(1, Math.round(bW / 30));
           JsBarcode(svgEl, numero, {
             format:       numCfg.bTipo || 'CODE128',
             lineColor:    numCfg.bCor  || '#000000',
             background:   numCfg.bFundo || '#ffffff',
-            width:        2,
+            width:        barWidthPDF,
             height:       80,
             displayValue: false,
             margin:       0,
             xmlDocument:  document,
           });
-          const vbParts = (svgEl.getAttribute('viewBox') || '').split(' ');
-          const svgW = parseFloat(svgEl.getAttribute('width')  || vbParts[2] || 200);
-          const svgH = parseFloat(svgEl.getAttribute('height') || vbParts[3] || 80);
+          const svgW = parseFloat(svgEl.getAttribute('width') || '200');
+          const svgH = parseFloat(svgEl.getAttribute('height') || '80');
           if (!svgEl.getAttribute('viewBox')) svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+          // preserveAspectRatio="none" para que as barras se expandam com a largura real
+          svgEl.setAttribute('preserveAspectRatio', 'none');
           svgEl.setAttribute('width',  bW);
           svgEl.setAttribute('height', bH);
           svgEl.style.position = 'absolute';
@@ -193,7 +198,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
       if (!barcodeDesenhado) {
         // ── FALLBACK RASTER (QR ou svg2pdf indisponível) ──
-        const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
+        const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg, bW);
         if (bDataUrl) {
           // Para QR, usa resolução muito alta para parecer nítido
           pdf.addImage(bDataUrl, 'PNG', bx, byClipped, bW, bH, undefined, 'NONE');
@@ -369,22 +374,29 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
           svgEl.style.display = 'none';
           document.body.appendChild(svgEl);
+          // Calcula o width (espessura de barra) proporcional à largura real disponível
+          // bW está em unidades SVG (mm*10 aprox), referência base: 2px para ~200 unidades de largura
+          const barWidthSVG = Math.max(1, Math.round(bW / 100));
           JsBarcode(svgEl, numero, {
             format:       numCfg.bTipo || 'CODE128',
             lineColor:    numCfg.bCor  || '#000000',
             background:   numCfg.bFundo || '#ffffff',
-            width:        2,
+            width:        barWidthSVG,
             height:       60,
             displayValue: false,
-            margin:       2,
+            margin:       0,
             xmlDocument:  document,
           });
-          const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
+          const svgNatW = parseFloat(svgEl.getAttribute('width') || '200');
+          const svgNatH = parseFloat(svgEl.getAttribute('height') || '60');
+          const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgNatW} ${svgNatH}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
           s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
-          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+          // preserveAspectRatio="none" garante que as barras realmente se expandam
+          // junto com a largura, sem só adicionar espaço em branco nas laterais
+          s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="none">${inner}</svg>`;
           s += `</g>`;
           
           if (numCfg.bTipo !== 'QR') {
