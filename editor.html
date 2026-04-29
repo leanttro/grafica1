@@ -6,9 +6,7 @@
 <title>Editor de Lacre — Leanttro</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- JsBarcode para código de barras puro JS -->
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-<!-- QRCode para QR Code puro JS -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root {
@@ -126,7 +124,6 @@ label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 select.color-hex { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
 
-/* ─── LOGO BOX ─── */
 .logo-preview-box {
   width: 100%; height: 72px;
   background: var(--surface2); border: 1px dashed var(--border);
@@ -138,7 +135,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .logo-placeholder { color: var(--muted); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .logo-placeholder svg { opacity: 0.35; }
 
-/* ─── LOGO TOOLS (melhoria + remoção de fundo) ─── */
 .logo-tools {
   display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
 }
@@ -176,7 +172,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   min-height: 14px; text-align: center;
 }
 
-/* ─── NUMERAÇÃO ─── */
 .num-config {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -210,7 +205,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .num-body { display: flex; flex-direction: column; gap: 8px; }
 .num-body.hidden { display: none; }
 
-/* ─── ACTIONS ─── */
 .actions { display: flex; flex-direction: column; gap: 8px; }
 .btn-primary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -305,7 +299,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .custom-sheet-row { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .custom-sheet-row.visible { display: grid; }
 
-/* ─── MODAL ─── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
   display: none; align-items: center; justify-content: center;
@@ -342,7 +335,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .modal-info { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .modal-actions { display: flex; gap: 8px; }
 
-/* tag de novidade */
 .new-badge {
   display: inline-block; font-size: 8px; font-weight: 700;
   background: var(--accent3-glow); color: #c084fc;
@@ -362,14 +354,12 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 
 <div class="panel">
 
-  <!-- TEMPLATES -->
   <div>
     <div class="section-title">Template</div>
     <div class="template-list" id="template-list"></div>
     <div class="fetch-error" id="fetch-error">⚠️ Não foi possível carregar o template.</div>
   </div>
 
-  <!-- VARIÁVEIS -->
   <div>
     <div class="section-title">Variáveis</div>
     <div class="fields" id="dynamic-fields">
@@ -377,7 +367,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-  <!-- EXPORTAÇÃO -->
   <div>
     <div class="section-title">Exportação e Medidas</div>
     <div class="fields">
@@ -395,7 +384,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-  <!-- MONTAGEM -->
   <div>
     <div class="section-title">Montagem para Impressão</div>
     <div class="montagem-config">
@@ -455,9 +443,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════ -->
-  <!-- NUMERAÇÃO SEQUENCIAL + CÓDIGO DE BARRAS (NOVO) -->
-  <!-- ═══════════════════════════════════════════════ -->
   <div>
     <div class="section-title">
       Numeração Sequencial
@@ -498,9 +483,23 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           <input type="number" id="num-digits" class="mini-input" value="0" min="0" max="10" step="1" placeholder="0 = sem padding">
         </div>
 
+        <div class="montagem-row triple" style="margin-top:6px; margin-bottom:8px;">
+          <div>
+            <span class="mini-label">Tam. Texto (%)</span>
+            <input type="number" id="num-tam" class="mini-input" value="100" min="10" step="1" oninput="updatePreview()">
+          </div>
+          <div>
+            <span class="mini-label">Pos. X (%)</span>
+            <input type="number" id="num-x" class="mini-input" value="50" step="1" oninput="updatePreview()">
+          </div>
+          <div>
+            <span class="mini-label">Pos. Y (%)</span>
+            <input type="number" id="num-y" class="mini-input" value="72" step="1" oninput="updatePreview()">
+          </div>
+        </div>
+
         <div style="height:1px; background:var(--border);"></div>
 
-        <!-- Código de barras -->
         <div class="num-toggle" style="margin-top:2px;">
           <span class="num-toggle-label" style="font-size:11px;">Código de barras</span>
           <label class="toggle-switch">
@@ -519,7 +518,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
               <option value="QR">QR Code</option>
             </select>
           </div>
-          <!-- Linha: Posição + Altura -->
           <div class="montagem-row" id="barcode-pos-row">
             <div>
               <span class="mini-label">Posição (genérico)</span>
@@ -535,12 +533,17 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             </div>
           </div>
 
-          <!-- Linha: Largura % + Posição Y % — para templates com handlesBarcodeInternally -->
-          <div class="montagem-row" id="barcode-internal-row" style="display:none;">
+          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
             <div>
               <span class="mini-label">Largura (%)</span>
               <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1"
                      title="Largura do barcode em % da área central da etiqueta"
+                     oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Altura (%)</span>
+              <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1"
+                     title="Altura do barcode em % da área central da etiqueta"
                      oninput="updatePreview()">
             </div>
             <div>
@@ -566,7 +569,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
           </div>
         </div>
 
-        <!-- QR Code extra info -->
         <div id="qr-opts" class="hidden" style="margin-top:4px;">
           <span class="mini-label">Sufixo/URL no QR (opcional)</span>
           <input type="text" id="qr-sufixo" class="mini-input" placeholder="https://seusite.com/v/" style="font-family:var(--mono);">
@@ -576,7 +578,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-  <!-- AÇÕES -->
   <div>
     <div class="section-title">Ações</div>
     <div class="actions">
@@ -630,9 +631,8 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
     </div>
   </div>
 
-</div><!-- /panel -->
+</div>
 
-<!-- PREVIEW -->
 <div class="preview-area">
   <div class="preview-label">Preview ao vivo</div>
   <div class="preview-loading" id="preview-loading">
@@ -645,7 +645,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   <div class="preview-note" id="preview-note" style="display:none">lacre1.html</div>
 </div>
 
-<!-- MODAL MONTAGEM -->
 <div class="modal-overlay" id="modal-montagem">
   <div class="modal-box">
     <div class="modal-header">
@@ -677,7 +676,6 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────────────────── -->
 <script>
 window.TemplateEngines = {};
 
@@ -689,7 +687,7 @@ const state = {
   texto: '#000000',
   destaque: '#000000',
   logoDataUrl: '',
-  logoOriginalDataUrl: '', // guarda original antes de qualquer processamento
+  logoOriginalDataUrl: '',
 };
 
 const FOLHAS = {
@@ -697,12 +695,6 @@ const FOLHAS = {
   A3:     [297, 420],
   letter: [216, 279],
 };
-
-// ═══════════════════════════════════════════
-// MELHORIA DE IMAGEM (Upscale 2x via Canvas)
-// Dobra a resolução com interpolação de alta qualidade
-// Sem dependências externas — funciona 100% offline
-// ═══════════════════════════════════════════
 
 async function melhorarImagem() {
   const btn = document.getElementById('btn-upscale');
@@ -720,7 +712,6 @@ async function melhorarImagem() {
     const W = img.naturalWidth  * 2;
     const H = img.naturalHeight * 2;
 
-    // Passo 1: canvas intermediário com imageSmoothingQuality high
     const c1 = document.createElement('canvas');
     c1.width = W; c1.height = H;
     const ctx1 = c1.getContext('2d');
@@ -728,11 +719,9 @@ async function melhorarImagem() {
     ctx1.imageSmoothingQuality = 'high';
     ctx1.drawImage(img, 0, 0, W, H);
 
-    // Passo 2: aplicar leve sharpening via convolução 3x3
     const src = ctx1.getImageData(0, 0, W, H);
     const dst = ctx1.createImageData(W, H);
     const s = src.data, d = dst.data;
-    // kernel sharpen
     const k = [0,-1,0,-1,5,-1,0,-1,0];
     for (let y = 1; y < H-1; y++) {
       for (let x = 1; x < W-1; x++) {
@@ -744,7 +733,7 @@ async function melhorarImagem() {
               v += s[((y+ky)*W+(x+kx))*4+c] * k[(ky+1)*3+(kx+1)];
           d[i+c] = Math.max(0, Math.min(255, v));
         }
-        d[i+3] = s[i+3]; // preserva alpha
+        d[i+3] = s[i+3];
       }
     }
     ctx1.putImageData(dst, 0, 0);
@@ -763,10 +752,6 @@ async function melhorarImagem() {
   btn.disabled = false;
 }
 
-// ═══════════════════════════════════════════
-// REMOÇÃO DE FUNDO (remove.bg → photoroom fallback)
-// ═══════════════════════════════════════════
-
 async function removerFundo() {
   const btn = document.getElementById('btn-rembg');
   const statusEl = document.getElementById('tool-status');
@@ -777,7 +762,6 @@ async function removerFundo() {
   const resp0 = await fetch(state.logoDataUrl);
   const blob = await resp0.blob();
 
-  // ── Tenta remove.bg ──────────────────────────────────────────
   const removebgKey = (typeof REMOVEBG_API_KEY !== 'undefined' && REMOVEBG_API_KEY)
     ? REMOVEBG_API_KEY
     : localStorage.getItem('removebg_key') || '';
@@ -800,7 +784,6 @@ async function removerFundo() {
         btn.disabled = false;
         return;
       }
-      // créditos acabaram (402) ou chave inválida (401/403) → tenta próxima
       const err = await res.json().catch(() => ({}));
       console.warn('remove.bg falhou:', res.status, err);
       if (res.status === 401 || res.status === 403) localStorage.removeItem('removebg_key');
@@ -809,7 +792,6 @@ async function removerFundo() {
     }
   }
 
-  // ── Tenta photoroom ──────────────────────────────────────────
   const photoroomKey = (typeof PHOTOROOM_API_KEY !== 'undefined' && PHOTOROOM_API_KEY)
     ? PHOTOROOM_API_KEY
     : localStorage.getItem('photoroom_key') || '';
@@ -839,7 +821,6 @@ async function removerFundo() {
     }
   }
 
-  // ── Nenhuma chave configurada — pede ao usuário ──────────────
   if (!removebgKey && !photoroomKey) {
     const escolha = confirm('Nenhuma chave de API configurada.\n\nClique OK para informar a chave do remove.bg\nou Cancelar para informar a do Photoroom.');
     if (escolha) {
@@ -872,8 +853,6 @@ async function aplicarResultado(blob, statusEl, msg) {
   statusEl.textContent = msg;
 }
 
-
-
 function restaurarOriginal() {
   if (!state.logoOriginalDataUrl) return;
   state.logoDataUrl = state.logoOriginalDataUrl;
@@ -883,10 +862,6 @@ function restaurarOriginal() {
   updatePreview();
   document.getElementById('tool-status').textContent = 'Imagem original restaurada.';
 }
-
-// ═══════════════════════════════════════════
-// NUMERAÇÃO SEQUENCIAL + BARCODE
-// ═══════════════════════════════════════════
 
 function toggleNumBody() {
   const ativo = document.getElementById('num-ativo').checked;
@@ -924,11 +899,15 @@ function getNumConfig() {
     incremento: parseInt(document.getElementById('num-incremento').value) || 1,
     prefixo:    document.getElementById('num-prefixo').value || '',
     digits:     parseInt(document.getElementById('num-digits').value) || 0,
+    nTam:       parseFloat(document.getElementById('num-tam')?.value) || 100,
+    nX:         parseFloat(document.getElementById('num-x')?.value) || 50,
+    nY:         parseFloat(document.getElementById('num-y')?.value) || 72,
     barcode:    document.getElementById('barcode-ativo').checked,
     bTipo:      document.getElementById('barcode-tipo').value,
     bPos:       document.getElementById('barcode-pos').value,
     bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
     bLargura:   parseFloat(document.getElementById('barcode-largura').value) || 85,
+    bAlturaPct: parseFloat(document.getElementById('barcode-altura-pct')?.value) || 40,
     bOffsetY:   parseFloat(document.getElementById('barcode-offset-y').value) || 60,
     bCor:       document.getElementById('barcode-cor').value,
     bFundo:     document.getElementById('barcode-fundo').value,
@@ -942,10 +921,9 @@ function formatNum(n, cfg) {
   return cfg.prefixo + s;
 }
 
-// Gera imagem de barcode/QR como dataURL PNG usando canvas
 function gerarBarcodeDataUrl(texto, cfg) {
   return new Promise((resolve) => {
-    const W = 300, H = Math.round(cfg.bAltura * 11.81); // mm → px aprox
+    const W = 300, H = Math.round(cfg.bAltura * 11.81);
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
 
@@ -978,28 +956,23 @@ function gerarBarcodeDataUrl(texto, cfg) {
   });
 }
 
-// Desenha barcode no PDF em posição relativa ao lacre
 async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg) {
   const bDataUrl = await gerarBarcodeDataUrl(texto, cfg);
   if (!bDataUrl) return;
 
-  const bH = cfg.bAltura; // mm
+  const bH = cfg.bAltura;
   let bx, by, bw, bh;
 
   if (cfg.bPos === 'below') {
     bx = ox; by = oy + H; bw = W; bh = bH;
   } else if (cfg.bPos === 'top-overlay') {
     bx = ox; by = oy; bw = W; bh = bH;
-  } else { // bottom-overlay
+  } else {
     bx = ox; by = oy + H - bH; bw = W; bh = bH;
   }
 
   pdf.addImage(bDataUrl, 'PNG', bx, by, bw, bh, undefined, 'NONE');
 }
-
-// ═══════════════════════════════════════════
-// MOTOR DE TEMPLATE
-// ═══════════════════════════════════════════
 
 async function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -1114,13 +1087,41 @@ function buildDynamicPanel() {
             ↩ Restaurar imagem original
           </button>
           <div class="tool-status" id="tool-status"></div>
+        </div>
+        <div class="montagem-row triple" style="margin-top:8px;">
+          <div>
+            <span class="mini-label">Tam. (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_TAM']||100}" step="1" oninput="dynText('LOGO_TAM', this.value)">
+          </div>
+          <div>
+            <span class="mini-label">Pos. X (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_X']||50}" step="1" oninput="dynText('LOGO_X', this.value)">
+          </div>
+          <div>
+            <span class="mini-label">Pos. Y (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_Y']||50}" step="1" oninput="dynText('LOGO_Y', this.value)">
+          </div>
         </div>`;
 
     } else {
       const val = state.vars[key] || '';
       fg.innerHTML = `
         <label>${key}</label>
-        <input type="text" class="color-hex" value="${val}" placeholder="${key}" oninput="dynText('${key}', this.value)">`;
+        <input type="text" class="color-hex" value="${val}" placeholder="${key}" oninput="dynText('${key}', this.value)">
+        <div class="montagem-row triple" style="margin-top:4px;">
+          <div>
+            <span class="mini-label">Tam. (%)</span>
+            <input type="number" class="mini-input" value="${state.vars[key+'_TAM']||100}" step="1" oninput="dynText('${key}_TAM', this.value)">
+          </div>
+          <div>
+            <span class="mini-label">Pos. X (%)</span>
+            <input type="number" class="mini-input" value="${state.vars[key+'_X']||50}" step="1" oninput="dynText('${key}_X', this.value)">
+          </div>
+          <div>
+            <span class="mini-label">Pos. Y (%)</span>
+            <input type="number" class="mini-input" value="${state.vars[key+'_Y']||28}" step="1" oninput="dynText('${key}_Y', this.value)">
+          </div>
+        </div>`;
     }
     container.appendChild(fg);
   });
@@ -1144,8 +1145,9 @@ function buildBarcodePreviewScript() {
   const tipo  = numCfg.bTipo === 'QR' ? 'QR' : numCfg.bTipo;
   const cor   = numCfg.bCor;
   const fundo = numCfg.bFundo;
-  const larg  = numCfg.bLargura;  // %
-  const posY  = numCfg.bOffsetY;  // %
+  const larg  = numCfg.bLargura;
+  const altP  = numCfg.bAlturaPct;
+  const posY  = numCfg.bOffsetY;
   const qrSuf = numCfg.qrSufixo || '';
 
   return `
@@ -1159,13 +1161,15 @@ function buildBarcodePreviewScript() {
     container.style.transform = 'translateX(-50%)';
     container.style.top = ${posY} + '%';
     container.style.width = ${larg} + '%';
+    container.style.height = ${altP} + '%';
     container.style.zIndex = '10';
     container.innerHTML = '';
 
     ${tipo === 'QR' ? `
     var canvas = document.createElement('canvas');
     canvas.style.width = '100%';
-    canvas.style.height = 'auto';
+    canvas.style.height = '100%';
+    canvas.style.objectFit = 'contain';
     container.appendChild(canvas);
     if (typeof QRCode !== 'undefined') {
       QRCode.toCanvas(canvas, '${qrSuf}${texto}', {width: 120, margin:0, color:{dark:'${cor}',light:'${fundo}'}}, function(){});
@@ -1175,7 +1179,7 @@ function buildBarcodePreviewScript() {
     ` : `
     var canvas = document.createElement('canvas');
     canvas.style.width = '100%';
-    canvas.style.height = 'auto';
+    canvas.style.height = '100%';
     container.appendChild(canvas);
     if (typeof JsBarcode !== 'undefined') {
       try {
@@ -1218,7 +1222,6 @@ function updatePreview() {
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   const html = buildHTML() + buildBarcodePreviewScript();
   doc.open(); doc.write(html); doc.close();
-  // Atualiza visibilidade dos controles de barcode para este engine
   atualizarBarcodeRows();
 }
 
@@ -1254,7 +1257,7 @@ function handleLogo(input) {
     const url = e.target.result;
     state.vars['CHAVE_LOGO']     = url;
     state.logoDataUrl            = url;
-    state.logoOriginalDataUrl    = url; // guarda cópia
+    state.logoOriginalDataUrl    = url;
     const img = document.getElementById('logo-img');
     const ph  = document.getElementById('logo-placeholder');
     if (img) { img.src = url; img.style.display = 'block'; }
@@ -1272,7 +1275,6 @@ function selectTemplate(el) {
   loadTemplate(el.dataset.file);
 }
 
-// ─── MEDIDAS ───
 function carregarMedidasSalvas() {
   const salvas = JSON.parse(localStorage.getItem('leanttro_medidas_lacre') || '{}');
   const sel = document.getElementById('medidas-salvas');
@@ -1300,7 +1302,6 @@ function carregarMedida(val) {
   atualizarInfoMontagem();
 }
 
-// ─── UTILS ───
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
@@ -1352,7 +1353,6 @@ function atualizarInfoMontagem() {
   }
 }
 
-// ─── CAPTURA CANVAS ───
 async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
@@ -1382,7 +1382,6 @@ async function capturarCanvas(wCm, hCm) {
   return { canvas: out };
 }
 
-// ─── BAIXAR PNG ───
 async function baixarFotoPNG() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
@@ -1399,7 +1398,6 @@ async function baixarFotoPNG() {
   finally { lbl.textContent = 'Baixar PNG (400 DPI)'; }
 }
 
-// ─── PDF INDIVIDUAL ───
 async function gerarPDFVetor(wCm, hCm) {
   const { jsPDF } = window.jspdf;
   const M = 0.7;
@@ -1427,9 +1425,6 @@ async function baixarFotoPDF() {
   finally { lbl.textContent = 'Baixar PDF (vetor)'; }
 }
 
-// ─────────────────────────────────────────────────────────
-// MONTAGEM PDF — NÚCLEO COM NUMERAÇÃO SEQUENCIAL + BARCODE
-// ─────────────────────────────────────────────────────────
 async function baixarMontagemPDF() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-mont-label');
@@ -1451,10 +1446,6 @@ async function baixarMontagemPDF() {
     const folhaKey = document.getElementById('mont-folha').value;
     const ori      = document.getElementById('mont-orientacao').value;
 
-    // Se barcode "below", a folha precisa de espaço extra por lacre?
-    // Não — o barcode é sobreposto ou abaixo mas dentro do gabarito da grade.
-    // Deixamos o usuário ajustar margem/gap se quiser separação real.
-
     const pdf = new jsPDF({
       unit: 'mm',
       format: (folhaKey === 'letter' || folhaKey === 'custom') ? [fw, fh] : folhaKey,
@@ -1474,16 +1465,15 @@ async function baixarMontagemPDF() {
 
     const totalLacresPorPagina = cols * rows;
 
-    // Calcula quantas páginas gerar
     let totalLacres;
     if (numCfg.ativo && numCfg.final !== null) {
       totalLacres = Math.floor((numCfg.final - numCfg.inicio) / numCfg.incremento) + 1;
     } else {
-      totalLacres = totalLacresPorPagina; // só 1 página
+      totalLacres = totalLacresPorPagina;
     }
     const totalPaginas = Math.ceil(totalLacres / totalLacresPorPagina);
 
-    let indiceGlobal = 0; // índice sequencial global entre todas as páginas
+    let indiceGlobal = 0;
 
     for (let pagina = 0; pagina < totalPaginas; pagina++) {
       if (pagina > 0) pdf.addPage(
@@ -1527,7 +1517,6 @@ async function baixarMontagemPDF() {
         if (indiceNaPagina >= lacresNestaPagina) break;
       }
 
-      // ── GABARITO ──
       pdf.setDrawColor(gr, gg, gb);
       pdf.setLineWidth(lwGabarito);
 
@@ -1571,7 +1560,6 @@ async function baixarMontagemPDF() {
   }
 }
 
-// ─── SVG INDIVIDUAL ───
 function baixarSVGIndividual() {
   if (!state.templateSrc) return;
   const wCm = parseFloat(document.getElementById('lacre-w').value) || 5;
@@ -1592,7 +1580,6 @@ ${svgContent}
   } catch(e) { alert('Erro SVG: ' + e.message); }
 }
 
-// ─── SVG MONTAGEM ───
 function baixarMontagemSVG() {
   if (!state.templateSrc) return;
   const lbl = document.getElementById('btn-svgmont-label');
@@ -1669,7 +1656,6 @@ ${body}
   }
 }
 
-// ─── PREVIEW MODAL ───
 function onFolhaChange() {
   const val = document.getElementById('mont-folha').value;
   document.getElementById('custom-sheet-row').classList.toggle('visible', val === 'custom');
@@ -1760,7 +1746,6 @@ function fecharModal() {
   document.getElementById('modal-montagem').classList.remove('open');
 }
 
-// ─── INIT ───
 document.getElementById('lacre-w').value    = 1;
 document.getElementById('lacre-h').value    = 1;
 document.getElementById('mont-margem').value = 5;
