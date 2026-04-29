@@ -137,29 +137,83 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         pdf.text(infoText, infoX, infoY, { align:'center' });
       }
 
-      const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
-      if (bDataUrl) {
-        const bW = centW * bLarguraPct;
-        const bH = centAreaH * bAlturaPct;
-        const bx = ox + logoW + (centW - bW) / 2;
-        const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
-        const byClipped = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
-        pdf.addImage(bDataUrl, 'PNG', bx, byClipped, bW, bH, undefined, 'NONE');
+      const bW = centW * bLarguraPct;
+      const bH = centAreaH * bAlturaPct;
+      const bx = ox + logoW + (centW - bW) / 2;
+      const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
+      const byClipped = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
 
-        if (numCfg.bTipo !== 'QR') {
-          let corR = tr, corG = tg, corB = tb;
-          if (numCfg.bCor) [corR, corG, corB] = hexToRgb(numCfg.bCor);
-          pdf.setTextColor(corR, corG, corB);
+      let barcodeDesenhado = false;
 
-          const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
-          const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
-          const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
-          const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * 2.835 * scaleNum;
-          pdf.setFontSize(fsNumAbaixo);
-          const numX = ox + logoW + centW * pxNum;
-          const numY = centAreaY + centAreaH * pyNum + (fsNumAbaixo/2.835)*0.35;
-          pdf.text(numero, numX, numY, { align:'center' });
+      if (numCfg.bTipo !== 'QR' && (state.pdfRaw) && (window.svg2pdf || typeof state.pdfRaw.svg === 'function')) {
+        // ── VETOR: gera barcode como SVG e injeta via svg2pdf ──
+        try {
+          const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          svgEl.style.display = 'none';
+          document.body.appendChild(svgEl);
+          JsBarcode(svgEl, numero, {
+            format:       numCfg.bTipo || 'CODE128',
+            lineColor:    numCfg.bCor  || '#000000',
+            background:   numCfg.bFundo || '#ffffff',
+            width:        2,
+            height:       80,
+            displayValue: false,
+            margin:       0,
+            xmlDocument:  document,
+          });
+          const vbParts = (svgEl.getAttribute('viewBox') || '').split(' ');
+          const svgW = parseFloat(svgEl.getAttribute('width')  || vbParts[2] || 200);
+          const svgH = parseFloat(svgEl.getAttribute('height') || vbParts[3] || 80);
+          if (!svgEl.getAttribute('viewBox')) svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+          svgEl.setAttribute('width',  bW);
+          svgEl.setAttribute('height', bH);
+          svgEl.style.position = 'absolute';
+          svgEl.style.left = '-9999px';
+          svgEl.style.top  = '-9999px';
+
+          // Adiciona rect de fundo antes das barras
+          const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
+          bgRect.setAttribute('width', String(svgW)); bgRect.setAttribute('height', String(svgH));
+          bgRect.setAttribute('fill', numCfg.bFundo || '#ffffff');
+          svgEl.insertBefore(bgRect, svgEl.firstChild);
+
+          if (typeof state.pdfRaw.svg === 'function') {
+            await state.pdfRaw.svg(svgEl, { x: bx, y: byClipped, width: bW, height: bH });
+          } else {
+            await window.svg2pdf(svgEl, state.pdfRaw, { x: bx, y: byClipped, width: bW, height: bH });
+          }
+          document.body.removeChild(svgEl);
+          barcodeDesenhado = true;
+        } catch(e) {
+          console.warn('drawPDF barcode SVG falhou, fallback raster:', e);
         }
+      }
+
+      if (!barcodeDesenhado) {
+        // ── FALLBACK RASTER (QR ou svg2pdf indisponível) ──
+        const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
+        if (bDataUrl) {
+          // Para QR, usa resolução muito alta para parecer nítido
+          pdf.addImage(bDataUrl, 'PNG', bx, byClipped, bW, bH, undefined, 'NONE');
+          barcodeDesenhado = true;
+        }
+      }
+
+      if (barcodeDesenhado && numCfg.bTipo !== 'QR') {
+        let corR = tr, corG = tg, corB = tb;
+        if (numCfg.bCor) [corR, corG, corB] = hexToRgb(numCfg.bCor);
+        pdf.setTextColor(corR, corG, corB);
+
+        const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
+        const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
+        const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
+        const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * 2.835 * scaleNum;
+        pdf.setFontSize(fsNumAbaixo);
+        const numX = ox + logoW + centW * pxNum;
+        const numY = centAreaY + centAreaH * pyNum + (fsNumAbaixo/2.835)*0.35;
+        pdf.text(numero, numX, numY, { align:'center' });
       }
 
     } else {
