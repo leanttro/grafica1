@@ -314,15 +314,16 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
-          // Reserva espaço inferior para o número (20% da altura total)
-          const bHbarras = bH * 0.78;
-          const bHnum    = bH * 0.22;
-          const fsNumSVG = Math.min(bHnum * 0.85, bW * 0.07);
+          // Reserva espaço inferior para o número (25% da altura total)
+          const bHbarras = bH * 0.75;
+          const bHnum    = bH * 0.25;
+          // font-size mínimo de 2mm para garantir legibilidade no SVG de montagem
+          const fsNumSVG = Math.max(bHnum * 0.80, 2.0);
           // Insere como grupo escalado para caber no espaço
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
           s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
           s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bHbarras)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
-          s += `<text x="${r4(bW/2)}" y="${r4(bHbarras + bHnum * 0.85)}" font-family="monospace,Courier,Arial" font-size="${r4(fsNumSVG)}" font-weight="normal" text-anchor="middle" dominant-baseline="auto" fill="${numCfg.bCor||'#000000'}">${numero}</text>`;
+          s += `<text x="${r4(bW/2)}" y="${r4(bHbarras + bHnum * 0.82)}" font-family="monospace,Courier,Arial" font-size="${r4(fsNumSVG)}" font-weight="normal" text-anchor="middle" dominant-baseline="auto" fill="${numCfg.bCor||'#000000'}">${numero}</text>`;
           s += `</g>`;
         } catch(e) {
           // Fallback: retângulo placeholder
