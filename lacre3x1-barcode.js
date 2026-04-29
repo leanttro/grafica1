@@ -325,11 +325,13 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             margin:       2,
             xmlDocument:  document,
           });
-          const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
+          const vbAttr = svgEl.getAttribute('viewBox');
+          const svgW = parseFloat(svgEl.getAttribute('width')) || 200;
+          const svgH = parseFloat(svgEl.getAttribute('height')) || 60;
+          const vb = vbAttr || `0 0 ${svgW} ${svgH}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
-          s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
           s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
           s += `</g>`;
           
