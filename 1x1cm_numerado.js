@@ -120,8 +120,11 @@ window.TemplateEngines['1x1cm_numerado.html'] = {
 
     } else if (state.logoDataUrl) {
       const pad = bw * 2;
-      const lx  = ox + lW + pad, ly = oy + y1 + pad;
-      const lw  = cW - pad*2,    lh = (midH * 0.72) - pad*2;
+      const logoH = midH * 0.72;
+      const lx  = ox + lW + pad;
+      const ly  = oy + y1 + (midH - logoH) * 0.35; // 35% do espaço sobrando em cima
+      const lw  = cW - pad*2;
+      const lh  = logoH - pad*2;
       const img = new Image();
       img.src = state.logoDataUrl;
       await new Promise(r => { img.onload=r; img.onerror=r; });
@@ -190,8 +193,10 @@ window.TemplateEngines['1x1cm_numerado.html'] = {
 
     if (state.logoDataUrl) {
       const pad = bw * 2;
-      const lx = lW + pad, ly = y1 + pad;
-      const lw = cW - pad * 2, lh = (midH * 0.72) - pad * 2;
+      const logoH = midH * 0.72;
+      const lx = lW + pad;
+      const ly = y1 + (midH - logoH) * 0.35;
+      const lw = cW - pad * 2, lh = logoH - pad * 2;
       const img = document.getElementById('logo-img');
       if (img && img.naturalWidth) {
         const ir = img.naturalWidth / img.naturalHeight, br = lw / lh;
