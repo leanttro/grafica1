@@ -268,11 +268,13 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 }
 .preview-frame {
   max-width: min(460px, 100%);
-  max-height: calc(100vh - 160px);
+  max-height: min(340px, 60vh);
+  width: auto;
+  height: auto;
   border-radius: 4px; overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   position: relative;
-  transition: width 0.2s ease, height 0.2s ease;
+  transition: aspect-ratio 0.2s ease;
 }
 .preview-frame iframe { width: 100%; height: 100%; border: none; display: block; }
 .preview-note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
@@ -374,8 +376,8 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
       <div class="field-group">
         <label>Tamanho do Lacre (cm)</label>
         <div class="row-2">
-          <input type="number" id="lacre-w" class="color-hex" placeholder="Largura (cm)" value="1" step="0.1" oninput="atualizarInfoMontagem(); updatePreview();">
-          <input type="number" id="lacre-h" class="color-hex" placeholder="Altura (cm)" value="1" step="0.1" oninput="atualizarInfoMontagem(); updatePreview();">
+          <input type="number" id="lacre-w" class="color-hex" placeholder="Largura (cm)" value="1" step="0.1" oninput="atualizarInfoMontagem()">
+          <input type="number" id="lacre-h" class="color-hex" placeholder="Altura (cm)" value="1" step="0.1" oninput="atualizarInfoMontagem()">
         </div>
         <button class="btn-secondary" onclick="salvarMedida()" style="margin-top:6px; font-size:11px; padding:6px;">Salvar Medida Atual</button>
         <select id="medidas-salvas" class="color-hex" style="margin-top:6px;" onchange="carregarMedida(this.value)">
@@ -1297,7 +1299,7 @@ function updatePreview() {
     stateLocal.numCfg = numCfg;
     const BORDER = 0.5; // 0.5mm white border (visual only)
     const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
-    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ${W + BORDER*2} ${H + BORDER*2}"><rect x="0" y="0" width="${W + BORDER*2}" height="${H + BORDER*2}" fill="#ffffff"/>${svgBody}</svg>`;
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ${W + BORDER*2} ${H + BORDER*2}" preserveAspectRatio="xMidYMid meet"><rect x="0" y="0" width="${W + BORDER*2}" height="${H + BORDER*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
     const iframe = document.getElementById('preview-iframe');
@@ -1434,19 +1436,20 @@ function atualizarInfoMontagem() {
   const { wCm, hCm, cols, rows, total } = calcMontagem();
   const frame = document.getElementById('preview-frame');
   if (frame) {
-    const MAX_W = 460;
-    const MAX_H = window.innerHeight - 160;
     const ratio = wCm / hCm;
-    let fw, fh;
-    if (ratio >= 1) {
-      fw = Math.min(MAX_W, MAX_H * ratio);
-      fh = fw / ratio;
+    const maxW = 460;
+    const maxH = 340;
+    let pw, ph;
+    if (ratio >= maxW / maxH) {
+      pw = maxW;
+      ph = Math.round(maxW / ratio);
     } else {
-      fh = Math.min(MAX_H, MAX_W / ratio);
-      fw = fh * ratio;
+      ph = maxH;
+      pw = Math.round(maxH * ratio);
     }
-    frame.style.width  = Math.round(fw) + 'px';
-    frame.style.height = Math.round(fh) + 'px';
+    frame.style.width  = pw + 'px';
+    frame.style.height = ph + 'px';
+    frame.style.aspectRatio = `${wCm} / ${hCm}`;
   }
   const el = document.getElementById('mont-info');
   if (cols <= 0 || rows <= 0) {
@@ -1471,10 +1474,15 @@ async function capturarCanvas(wCm, hCm) {
     }
     stateLocal.numCfg = numCfg;
     const BORDER_C = 0.5; // 0.5mm white border (visual only)
-    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wPx}" height="${hPx}" viewBox="0 0 ${W + BORDER_C*2} ${H + BORDER_C*2}"><rect x="0" y="0" width="${W + BORDER_C*2}" height="${H + BORDER_C*2}" fill="#ffffff"/>${svgBody}</svg>`;
+    const svgBody = engine.drawSVG(W, H, BORDER_C, BORDER_C, stateLocal);
+    // Não usar width/height em pixels no SVG — só viewBox. Isso evita corte/distorção no browser
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W + BORDER_C*2} ${H + BORDER_C*2}"><rect x="0" y="0" width="${W + BORDER_C*2}" height="${H + BORDER_C*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
     const img  = new Image();
+    // Definir dimensões explicitamente antes de carregar para garantir renderização correta
+    img.width  = wPx;
+    img.height = hPx;
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
     URL.revokeObjectURL(url);
     const out = document.createElement('canvas');
