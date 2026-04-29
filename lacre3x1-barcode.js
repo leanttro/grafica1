@@ -2,81 +2,14 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
   handlesBarcodeInternally: true,
 
-  // ── Fonte TTF compartilhada entre SVG e PDF ──────────────────────────────
-  // Carrega Inter Bold do Google Fonts, converte para base64 e registra no jsPDF.
-  // Resultado cacheado em window._lacreFont para não recarregar.
-  _FONT_NAME: 'Inter',
-  _FONT_URL: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuBWYAZ9hiJ-Ek-_EeA.woff2',
-  _FONT_URL_TTF: 'https://github.com/google/fonts/raw/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf',
+  // Fonte: helvetica em ambos (PDF e SVG preview)
+  // O SVG declara explicitamente 'Helvetica' como primeira opção sem fallback serif
+  _fontFamilySVG: function() { return 'Helvetica,Arial,sans-serif'; },
+  _fontFaceSVG:   function() { return ''; },
+  _carregarFonte:     async function() { return null; },
+  _registrarFontePDF: function(pdf) { pdf.setFont('helvetica', 'bold'); return true; },
 
-  _carregarFonte: async function() {
-    if (window._lacreFont) return window._lacreFont; // cache
-
-    try {
-      // Tenta carregar Inter Bold via CDN jsDelivr (TTF direto)
-      const urls = [
-        'https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-700-normal.woff2',
-        'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuBWYAZ9hiJ-Ek-_EeA.woff2',
-      ];
-
-      let arrayBuffer = null;
-      for (const url of urls) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) { arrayBuffer = await res.arrayBuffer(); break; }
-        } catch(e) { /* tenta próximo */ }
-      }
-
-      if (!arrayBuffer) {
-        console.warn('lacre3x1: fonte Inter não carregada, usando helvetica');
-        window._lacreFont = null;
-        return null;
-      }
-
-      // Converte para base64
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      const b64 = btoa(binary);
-
-      window._lacreFont = { b64, name: 'Inter', style: 'Bold' };
-      return window._lacreFont;
-    } catch(e) {
-      console.warn('lacre3x1: erro ao carregar fonte:', e);
-      window._lacreFont = null;
-      return null;
-    }
-  },
-
-  // Registra a fonte no jsPDF se ainda não foi registrada
-  _registrarFontePDF: function(pdf, fontData) {
-    if (!fontData) return false;
-    try {
-      if (!window._lacreFontRegistrada) {
-        pdf.addFileToVFS('Inter-Bold.ttf', fontData.b64);
-        pdf.addFont('Inter-Bold.ttf', 'Inter', 'bold');
-        window._lacreFontRegistrada = true;
-      }
-      pdf.setFont('Inter', 'bold');
-      return true;
-    } catch(e) {
-      console.warn('lacre3x1: erro ao registrar fonte no PDF:', e);
-      return false;
-    }
-  },
-
-  // Retorna o font-family CSS para o SVG
-  _fontFamilySVG: function() {
-    return window._lacreFont ? 'Inter' : 'Helvetica,Arial,sans-serif';
-  },
-
-  // Injeta @font-face no SVG se a fonte foi carregada
-  _fontFaceSVG: function() {
-    if (!window._lacreFont) return '';
-    return `<defs><style>@font-face{font-family:'Inter';font-weight:700;src:url('data:font/woff2;base64,${window._lacreFont.b64}') format('woff2');}</style></defs>`;
-  },
-
-  _gerarBarcodeSVGString: function(texto, cfg) {
+    _gerarBarcodeSVGString: function(texto, cfg) {
     if (!texto) return null;
     if (cfg.bTipo === 'QR') return null;
 
@@ -560,17 +493,3 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     return s;
   }
 };
-
-// Pré-carrega a fonte Inter assim que o script é carregado,
-// garantindo que o cache window._lacreFont esteja pronto antes do primeiro drawSVG.
-(function() {
-  const engine = window.TemplateEngines['lacre3x1-barcode.html'];
-  if (engine && engine._carregarFonte) {
-    engine._carregarFonte().then(function(f) {
-      if (f) {
-        // Fonte carregada com sucesso — dispara re-render do preview se o editor estiver ativo
-        if (typeof updatePreview === 'function') updatePreview();
-      }
-    });
-  }
-})();
