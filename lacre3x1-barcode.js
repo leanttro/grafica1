@@ -151,12 +151,12 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
           if (espacoAbaixo >= 1.5) {
             const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.60) * 2.835;
             pdf.setFontSize(fsNumAbaixo);
-            const numAbaixoY  = byClipped + bH + (fsNumAbaixo/2.835) * 0.7;
+            const numAbaixoY  = byClipped + bH + (fsNumAbaixo/2.835) * 0.85;
             pdf.text(numero, centX, numAbaixoY, { align:'center' });
           } else {
             const fsNum2 = Math.min(centW * 0.12, 2.5) * 2.835;
             pdf.setFontSize(fsNum2);
-            pdf.text(numero, centX, byClipped + bH + 1.2, { align:'center' });
+            pdf.text(numero, centX, byClipped + bH + 1.6, { align:'center' });
           }
         }
       }
@@ -301,20 +301,20 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             const espacoAbaixo = (padC + centAreaH) - (byClipped + bH);
             if (espacoAbaixo >= 1.5) {
               const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.60);
-              const numAbaixoY  = byClipped + bH + fsNumAbaixo * 0.6;
+              const numAbaixoY  = byClipped + bH + fsNumAbaixo * 0.85;
               s += txt(numero, centX, padC + numAbaixoY, numCfg.bCor || t, fsNumAbaixo);
             } else {
               const fsNum2 = Math.min(centW * 0.12, 2.5);
-              s += txt(numero, centX, padC + byClipped + bH + 1.2, numCfg.bCor || t, fsNum2);
+              s += txt(numero, centX, padC + byClipped + bH + 1.6, numCfg.bCor || t, fsNum2);
             }
           }
         } catch(e) {
           s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-          if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+          if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.6, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
         }
       } else {
         s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-        if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+        if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH + 1.6, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
       }
     } else {
       if (infoText) {
