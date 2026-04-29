@@ -557,6 +557,8 @@ select.color-hex {
 </div>
 
 <div class="preview-area">
+  <!-- Elemento oculto necessário para o motor drawSVG calcular aspect ratio do logo SVG -->
+  <img id="logo-img" src="" alt="" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" crossorigin="anonymous">
   <div class="preview-label">Preview ao vivo</div>
   <div class="preview-loading" id="preview-loading">
     <div class="spinner"></div>
@@ -724,6 +726,14 @@ async function handleLogoSVG(file) {
   // dataUrl para uso no preview HTML e no drawPDF
   state.logoDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
   state.vars['CHAVE_LOGO'] = state.logoDataUrl;
+
+  // Atualiza o logo-img oculto para que o motor drawSVG possa ler naturalWidth/naturalHeight
+  const logoImgHidden = document.getElementById('logo-img');
+  if (logoImgHidden) {
+    logoImgHidden.src = state.logoDataUrl;
+    // Aguarda carregar para garantir naturalWidth disponível
+    await new Promise(r => { logoImgHidden.onload = r; logoImgHidden.onerror = r; });
+  }
 
   const wrap = document.getElementById('logo-svg-wrap');
   const ph   = document.getElementById('logo-placeholder');
