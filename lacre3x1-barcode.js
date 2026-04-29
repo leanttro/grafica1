@@ -122,7 +122,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
     const numCfg    = state.numCfg || {};
 
-    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
+    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
     const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
     const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
@@ -293,7 +293,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numCfg    = state.numCfg || {};
     const temBarcode = numCfg.ativo && numCfg.barcode && numero;
 
-    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
+    const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
     const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
 
@@ -472,7 +472,7 @@ window.TemplateEngines['lacre3x1-barcode.html'].drawCanvas = async function(ctx,
   const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
   const numCfg    = state.numCfg || {};
 
-  const bLarguraPct = Math.min(Math.max(numCfg.bLargura  ?? 85, 20), 100) / 100;
+  const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 95, 20), 100) / 100;
   const bAlturaPct  = Math.min(Math.max(numCfg.bAlturaPct ?? 40, 10), 100) / 100;
   const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY   ?? 60, 10),  90) / 100;
   const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
