@@ -740,25 +740,8 @@ async function melhorarImagem() {
 }
 
 // ═══════════════════════════════════════════
-// REMOÇÃO DE FUNDO (@imgly/background-removal)
-// Roda 100% no navegador via WASM/ONNX
+// REMOÇÃO DE FUNDO (remove.bg → photoroom fallback)
 // ═══════════════════════════════════════════
-
-let _bgRemoverLoaded = false;
-let _bgRemoveLib = null;
-
-async function carregarBgRemover() {
-  if (_bgRemoverLoaded) return true;
-  try {
-    const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs');
-    _bgRemoveLib = mod;
-    _bgRemoverLoaded = true;
-    return true;
-  } catch(e) {
-    console.error('Background-removal não carregou:', e);
-    return false;
-  }
-}
 
 async function removerFundo() {
   const btn = document.getElementById('btn-rembg');
@@ -766,46 +749,106 @@ async function removerFundo() {
   if (!state.logoDataUrl) { statusEl.textContent = 'Nenhuma imagem carregada.'; return; }
 
   btn.disabled = true;
-  statusEl.textContent = 'Carregando modelo (1ª vez pode demorar)…';
 
-  const ok = await carregarBgRemover();
-  if (!ok) {
-    statusEl.textContent = 'Falha ao carregar modelo. Verifique conexão.';
+  const resp0 = await fetch(state.logoDataUrl);
+  const blob = await resp0.blob();
+
+  // ── Tenta remove.bg ──────────────────────────────────────────
+  const removebgKey = (typeof REMOVEBG_API_KEY !== 'undefined' && REMOVEBG_API_KEY)
+    ? REMOVEBG_API_KEY
+    : localStorage.getItem('removebg_key') || '';
+
+  if (removebgKey) {
+    try {
+      statusEl.textContent = 'Removendo fundo (remove.bg)…';
+      const form = new FormData();
+      form.append('image_file', blob, 'logo.png');
+      form.append('size', 'auto');
+
+      const res = await fetch('https://api.remove.bg/v1.0/removebg', {
+        method: 'POST',
+        headers: { 'X-Api-Key': removebgKey },
+        body: form
+      });
+
+      if (res.ok) {
+        await aplicarResultado(await res.blob(), statusEl, '✓ Fundo removido (remove.bg)');
+        btn.disabled = false;
+        return;
+      }
+      // créditos acabaram (402) ou chave inválida (401/403) → tenta próxima
+      const err = await res.json().catch(() => ({}));
+      console.warn('remove.bg falhou:', res.status, err);
+      if (res.status === 401 || res.status === 403) localStorage.removeItem('removebg_key');
+    } catch(e) {
+      console.warn('remove.bg erro de rede:', e);
+    }
+  }
+
+  // ── Tenta photoroom ──────────────────────────────────────────
+  const photoroomKey = (typeof PHOTOROOM_API_KEY !== 'undefined' && PHOTOROOM_API_KEY)
+    ? PHOTOROOM_API_KEY
+    : localStorage.getItem('photoroom_key') || '';
+
+  if (photoroomKey) {
+    try {
+      statusEl.textContent = 'Removendo fundo (Photoroom)…';
+      const form = new FormData();
+      form.append('image_file', blob, 'logo.png');
+
+      const res = await fetch('https://sdk.photoroom.com/v1/segment', {
+        method: 'POST',
+        headers: { 'x-api-key': photoroomKey },
+        body: form
+      });
+
+      if (res.ok) {
+        await aplicarResultado(await res.blob(), statusEl, '✓ Fundo removido (Photoroom)');
+        btn.disabled = false;
+        return;
+      }
+      const err = await res.json().catch(() => ({}));
+      console.warn('Photoroom falhou:', res.status, err);
+      if (res.status === 401 || res.status === 403) localStorage.removeItem('photoroom_key');
+    } catch(e) {
+      console.warn('Photoroom erro de rede:', e);
+    }
+  }
+
+  // ── Nenhuma chave configurada — pede ao usuário ──────────────
+  if (!removebgKey && !photoroomKey) {
+    const escolha = confirm('Nenhuma chave de API configurada.\n\nClique OK para informar a chave do remove.bg\nou Cancelar para informar a do Photoroom.');
+    if (escolha) {
+      const k = prompt('Chave remove.bg (remove.bg/api):');
+      if (k) { localStorage.setItem('removebg_key', k.trim()); }
+    } else {
+      const k = prompt('Chave Photoroom (app.photoroom.com/api):');
+      if (k) { localStorage.setItem('photoroom_key', k.trim()); }
+    }
     btn.disabled = false;
+    statusEl.textContent = 'Chave salva! Tente novamente.';
     return;
   }
 
-  try {
-    statusEl.textContent = 'Removendo fundo…';
-
-    // converte dataURL → Blob
-    const resp = await fetch(state.logoDataUrl);
-    const blob = await resp.blob();
-
-    const resultBlob = await _bgRemoveLib.removeBackground(blob, {
-      progress: (key, current, total) => {
-        if (total > 0) statusEl.textContent = `Processando… ${Math.round(current/total*100)}%`;
-      }
-    });
-
-    const novaUrl = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.readAsDataURL(resultBlob);
-    });
-
-    state.logoDataUrl = novaUrl;
-    state.vars['CHAVE_LOGO'] = novaUrl;
-    const imgEl = document.getElementById('logo-img');
-    if (imgEl) imgEl.src = novaUrl;
-    updatePreview();
-    statusEl.textContent = '✓ Fundo removido com sucesso';
-  } catch(e) {
-    console.error(e);
-    statusEl.textContent = 'Erro: ' + (e.message || 'falha na remoção de fundo');
-  }
+  statusEl.textContent = 'Erro: todas as APIs falharam ou sem créditos.';
   btn.disabled = false;
 }
+
+async function aplicarResultado(blob, statusEl, msg) {
+  const novaUrl = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.readAsDataURL(blob);
+  });
+  state.logoDataUrl = novaUrl;
+  state.vars['CHAVE_LOGO'] = novaUrl;
+  const imgEl = document.getElementById('logo-img');
+  if (imgEl) imgEl.src = novaUrl;
+  updatePreview();
+  statusEl.textContent = msg;
+}
+
+
 
 function restaurarOriginal() {
   if (!state.logoOriginalDataUrl) return;
