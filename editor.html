@@ -690,7 +690,8 @@ async function carregarUpscaler() {
       await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js');
     }
     if (!window.Upscaler) {
-      await loadScript('https://cdn.jsdelivr.net/npm/upscaler@1.0.0-beta.20/dist/browser/umd/upscaler.min.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.15.0/dist/tf-backend-webgl.min.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/upscaler@1.0.0-beta.19/dist/browser/umd/upscaler.min.js');
     }
     _upscalerLoaded = true;
     return true;
@@ -745,7 +746,7 @@ async function carregarBgRemover() {
   try {
     if (!window.__esm_transformers__) {
       // importa dinamicamente o módulo ESM
-      const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js');
+      const mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
       window.__esm_transformers__ = mod;
     }
     _bgRemoverLoaded = true;
@@ -779,7 +780,7 @@ async function removerFundo() {
 
     if (!_bgPipeline) {
       statusEl.textContent = 'Baixando modelo RMBG (~180 MB na 1ª vez)…';
-      _bgPipeline = await pipeline('image-segmentation', 'briaai/RMBG-1.4', { device: 'webgpu' });
+      _bgPipeline = await pipeline('image-segmentation', 'briaai/RMBG-1.4');
     }
 
     statusEl.textContent = 'Removendo fundo…';
