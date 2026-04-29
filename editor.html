@@ -479,6 +479,12 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
             <input type="number" id="num-inicio" class="mini-input" value="1" min="0" step="1">
           </div>
           <div>
+            <span class="mini-label">Número Final</span>
+            <input type="number" id="num-final" class="mini-input" value="" min="0" step="1" placeholder="(opcional)">
+          </div>
+        </div>
+        <div class="montagem-row">
+          <div>
             <span class="mini-label">Incremento</span>
             <input type="number" id="num-incremento" class="mini-input" value="1" min="1" step="1">
           </div>
@@ -884,9 +890,11 @@ function toggleQROpts() {
 }
 
 function getNumConfig() {
+  const finalVal = parseInt(document.getElementById('num-final').value);
   return {
     ativo:      document.getElementById('num-ativo').checked,
     inicio:     parseInt(document.getElementById('num-inicio').value) || 1,
+    final:      isNaN(finalVal) ? null : finalVal,
     incremento: parseInt(document.getElementById('num-incremento').value) || 1,
     prefixo:    document.getElementById('num-prefixo').value || '',
     digits:     parseInt(document.getElementById('num-digits').value) || 0,
@@ -1359,65 +1367,94 @@ async function baixarMontagemPDF() {
     const engine = window.TemplateEngines[state.templateFile];
     if (!engine) throw new Error('Motor JS não encontrado para este template.');
 
-    let indice = 0; // índice sequencial global na folha
+    const totalLacresPorPagina = cols * rows;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const ox = oxGrade + c * (W + gapH);
-        const oy = oyGrade + r * (H + gapV);
+    // Calcula quantas páginas gerar
+    let totalLacres;
+    if (numCfg.ativo && numCfg.final !== null) {
+      totalLacres = Math.floor((numCfg.final - numCfg.inicio) / numCfg.incremento) + 1;
+    } else {
+      totalLacres = totalLacresPorPagina; // só 1 página
+    }
+    const totalPaginas = Math.ceil(totalLacres / totalLacresPorPagina);
 
-        // Prepara estado individual com número do lacre
-        const stateLocal = Object.assign({}, state);
-        if (numCfg.ativo) {
-          const numAtual = numCfg.inicio + indice * numCfg.incremento;
-          stateLocal.numeroSequencial = numAtual;
-          stateLocal.numeroFormatado  = formatNum(numAtual, numCfg);
-          // Injeta em vars para que templates que usam CHAVE_NUMERO possam consumi-lo
-          stateLocal.vars = Object.assign({}, state.vars, {
-            CHAVE_NUMERO: stateLocal.numeroFormatado,
-          });
+    let indiceGlobal = 0; // índice sequencial global entre todas as páginas
+
+    for (let pagina = 0; pagina < totalPaginas; pagina++) {
+      if (pagina > 0) pdf.addPage(
+        (folhaKey === 'letter' || folhaKey === 'custom') ? [fw, fh] : folhaKey,
+        ori
+      );
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, fw, fh, 'F');
+
+      const lacresNestaPagina = Math.min(totalLacresPorPagina, totalLacres - pagina * totalLacresPorPagina);
+      let indiceNaPagina = 0;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (indiceNaPagina >= lacresNestaPagina) break;
+
+          const ox = oxGrade + c * (W + gapH);
+          const oy = oyGrade + r * (H + gapV);
+
+          const stateLocal = Object.assign({}, state);
+          if (numCfg.ativo) {
+            const numAtual = numCfg.inicio + indiceGlobal * numCfg.incremento;
+            stateLocal.numeroSequencial = numAtual;
+            stateLocal.numeroFormatado  = formatNum(numAtual, numCfg);
+            stateLocal.vars = Object.assign({}, state.vars, {
+              CHAVE_NUMERO: stateLocal.numeroFormatado,
+            });
+          }
+
+          await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
+
+          if (numCfg.ativo && numCfg.barcode) {
+            await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
+          }
+
+          indiceGlobal++;
+          indiceNaPagina++;
         }
-
-        await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
-
-        // Desenha barcode sobre/abaixo do lacre
-        if (numCfg.ativo && numCfg.barcode) {
-          await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
-        }
-
-        indice++;
+        if (indiceNaPagina >= lacresNestaPagina) break;
       }
-    }
 
-    // ── GABARITO ──
-    pdf.setDrawColor(gr, gg, gb);
-    pdf.setLineWidth(lwGabarito);
+      // ── GABARITO ──
+      pdf.setDrawColor(gr, gg, gb);
+      pdf.setLineWidth(lwGabarito);
 
-    const xEsq = oxGrade - gapH / 2;
-    const xDir = oxGrade + gradeW + gapH / 2;
-    const yTop = oyGrade - gapV / 2;
-    const yBot = oyGrade + gradeH + gapV / 2;
+      const xEsq = oxGrade - gapH / 2;
+      const xDir = oxGrade + gradeW + gapH / 2;
+      const yTop = oyGrade - gapV / 2;
+      const yBot = oyGrade + gradeH + gapV / 2;
 
-    pdf.line(xEsq, yTop, xDir, yTop);
-    pdf.line(xEsq, yBot, xDir, yBot);
-    pdf.line(xEsq, yTop, xEsq, yBot);
-    pdf.line(xDir, yTop, xDir, yBot);
+      pdf.line(xEsq, yTop, xDir, yTop);
+      pdf.line(xEsq, yBot, xDir, yBot);
+      pdf.line(xEsq, yTop, xEsq, yBot);
+      pdf.line(xDir, yTop, xDir, yBot);
 
-    for (let r = 0; r < rows - 1; r++) {
-      const yFim  = oyGrade + (r + 1) * H + r * gapV;
-      const yProx = oyGrade + (r + 1) * (H + gapV);
-      const y = (yFim + yProx) / 2;
-      pdf.line(xEsq, y, xDir, y);
-    }
-    for (let c = 0; c < cols - 1; c++) {
-      const xFim  = oxGrade + (c + 1) * W + c * gapH;
-      const xProx = oxGrade + (c + 1) * (W + gapH);
-      const x = (xFim + xProx) / 2;
-      pdf.line(x, yTop, x, yBot);
+      for (let r = 0; r < rows - 1; r++) {
+        const yFim  = oyGrade + (r + 1) * H + r * gapV;
+        const yProx = oyGrade + (r + 1) * (H + gapV);
+        const y = (yFim + yProx) / 2;
+        pdf.line(xEsq, y, xDir, y);
+      }
+      for (let c = 0; c < cols - 1; c++) {
+        const xFim  = oxGrade + (c + 1) * W + c * gapH;
+        const xProx = oxGrade + (c + 1) * (W + gapH);
+        const x = (xFim + xProx) / 2;
+        pdf.line(x, yTop, x, yBot);
+      }
+
+      lbl.textContent = `Gerando... pág ${pagina + 1}/${totalPaginas}`;
     }
 
     const nomeFolha = document.getElementById('mont-folha').value;
-    const numSufixo = numCfg.ativo ? `_num${numCfg.inicio}` : '';
+    const numSufixo = numCfg.ativo
+      ? `_${numCfg.inicio}-${numCfg.final !== null ? numCfg.final : numCfg.inicio + (totalLacresPorPagina - 1) * numCfg.incremento}`
+      : '';
     pdf.save(`montagem_${cols}x${rows}_${wCm}x${hCm}cm_${nomeFolha}${numSufixo}.pdf`);
 
   } catch(e) {
