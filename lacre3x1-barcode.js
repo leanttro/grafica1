@@ -222,11 +222,13 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
         const scaleNum = parseFloat(numCfg.nTam ?? 100) / 100;
         const pxNum = parseFloat(numCfg.nX ?? 50) / 100;
-        const pyNum = parseFloat(numCfg.nY ?? 72) / 100;
         const fsNumAbaixo = Math.min(centW * 0.13, centAreaH * 0.20) * 2.835 * scaleNum;
         pdf.setFontSize(fsNumAbaixo);
         const numX = ox + logoW + centW * pxNum;
-        const numY = centAreaY + centAreaH * pyNum + (fsNumAbaixo/2.835)*0.35;
+        // Ancora o número pela base do barcode (byClipped+bH) + gap fixo,
+        // igual ao comportamento do SVG (distância constante independente de centAreaH)
+        const gap = (fsNumAbaixo / 2.835) * 0.6;
+        const numY = byClipped + bH + gap + (fsNumAbaixo/2.835)*0.35;
         pdf.text(numero, numX, numY, { align:'center' });
       }
 
