@@ -697,6 +697,15 @@ window.gerarBarcodeSVGString = function(texto, cfg) {
       fontSize:     10,
       margin:       2,
     });
+    // Remove fixed dimensions so the barcode SVG scales to whatever container the engine sets
+    const bw = svgEl.getAttribute('width');
+    const bh = svgEl.getAttribute('height');
+    if (bw && bh && !svgEl.getAttribute('viewBox')) {
+      svgEl.setAttribute('viewBox', `0 0 ${bw} ${bh}`);
+    }
+    svgEl.removeAttribute('width');
+    svgEl.removeAttribute('height');
+    svgEl.setAttribute('preserveAspectRatio', 'none');
     return svgEl.outerHTML;
   } catch(e) {
     console.warn('gerarBarcodeSVGString error:', e);
