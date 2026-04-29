@@ -267,16 +267,13 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   content: ''; display: block; width: 40px; height: 1px; background: var(--border);
 }
 .preview-frame {
-  max-width: min(460px, 100%);
-  max-height: min(340px, 60vh);
-  width: auto;
-  height: auto;
-  border-radius: 4px; overflow: hidden;
+  border-radius: 4px; overflow: visible;
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   position: relative;
-  transition: aspect-ratio 0.2s ease;
+  transition: width 0.2s ease, height 0.2s ease;
+  flex-shrink: 0;
 }
-.preview-frame iframe { width: 100%; height: 100%; border: none; display: block; }
+.preview-frame iframe { width: 100%; height: 100%; border: none; display: block; overflow: hidden; border-radius: 4px; }
 .preview-note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
 .preview-loading {
@@ -1300,10 +1297,9 @@ function updatePreview() {
     const BORDER = 0.5;
     const vbW = W + BORDER*2, vbH = H + BORDER*2;
     const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
-    // Calcula dimensões em pixels do frame para dar ao SVG dimensões intrínsecas corretas
     const frame = document.getElementById('preview-frame');
-    const fW = frame ? frame.offsetWidth  || 460 : 460;
-    const fH = frame ? frame.offsetHeight || Math.round(460 * hCm / wCm) : Math.round(460 * hCm / wCm);
+    const fW = frame ? (parseInt(frame.style.width) || frame.offsetWidth || 460) : 460;
+    const fH = frame ? (parseInt(frame.style.height) || frame.offsetHeight || Math.round(460 * hCm / wCm)) : Math.round(460 * hCm / wCm);
     const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${fW}" height="${fH}" viewBox="0 0 ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet"><rect x="0" y="0" width="${vbW}" height="${vbH}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
@@ -1441,20 +1437,20 @@ function atualizarInfoMontagem() {
   const { wCm, hCm, cols, rows, total } = calcMontagem();
   const frame = document.getElementById('preview-frame');
   if (frame) {
+    // Área disponível real: janela menos painel (360px) menos padding (40px × 2)
+    const availW = Math.max(200, window.innerWidth - 360 - 80);
+    const availH = Math.max(100, window.innerHeight - 56 - 80);
     const ratio = wCm / hCm;
-    const maxW = 460;
-    const maxH = 340;
     let pw, ph;
-    if (ratio >= maxW / maxH) {
-      pw = maxW;
-      ph = Math.round(maxW / ratio);
+    if (ratio >= availW / availH) {
+      pw = availW;
+      ph = Math.round(availW / ratio);
     } else {
-      ph = maxH;
-      pw = Math.round(maxH * ratio);
+      ph = availH;
+      pw = Math.round(availH * ratio);
     }
     frame.style.width  = pw + 'px';
     frame.style.height = ph + 'px';
-    frame.style.aspectRatio = `${wCm} / ${hCm}`;
   }
   const el = document.getElementById('mont-info');
   if (cols <= 0 || rows <= 0) {
