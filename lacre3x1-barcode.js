@@ -1,16 +1,10 @@
 window.TemplateEngines['lacre3x1-barcode.html'] = {
 
-  // Sinaliza ao editor que este template gerencia o barcode internamente.
-  // Com isso, o editor NÃO chama desenharBarcodeNoPDF() após drawPDF().
   handlesBarcodeInternally: true,
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Utilitário: gera SVG do barcode/QR em memória (DOM temporário)
-  // Retorna uma string SVG ou null.
-  // ─────────────────────────────────────────────────────────────────────────
   _gerarBarcodeSVGString: function(texto, cfg) {
     if (!texto) return null;
-    if (cfg.bTipo === 'QR') return null; // QR via canvas, não via SVG inline
+    if (cfg.bTipo === 'QR') return null;
 
     try {
       const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -22,9 +16,8 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         background:   'transparent',
         width:        2,
         height:       80,
-        displayValue: true,
-        fontSize:     14,
-        margin:       4,
+        displayValue: false,
+        margin:       0,
         xmlDocument:  document,
       });
       const str = new XMLSerializer().serializeToString(svgEl);
@@ -36,9 +29,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     }
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Utilitário: gera dataURL PNG do barcode/QR (para PDF via addImage)
-  // ─────────────────────────────────────────────────────────────────────────
   _gerarBarcodeDataUrl: function(texto, cfg) {
     return new Promise((resolve) => {
       if (!texto) { resolve(null); return; }
@@ -59,10 +49,9 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             lineColor:    cfg.bCor  || '#000000',
             background:   cfg.bFundo || '#ffffff',
             width:        2,
-            height:       H * 0.72,
-            displayValue: true,
-            fontSize:     H * 0.16,
-            margin:       4,
+            height:       H,
+            displayValue: false,
+            margin:       0,
           });
           resolve(canvas.toDataURL('image/png'));
         } catch(e) {
@@ -73,9 +62,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     });
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // drawPDF — renderiza o lacre completo + barcode dentro da area-centro
-  // ─────────────────────────────────────────────────────────────────────────
   drawPDF: async function(pdf, ox, oy, W, H, state) {
     const bw = Math.max((7 / 500) * W, 0.1);
     pdf.setLineWidth(bw);
@@ -84,7 +70,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const [tr,tg,tb] = hexToRgb(state.texto);
     const [dr,dg,db] = hexToRgb(state.destaque);
 
-    // ── Proporções ──
     const topH  = H * 0.70;
     const mesH  = H * 0.30;
     const logoW = W * 0.18;
@@ -96,13 +81,11 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const ln = (x1, y, x2)  => pdf.line(ox+x1, oy+y,  ox+x2, oy+y);
     const lv = (x,  ya, yb) => pdf.line(ox+x,  oy+ya, ox+x,  oy+yb);
 
-    // ── Fundo + borda ──
     pdf.setFillColor(fr,fg,fb);
     pdf.rect(ox, oy, W, H, 'F');
     pdf.setDrawColor(tr,tg,tb);
     pdf.rect(ox, oy, W, H, 'S');
 
-    // ── Linhas estruturais ──
     ln(0, topH, W);
     lv(logoW, 0, topH);
     lv(W - anosW, 0, topH);
@@ -111,7 +94,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
     pdf.setFont('helvetica', 'bold');
 
-    // ── Anos ──
     const fsAno = Math.min(anosW * 0.55, hAno * 0.65) * 2.835;
     pdf.setFontSize(fsAno);
     pdf.setTextColor(dr,dg,db);
@@ -120,7 +102,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       pdf.text(a, ox + W - anosW/2, cy, { align:'center' });
     });
 
-    // ── Meses ──
     const fsMes = Math.min(wMes * 0.70, mesH * 0.65) * 2.835;
     pdf.setFontSize(fsMes);
     pdf.setTextColor(tr,tg,tb);
@@ -130,7 +111,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       pdf.text(m, cx, cy, { align:'center' });
     });
 
-    // ── Área central ──
     const padC  = bw * 2;
     const centX = ox + logoW + centW / 2;
     const centAreaY = oy + padC;
@@ -139,7 +119,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const numero    = state.numeroFormatado || state.vars?.CHAVE_NUMERO || '';
     const numCfg    = state.numCfg || {};
 
-    // Configurações de barcode (com defaults)
     const bLarguraPct = Math.min(Math.max(numCfg.bLargura ?? 85, 20), 100) / 100;
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
     const temBarcode  = numCfg.ativo && numCfg.barcode && numero;
@@ -147,7 +126,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     pdf.setTextColor(tr,tg,tb);
 
     if (temBarcode) {
-      // ── Modo barcode: INFO no topo, barcode abaixo ──
       if (infoText) {
         const fsInfo = Math.min(centW * 0.20, centAreaH * 0.28) * 2.835;
         pdf.setFontSize(fsInfo);
@@ -155,20 +133,35 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
         pdf.text(infoText, centX, infoY, { align:'center' });
       }
 
-      // Barcode: posição Y controlada pelo usuário (bOffsetYPct)
       const bDataUrl = await this._gerarBarcodeDataUrl(numero, numCfg);
       if (bDataUrl) {
         const bW = centW * bLarguraPct;
         const bH = Math.min(centAreaH * 0.40, numCfg.bAltura || 8);
         const bx = ox + logoW + (centW - bW) / 2;
         const by = centAreaY + centAreaH * bOffsetYPct - bH / 2;
-        // Clip dentro da area-centro para não vazar
         const byClipped = Math.max(centAreaY, Math.min(by, centAreaY + centAreaH - bH));
         pdf.addImage(bDataUrl, 'PNG', bx, byClipped, bW, bH, undefined, 'NONE');
+
+        if (numCfg.bTipo !== 'QR') {
+          const espacoAbaixo = (centAreaY + centAreaH) - (byClipped + bH);
+          let corR = tr, corG = tg, corB = tb;
+          if (numCfg.bCor) [corR, corG, corB] = hexToRgb(numCfg.bCor);
+          pdf.setTextColor(corR, corG, corB);
+
+          if (espacoAbaixo >= 1.5) {
+            const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.70) * 2.835;
+            pdf.setFontSize(fsNumAbaixo);
+            const numAbaixoY  = byClipped + bH + espacoAbaixo * 0.55 + (fsNumAbaixo/2.835)*0.35;
+            pdf.text(numero, centX, numAbaixoY, { align:'center' });
+          } else {
+            const fsNum2 = Math.min(centW * 0.12, 2.5) * 2.835;
+            pdf.setFontSize(fsNum2);
+            pdf.text(numero, centX, byClipped + bH + 2.0, { align:'center' });
+          }
+        }
       }
 
     } else {
-      // ── Modo texto: INFO + número sequencial ──
       if (infoText) {
         const fsInfo = Math.min(centW * 0.20, centAreaH * 0.30) * 2.835;
         pdf.setFontSize(fsInfo);
@@ -183,7 +176,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       }
     }
 
-    // ── Logo ──
     if (state.logoSVGString && state.pdfRaw && window.svg2pdf) {
       const pad = bw * 2;
       const lx = ox + pad, ly = oy + pad;
@@ -225,10 +217,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     }
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // drawSVG — renderiza o lacre completo + barcode dentro da area-centro
-  // Retorna string SVG (sem <svg> wrapper) para ser inserida na montagem.
-  // ─────────────────────────────────────────────────────────────────────────
   drawSVG: function(W, H, ox, oy, state) {
     const r4   = v => Math.round(v * 10000) / 10000;
     const bw   = Math.max((7/500)*W, 0.1);
@@ -245,7 +233,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     let s = `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="${f}" stroke="none"/>`;
     s += `<rect x="${r4(ox)}" y="${r4(oy)}" width="${r4(W)}" height="${r4(H)}" fill="none" stroke="${t}" stroke-width="${r4(bw)}"/>`;
 
-    // Divisórias
     s += line(0, topH, W, topH);
     s += line(logoW, 0, logoW, topH);
     s += line(W-anosW, 0, W-anosW, topH);
@@ -255,17 +242,14 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const txt = (label, cx, cy, col, fs, extra='') =>
       `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${col}"${extra}>${label}</text>`;
 
-    // Anos
     const fsAno = Math.min(anosW*0.55, hAno*0.65);
     ['26','27','28','29'].forEach((a,i) =>
       s += txt(a, W-anosW/2, hAno*i+hAno/2, d, fsAno));
 
-    // Meses
     const fsMes = Math.min(wMes*0.70, mesH*0.65);
     ['J','F','M','A','M','J','J','A','S','O','N','D'].forEach((m,i) =>
       s += txt(m, wMes*i+wMes/2, topH+mesH/2, t, fsMes));
 
-    // ── Área central ──
     const padC      = bw*2;
     const centX     = logoW + centW/2;
     const centAreaH = topH - padC*2;
@@ -278,22 +262,17 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     const bOffsetYPct = Math.min(Math.max(numCfg.bOffsetY ?? 60, 10), 90) / 100;
 
     if (temBarcode) {
-      // INFO no topo
       if (infoText) {
         const fsInfo = Math.min(centW*0.20, centAreaH*0.28);
         s += txt(infoText, centX, padC + centAreaH*0.22, t, fsInfo);
       }
 
-      // Barcode: usa SVG inline se disponível via JsBarcode (para SVG de montagem)
-      // Gera placeholder visual — em SVG de exportação não é possível chamar JsBarcode
-      // de forma síncrona com resultado inline. Inserimos um rect + texto como fallback.
       const bW = centW * bLarguraPct;
       const bH = Math.min(centAreaH * 0.38, 10);
       const bx = logoW + (centW - bW) / 2;
       const by = padC + centAreaH * bOffsetYPct - bH / 2;
       const byClipped = Math.max(padC, Math.min(by, padC + centAreaH - bH));
 
-      // Tenta gerar o SVG do barcode inline via JsBarcode (disponível no browser)
       if (typeof JsBarcode !== 'undefined' && numero) {
         try {
           const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -310,39 +289,34 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
             margin:       2,
             xmlDocument:  document,
           });
-          // Pega viewBox do SVG gerado para escalar corretamente
           const vb = svgEl.getAttribute('viewBox') || `0 0 ${svgEl.getAttribute('width')||200} ${svgEl.getAttribute('height')||60}`;
           const inner = svgEl.innerHTML;
           document.body.removeChild(svgEl);
-          // Barcode ocupa bH inteiro (sem numero interno - evita distorcao)
           s += `<g transform="translate(${r4(ox+bx)},${r4(oy+byClipped)})">`;
           s += `<rect x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}"/>`;
           s += `<svg x="0" y="0" width="${r4(bW)}" height="${r4(bH)}" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
           s += `</g>`;
-          // Numero desenhado abaixo do barcode com txt() - mesmo sistema do modo texto
-          const espacoAbaixo = (padC + centAreaH) - (byClipped + bH);
-          // Se tiver espaco suficiente, coloca abaixo; caso contrario coloca sobreposto ao fundo do barcode
-          if (espacoAbaixo >= 1.5) {
-            const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.70);
-            const numAbaixoY  = byClipped + bH + espacoAbaixo * 0.55;
-            s += txt(numero, centX, padC + numAbaixoY, numCfg.bCor || t, fsNumAbaixo);
-          } else {
-            // Sem espaco: coloca logo abaixo mesmo que fique no limite
-            const fsNum2 = Math.min(centW * 0.12, 2.5);
-            s += txt(numero, centX, padC + byClipped + bH + 2.0, numCfg.bCor || t, fsNum2);
+          
+          if (numCfg.bTipo !== 'QR') {
+            const espacoAbaixo = (padC + centAreaH) - (byClipped + bH);
+            if (espacoAbaixo >= 1.5) {
+              const fsNumAbaixo = Math.min(centW * 0.13, espacoAbaixo * 0.70);
+              const numAbaixoY  = byClipped + bH + espacoAbaixo * 0.55;
+              s += txt(numero, centX, padC + numAbaixoY, numCfg.bCor || t, fsNumAbaixo);
+            } else {
+              const fsNum2 = Math.min(centW * 0.12, 2.5);
+              s += txt(numero, centX, padC + byClipped + bH + 2.0, numCfg.bCor || t, fsNum2);
+            }
           }
         } catch(e) {
-          // Fallback: retângulo placeholder
           s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-          s += txt(numero, centX, byClipped+bH/2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+          if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH/2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
         }
       } else {
-        // Fallback quando JsBarcode não disponível
         s += `<rect x="${r4(ox+bx)}" y="${r4(oy+byClipped)}" width="${r4(bW)}" height="${r4(bH)}" fill="${numCfg.bFundo||'#ffffff'}" stroke="${numCfg.bCor||'#000000'}" stroke-width="0.3"/>`;
-        s += txt(numero, centX, byClipped+bH/2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
+        if (numCfg.bTipo !== 'QR') s += txt(numero, centX, byClipped+bH/2, numCfg.bCor||'#000000', Math.min(bH*0.5, 4));
       }
     } else {
-      // Modo texto
       if (infoText) {
         const fsInfo = Math.min(centW*0.20, centAreaH*0.30);
         s += txt(infoText, centX, padC + centAreaH*0.28, t, fsInfo);
@@ -353,7 +327,6 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
       }
     }
 
-    // ── Logo ──
     if (state.logoDataUrl) {
       const pad = bw*2;
       const lx = pad, ly = pad;
