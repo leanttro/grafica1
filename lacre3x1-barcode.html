@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Lacre 3x1 Barcode - Leanttro Tecnologia</title>
+    <style>
+        :root {
+            --cor-fundo: CHAVE_COR_FUNDO;
+            --cor-texto: CHAVE_COR_TEXTO;
+            --cor-destaque: CHAVE_COR_DESTAQUE;
+            --border-width: 7px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--cor-fundo);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            padding: 4vmin;
+            font-family: Arial, Helvetica, sans-serif;
+            overflow: hidden;
+        }
+
+        .lacre-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--cor-fundo);
+            border: var(--border-width) solid var(--cor-texto);
+        }
+
+        /* ── Linha superior: logo | conteúdo central | anos ── */
+        .row-top {
+            display: flex;
+            flex: 7;
+            width: 100%;
+            border-bottom: var(--border-width) solid var(--cor-texto);
+            min-height: 0;
+        }
+
+        /* Logo — esquerda, compacto */
+        .area-logo {
+            width: 18%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4% 3%;
+            border-right: var(--border-width) solid var(--cor-texto);
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        img.logo {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* Centro: info + barcode ou número */
+        .area-centro {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2% 3%;
+            gap: 4%;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .info-text {
+            font-size: min(6vw, 12vh);
+            font-weight: 900;
+            color: var(--cor-texto);
+            white-space: nowrap;
+            overflow: hidden;
+            line-height: 1;
+            text-align: center;
+        }
+
+        /* Barcode SVG injetado pelo JS do editor */
+        .barcode-wrap {
+            width: 90%;
+            max-height: 45%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .barcode-wrap svg {
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+        }
+
+        /* Número sequencial (quando não tem barcode) */
+        .numero-sequencial {
+            font-size: min(5vw, 10vh);
+            font-weight: 700;
+            color: var(--cor-texto);
+            opacity: 0.85;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+
+        /* Anos — direita */
+        .col-anos {
+            width: 12%;
+            display: flex;
+            flex-direction: column;
+            border-left: var(--border-width) solid var(--cor-texto);
+        }
+
+        .cell-ano {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--cor-destaque);
+            font-weight: 900;
+            font-size: min(3.5vw, 11vh);
+            line-height: 1;
+            overflow: hidden;
+        }
+
+        .cell-ano:not(:last-child) {
+            border-bottom: var(--border-width) solid var(--cor-texto);
+        }
+
+        /* ── Linha de meses ── */
+        .row-meses {
+            display: flex;
+            flex: 3;
+            width: 100%;
+        }
+
+        .cell-mes {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            font-size: min(4vw, 11vh);
+            color: var(--cor-texto);
+            overflow: hidden;
+        }
+
+        .cell-mes:not(:last-child) {
+            border-right: var(--border-width) solid var(--cor-texto);
+        }
+    </style>
+</head>
+<body>
+    <div class="lacre-container">
+
+        <div class="row-top">
+            <div class="area-logo">
+                <img src="CHAVE_LOGO" alt="Logo" class="logo">
+            </div>
+
+            <div class="area-centro">
+                <div class="info-text">CHAVE_INFO</div>
+                <div class="barcode-wrap" id="barcode-container">
+                    <!-- barcode/numero injetado aqui -->
+                    <div class="numero-sequencial">CHAVE_NUMERO</div>
+                </div>
+            </div>
+
+            <div class="col-anos">
+                <div class="cell-ano">25</div>
+                <div class="cell-ano">26</div>
+                <div class="cell-ano">27</div>
+                <div class="cell-ano">28</div>
+            </div>
+        </div>
+
+        <div class="row-meses">
+            <div class="cell-mes">J</div>
+            <div class="cell-mes">F</div>
+            <div class="cell-mes">M</div>
+            <div class="cell-mes">A</div>
+            <div class="cell-mes">M</div>
+            <div class="cell-mes">J</div>
+            <div class="cell-mes">J</div>
+            <div class="cell-mes">A</div>
+            <div class="cell-mes">S</div>
+            <div class="cell-mes">O</div>
+            <div class="cell-mes">N</div>
+            <div class="cell-mes">D</div>
+        </div>
+
+    </div>
+</body>
+</html>
