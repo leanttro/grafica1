@@ -116,65 +116,7 @@ select.color-hex {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
 }
-.logo-tools {
-  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
-}
-.logo-tools-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
-}
-.num-config {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.num-toggle {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-}
-.num-toggle-label { font-size: 12px; font-weight: 600; }
-.toggle-switch {
-  position: relative; width: 38px; height: 20px; flex-shrink: 0;
-}
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.toggle-track {
-  position: absolute; inset: 0;
-  background: var(--border); border-radius: 10px;
-  cursor: pointer; transition: background 0.2s;
-}
-.toggle-track::after {
-  content: ''; position: absolute;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: #fff; top: 3px; left: 3px;
-  transition: transform 0.2s;
-}
-.toggle-switch input:checked + .toggle-track { background: var(--accent); }
-.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
-.num-body { display: flex; flex-direction: column; gap: 8px; }
-.num-body.hidden { display: none; }
-.new-badge {
-  display: inline-block; font-size: 8px; font-weight: 700;
-  background: rgba(22,163,74,0.12); color: #4ade80;
-  border: 1px solid rgba(22,163,74,0.25);
-  padding: 1px 5px; border-radius: 99px; letter-spacing: 0.5px;
-  text-transform: uppercase; vertical-align: middle; margin-left: 5px;
-}
-.btn-tool {
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 7px 8px; border-radius: var(--radius); font-size: 11px;
-  font-weight: 600; cursor: pointer; font-family: var(--sans);
-  transition: opacity 0.15s, border-color 0.15s;
-  border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text);
-}
-.btn-tool:hover { border-color: #555; }
-.btn-tool:disabled { opacity: 0.4; cursor: not-allowed; }
-.tool-status {
-  font-size: 10px; color: var(--muted); font-family: var(--mono);
-  min-height: 14px; text-align: center;
-}
-
+.logo-preview-box {
   width: 100%; height: 72px;
   background: var(--surface2); border: 1px dashed var(--border);
   border-radius: var(--radius); display: flex;
@@ -300,6 +242,40 @@ select.color-hex {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.num-config {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.num-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.num-toggle-label { font-size: 12px; font-weight: 600; }
+.toggle-switch { position: relative; width: 38px; height: 20px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 10px;
+  cursor: pointer; transition: background 0.2s;
+}
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; top: 3px; left: 3px; transition: transform 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: var(--accent); }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+.num-body { display: flex; flex-direction: column; gap: 8px; }
+.num-body.hidden { display: none; }
+.new-badge {
+  display: inline-block; font-size: 8px; font-weight: 700;
+  background: rgba(147,51,234,0.18); color: #c084fc;
+  border: 1px solid rgba(147,51,234,0.3);
+  padding: 1px 5px; border-radius: 99px; letter-spacing: 0.5px;
+  text-transform: uppercase; vertical-align: middle; margin-left: 5px;
+}
+.logo-tools { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.logo-tools-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 </style>
 </head>
 <body>
@@ -516,22 +492,6 @@ select.color-hex {
               <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
             </div>
           </div>
-
-          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
-            <div>
-              <span class="mini-label">Largura (%)</span>
-              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1" oninput="updatePreview()">
-            </div>
-            <div>
-              <span class="mini-label">Altura (%)</span>
-              <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1" oninput="updatePreview()">
-            </div>
-            <div>
-              <span class="mini-label">Pos. Y (%)</span>
-              <input type="number" id="barcode-offset-y" class="mini-input" value="60" min="10" max="90" step="1" oninput="updatePreview()">
-            </div>
-          </div>
-
           <div class="montagem-row">
             <div>
               <span class="mini-label">Cor barras</span>
@@ -543,7 +503,7 @@ select.color-hex {
             </div>
           </div>
           <div style="font-size:10px; color:var(--muted); font-family:var(--mono); padding:6px 8px; background:var(--bg); border-radius:6px; border:1px solid var(--border);">
-            ⚡ Barcode gerado no cliente — 100% offline, sem servidor.
+            ⚡ Barcode gerado no cliente — 100% offline.
           </div>
         </div>
 
@@ -704,7 +664,21 @@ function buildDynamicPanel() {
           </svg>
           Upload SVG / PDF vetorial
           <input type="file" accept=".svg,.pdf" onchange="handleLogoVetorial(this)">
-        </label>`;
+        </label>
+        <div class="montagem-row triple" style="margin-top:8px;">
+          <div>
+            <span class="mini-label">Tam. (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_TAM']||100}" step="1" oninput="dynText('LOGO_TAM', this.value); updatePreview();">
+          </div>
+          <div>
+            <span class="mini-label">Pos. X (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_X']||50}" step="1" oninput="dynText('LOGO_X', this.value); updatePreview();">
+          </div>
+          <div>
+            <span class="mini-label">Pos. Y (%)</span>
+            <input type="number" class="mini-input" value="${state.vars['LOGO_Y']||50}" step="1" oninput="dynText('LOGO_Y', this.value); updatePreview();">
+          </div>
+        </div>`;
     } else {
       const val = state.vars[key] || '';
       fg.innerHTML = `
@@ -1045,40 +1019,85 @@ async function baixarSerigrafiaPDF() {
     const paginas = calcPaginasCores();
     if (paginas.length === 0) { alert('Nenhuma cor detectada.'); return; }
 
+    const numCfg = getNumConfig();
+
     const gradeW  = cols * W + (cols - 1) * gapH;
     const gradeH  = rows * H + (rows - 1) * gapV;
     const oxGrade = (fw - gradeW) / 2;
     const oyGrade = (fh - gradeH) / 2;
 
+    // Calcula total de lacres e páginas considerando numeração
+    const totalLacresPorPagina = cols * rows;
+    let totalLacres;
+    if (numCfg.ativo && numCfg.final !== null) {
+      totalLacres = Math.floor((numCfg.final - numCfg.inicio) / numCfg.incremento) + 1;
+    } else {
+      totalLacres = totalLacresPorPagina;
+    }
+    const totalPaginasNumeracao = Math.ceil(totalLacres / totalLacresPorPagina);
+
     for (let pi = 0; pi < paginas.length; pi++) {
       const pg = paginas[pi];
-      if (pi > 0) pdf.addPage();
 
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, fw, fh, 'F');
-
-      const stateCorr = buildStateParaCor(pg);
-      stateCorr.pdfRaw = pdfRaw;
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const ox = oxGrade + c * (W + gapH);
-          const oy = oyGrade + r * (H + gapV);
-          await engine.drawPDF(pdf, ox, oy, W, H, stateCorr);
+      for (let pagNum = 0; pagNum < totalPaginasNumeracao; pagNum++) {
+        if (pi === 0 && pagNum === 0) {
+          // primeira página — já existe
+        } else {
+          pdf.addPage();
         }
+
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, fw, fh, 'F');
+
+        const stateCorr = buildStateParaCor(pg);
+        stateCorr.pdfRaw = pdfRaw;
+
+        const lacresNestaPagina = Math.min(totalLacresPorPagina, totalLacres - pagNum * totalLacresPorPagina);
+        let indiceNaPagina = 0;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (indiceNaPagina >= lacresNestaPagina) break;
+            const ox = oxGrade + c * (W + gapH);
+            const oy = oyGrade + r * (H + gapV);
+
+            const stateLocal = Object.assign({}, stateCorr);
+            if (numCfg.ativo) {
+              const indiceGlobal = pagNum * totalLacresPorPagina + indiceNaPagina;
+              const numAtual = numCfg.inicio + indiceGlobal * numCfg.incremento;
+              stateLocal.numeroSequencial = numAtual;
+              stateLocal.numeroFormatado  = formatNum(numAtual, numCfg);
+              stateLocal.vars = Object.assign({}, stateCorr.vars, { CHAVE_NUMERO: stateLocal.numeroFormatado });
+            }
+            stateLocal.numCfg = numCfg;
+
+            await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
+
+            if (numCfg.ativo && numCfg.barcode && !engine.handlesBarcodeInternally) {
+              await desenharBarcodeNoPDF(pdf, ox, oy, W, H,
+                stateLocal.numeroFormatado || formatNum(numCfg.inicio, numCfg), numCfg);
+            }
+
+            indiceNaPagina++;
+          }
+          if (indiceNaPagina >= lacresNestaPagina) break;
+        }
+
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(sw);
+
+        if (pg.temCorte) {
+          desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
+        }
+
+        desenharMirasFolha(pdf, fw, fh, regR, sw, regPos);
       }
-
-      pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(sw);
-
-      if (pg.temCorte) {
-        desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, cutLen, cutGap, sw);
-      }
-
-      desenharMirasFolha(pdf, fw, fh, regR, sw, regPos);
     }
 
-    pdf.save(`serigrafia_${paginas.length}cores_${cols}x${rows}_${wCm}x${hCm}cm_${folhaKey}.pdf`);
+    const numSufixo = numCfg.ativo
+      ? `_${numCfg.inicio}-${numCfg.final !== null ? numCfg.final : numCfg.inicio + (totalLacresPorPagina - 1) * numCfg.incremento}`
+      : '';
+    pdf.save(`serigrafia_${paginas.length}cores_${cols}x${rows}_${wCm}x${hCm}cm_${folhaKey}${numSufixo}.pdf`);
 
   } catch(e) {
     alert('Erro: ' + e.message);
@@ -1185,6 +1204,95 @@ function recolorirSVGParaPreto(svgText, corAlvo) {
     });
   });
   return new XMLSerializer().serializeToString(doc.documentElement);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NUMERAÇÃO SEQUENCIAL & BARCODE
+// ══════════════════════════════════════════════════════════════════════
+function toggleNumBody() {
+  const ativo = document.getElementById('num-ativo').checked;
+  document.getElementById('num-body').classList.toggle('hidden', !ativo);
+}
+
+function toggleBarcodeOpts() {
+  const ativo = document.getElementById('barcode-ativo').checked;
+  const opts  = document.getElementById('barcode-opts');
+  opts.classList.toggle('hidden', !ativo);
+  if (!ativo) document.getElementById('qr-opts').classList.add('hidden');
+  else toggleQROpts();
+  document.getElementById('barcode-tipo').onchange = toggleQROpts;
+}
+
+function toggleQROpts() {
+  const tipo = document.getElementById('barcode-tipo').value;
+  document.getElementById('qr-opts').classList.toggle('hidden', tipo !== 'QR');
+}
+
+function getNumConfig() {
+  const finalVal = parseInt(document.getElementById('num-final').value);
+  return {
+    ativo:      document.getElementById('num-ativo').checked,
+    inicio:     (v => isNaN(v) ? 1 : v)(parseInt(document.getElementById('num-inicio').value)),
+    final:      isNaN(finalVal) ? null : finalVal,
+    incremento: parseInt(document.getElementById('num-incremento').value) || 1,
+    prefixo:    document.getElementById('num-prefixo').value || '',
+    digits:     parseInt(document.getElementById('num-digits').value) || 0,
+    nTam:       parseFloat(document.getElementById('num-tam')?.value) || 100,
+    nX:         parseFloat(document.getElementById('num-x')?.value) || 50,
+    nY:         parseFloat(document.getElementById('num-y')?.value) || 72,
+    barcode:    document.getElementById('barcode-ativo').checked,
+    bTipo:      document.getElementById('barcode-tipo').value,
+    bPos:       document.getElementById('barcode-pos').value,
+    bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
+    bCor:       document.getElementById('barcode-cor').value,
+    bFundo:     document.getElementById('barcode-fundo').value,
+    qrSufixo:   document.getElementById('qr-sufixo').value || '',
+  };
+}
+
+function formatNum(n, cfg) {
+  let s = String(n);
+  if (cfg.digits > 0) s = s.padStart(cfg.digits, '0');
+  return cfg.prefixo + s;
+}
+
+async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg) {
+  try {
+    const bH = cfg.bAltura;
+    let bx, by, bw, bh;
+    if (cfg.bPos === 'below') {
+      bx = ox; by = oy + H; bw = W; bh = bH;
+    } else if (cfg.bPos === 'top-overlay') {
+      bx = ox; by = oy; bw = W; bh = bH;
+    } else {
+      bx = ox; by = oy + H - bH; bw = W; bh = bH;
+    }
+
+    const PX = 4;
+    const cW = Math.round(bw * PX * 10);
+    const cH = Math.round(bh * PX * 10);
+    const canvas = document.createElement('canvas');
+    canvas.width = cW; canvas.height = cH;
+
+    if (cfg.bTipo === 'QR') {
+      await new Promise(res => QRCode.toCanvas(canvas, (cfg.qrSufixo||'') + texto,
+        { width: Math.min(cW, cH), margin: 0, color: { dark: cfg.bCor, light: cfg.bFundo } }, res));
+    } else {
+      JsBarcode(canvas, texto, {
+        format:       cfg.bTipo || 'CODE128',
+        lineColor:    cfg.bCor  || '#000000',
+        background:   cfg.bFundo || '#ffffff',
+        width:        Math.max(1, cW / 120),
+        height:       cH * 0.75,
+        displayValue: true,
+        fontSize:     Math.max(8, cH * 0.14),
+        margin:       Math.max(1, cH * 0.04),
+      });
+    }
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bx, by, bw, bh, undefined, 'NONE');
+  } catch(e) {
+    console.warn('desenharBarcodeNoPDF error:', e);
+  }
 }
 
 function desenharMarcasCorte(pdf, oxGrade, oyGrade, gradeW, gradeH, cols, rows, W, H, gapH, gapV, len, gap, sw) {
