@@ -194,7 +194,8 @@ select.color-hex {
 .preview-area {
   background: var(--bg); display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 40px; gap: 16px; position: relative;
+  padding: 40px; gap: 16px; position: sticky; top: 0;
+  height: calc(100vh - 56px); overflow: hidden;
 }
 .preview-label {
   position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
@@ -490,6 +491,20 @@ select.color-hex {
             <div>
               <span class="mini-label">Altura (mm)</span>
               <input type="number" id="barcode-altura" class="mini-input" value="6" min="3" max="20" step="0.5">
+            </div>
+          </div>
+          <div class="montagem-row triple" id="barcode-internal-row" style="display:none;">
+            <div>
+              <span class="mini-label">Largura (%)</span>
+              <input type="number" id="barcode-largura" class="mini-input" value="85" min="20" max="100" step="1" oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Altura (%)</span>
+              <input type="number" id="barcode-altura-pct" class="mini-input" value="40" min="10" max="100" step="1" oninput="updatePreview()">
+            </div>
+            <div>
+              <span class="mini-label">Pos. Y (%)</span>
+              <input type="number" id="barcode-offset-y" class="mini-input" value="60" min="10" max="90" step="1" oninput="updatePreview()">
             </div>
           </div>
           <div class="montagem-row">
@@ -831,6 +846,7 @@ function updatePreview() {
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open(); doc.write(buildHTML()); doc.close();
   atualizarPagesBadges();
+  atualizarBarcodeRows();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1221,6 +1237,14 @@ function toggleBarcodeOpts() {
   if (!ativo) document.getElementById('qr-opts').classList.add('hidden');
   else toggleQROpts();
   document.getElementById('barcode-tipo').onchange = toggleQROpts;
+  atualizarBarcodeRows();
+}
+
+function atualizarBarcodeRows() {
+  const engine = state.templateFile ? window.TemplateEngines?.[state.templateFile] : null;
+  const interno = !!(engine && engine.handlesBarcodeInternally);
+  document.getElementById('barcode-pos-row').style.display     = interno ? 'none' : '';
+  document.getElementById('barcode-internal-row').style.display = interno ? '' : 'none';
 }
 
 function toggleQROpts() {
@@ -1244,6 +1268,9 @@ function getNumConfig() {
     bTipo:      document.getElementById('barcode-tipo').value,
     bPos:       document.getElementById('barcode-pos').value,
     bAltura:    parseFloat(document.getElementById('barcode-altura').value) || 6,
+    bLargura:   parseFloat(document.getElementById('barcode-largura')?.value) || 85,
+    bAlturaPct: parseFloat(document.getElementById('barcode-altura-pct')?.value) || 40,
+    bOffsetY:   parseFloat(document.getElementById('barcode-offset-y')?.value) || 60,
     bCor:       document.getElementById('barcode-cor').value,
     bFundo:     document.getElementById('barcode-fundo').value,
     qrSufixo:   document.getElementById('qr-sufixo').value || '',
@@ -1400,6 +1427,7 @@ function atualizarInfoMontagem() {
     el.textContent = '⚠️ Lacre maior que a área útil da folha';
   else
     el.textContent = `${cols} colunas × ${rows} linhas = ${total} lacres por folha`;
+  if (typeof atualizarBarcodeRows === 'function') atualizarBarcodeRows();
 }
 
 function onFolhaChange() {
