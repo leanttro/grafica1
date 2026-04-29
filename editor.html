@@ -6,6 +6,7 @@
 <title>Editor de Lacre — Leanttro</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
@@ -704,36 +705,91 @@ window.gerarBarcodeSVGString = function(texto, cfg) {
   }
 };
 
-// Gera barcode vetorial direto no jsPDF via SVG parsing
-window.desenharBarcodeVetorPDF = async function(pdf, bx, by, bw, bh, texto, cfg) {
+// Gera barcode vetorial direto no jsPDF via svg2pdf (igual ao editor_serigrafia)
+window.desenharBarcodeVetorPDF = async function(pdf, bx, by, bw, bh, texto, cfg, pdfRaw) {
   if (!texto) return;
   try {
     if (cfg.bTipo === 'QR') {
       // QR: fallback raster
       const canvas = document.createElement('canvas');
-      canvas.width = 120; canvas.height = 120;
+      canvas.width = 300; canvas.height = 300;
       await new Promise(res => QRCode.toCanvas(canvas, (cfg.qrSufixo||'') + texto,
-        { width: 120, margin: 0, color: { dark: cfg.bCor, light: cfg.bFundo } }, res));
+        { width: 300, margin: 0, color: { dark: cfg.bCor, light: cfg.bFundo } }, res));
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bx, by, bw, bh, undefined, 'NONE');
       return;
     }
-    // Barcode 1D: gera SVG, converte para canvas em alta res, adiciona como PNG de alta resolução
-    // (jsPDF não suporta SVG path de barcode diretamente, mas podemos usar alta resolução)
-    const PX = 4; // 4px por mm = ~100dpi suficiente para barcode nítido
+
+    // ── VETOR: gera SVG e injeta via svg2pdf ──
+    const rawPdf = pdfRaw || pdf;
+    if (window.svg2pdf || typeof rawPdf.svg === 'function') {
+      try {
+        const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        svgEl.style.display = 'none';
+        document.body.appendChild(svgEl);
+
+        // barWidth proporcional à largura real (bw em mm)
+        const barWidthPDF = Math.max(1, Math.round(bw / 30));
+        JsBarcode(svgEl, texto, {
+          format:       cfg.bTipo || 'CODE128',
+          lineColor:    cfg.bCor  || '#000000',
+          background:   cfg.bFundo || '#ffffff',
+          width:        barWidthPDF,
+          height:       80,
+          displayValue: cfg.displayValue !== false,
+          fontSize:     cfg.fontSize || 12,
+          margin:       0,
+          xmlDocument:  document,
+        });
+
+        const svgW = parseFloat(svgEl.getAttribute('width') || '200');
+        const svgH = parseFloat(svgEl.getAttribute('height') || '80');
+        if (!svgEl.getAttribute('viewBox')) svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+        svgEl.setAttribute('preserveAspectRatio', 'none');
+        svgEl.setAttribute('width',  bw);
+        svgEl.setAttribute('height', bh);
+        svgEl.style.position = 'absolute';
+        svgEl.style.left = '-9999px';
+        svgEl.style.top  = '-9999px';
+
+        // Fundo branco atrás das barras
+        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
+        bgRect.setAttribute('width', String(svgW)); bgRect.setAttribute('height', String(svgH));
+        bgRect.setAttribute('fill', cfg.bFundo || '#ffffff');
+        svgEl.insertBefore(bgRect, svgEl.firstChild);
+
+        document.body.appendChild(svgEl);
+
+        if (typeof rawPdf.svg === 'function') {
+          await rawPdf.svg(svgEl, { x: bx, y: by, width: bw, height: bh });
+        } else {
+          await window.svg2pdf(svgEl, rawPdf, { x: bx, y: by, width: bw, height: bh });
+        }
+
+        document.body.removeChild(svgEl);
+        return; // sucesso vetorial
+      } catch(e) {
+        console.warn('desenharBarcodeVetorPDF SVG falhou, usando fallback raster:', e);
+      }
+    }
+
+    // ── FALLBACK RASTER (svg2pdf indisponível ou erro) ──
+    const PX = 6;
     const cW = Math.round(bw * PX * 10);
     const cH = Math.round(bh * PX * 10);
     const canvas = document.createElement('canvas');
-    canvas.width  = cW;
-    canvas.height = cH;
+    canvas.width = cW; canvas.height = cH;
+    const barWidth = Math.max(1, Math.round(bw / 30));
     JsBarcode(canvas, texto, {
       format:       cfg.bTipo || 'CODE128',
       lineColor:    cfg.bCor  || '#000000',
       background:   cfg.bFundo || '#ffffff',
-      width:        Math.max(1, cW / 120),
+      width:        barWidth,
       height:       cH * 0.75,
-      displayValue: true,
-      fontSize:     Math.max(8, cH * 0.14),
-      margin:       Math.max(1, cH * 0.04),
+      displayValue: cfg.displayValue !== false,
+      fontSize:     Math.max(8, cH * 0.10),
+      margin:       Math.max(1, cH * 0.03),
     });
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', bx, by, bw, bh, undefined, 'NONE');
   } catch(e) {
@@ -1019,10 +1075,7 @@ function gerarBarcodeDataUrl(texto, cfg) {
   });
 }
 
-async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg) {
-  const bDataUrl = await gerarBarcodeDataUrl(texto, cfg);
-  if (!bDataUrl) return;
-
+async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg, pdfRaw) {
   const bH = cfg.bAltura;
   let bx, by, bw, bh;
 
@@ -1034,7 +1087,8 @@ async function desenharBarcodeNoPDF(pdf, ox, oy, W, H, texto, cfg) {
     bx = ox; by = oy + H - bH; bw = W; bh = bH;
   }
 
-  pdf.addImage(bDataUrl, 'PNG', bx, by, bw, bh, undefined, 'NONE');
+  // Usa a função vetorial (svg2pdf) com fallback raster interno
+  await desenharBarcodeVetorPDF(pdf, bx, by, bw, bh, texto, cfg, pdfRaw || pdf);
 }
 
 async function loadScript(src) {
@@ -1522,7 +1576,8 @@ async function gerarPDFVetor(wCm, hCm) {
   pdf.rect(0, 0, PW, PH, 'F');
   const engine = window.TemplateEngines[state.templateFile];
   if (!engine) throw new Error('Motor JS não encontrado para este template.');
-  await engine.drawPDF(pdf, M, M, W, H, state);
+  const stateComRaw = Object.assign({}, state, { pdfRaw: pdf });
+  await engine.drawPDF(pdf, M, M, W, H, stateComRaw);
   return pdf;
 }
 
@@ -1608,7 +1663,7 @@ async function baixarMontagemPDF() {
           const ox = oxGrade + c * (W + gapH);
           const oy = oyGrade + r * (H + gapV);
 
-          const stateLocal = Object.assign({}, state);
+          const stateLocal = Object.assign({}, state, { pdfRaw: pdf });
           if (numCfg.ativo) {
             const numAtual = numCfg.inicio + indiceGlobal * numCfg.incremento;
             stateLocal.numeroSequencial = numAtual;
@@ -1622,7 +1677,7 @@ async function baixarMontagemPDF() {
           await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
 
           if (numCfg.ativo && numCfg.barcode && !engine.handlesBarcodeInternally) {
-            await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg);
+            await desenharBarcodeNoPDF(pdf, ox, oy, W, H, stateLocal.numeroFormatado, numCfg, pdf);
           }
 
           indiceGlobal++;
