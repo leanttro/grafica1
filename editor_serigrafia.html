@@ -1322,8 +1322,8 @@ function toggleBarcodeOpts() {
 function atualizarBarcodeRows() {
   const engine = state.templateFile ? window.TemplateEngines?.[state.templateFile] : null;
   const interno = !!(engine && engine.handlesBarcodeInternally);
-  document.getElementById('barcode-pos-row').style.display     = interno ? 'none' : '';
-  document.getElementById('barcode-internal-row').style.display = interno ? '' : 'none';
+  document.getElementById('barcode-pos-row').style.display     = interno ? 'none' : 'grid';
+  document.getElementById('barcode-internal-row').style.display = interno ? 'grid' : 'none';
 }
 
 function toggleQROpts() {
