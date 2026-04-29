@@ -331,7 +331,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     for (let i=1; i<12; i++) s += line(wMes*i, topH, wMes*i, H);
 
     const txt = (label, cx, cy, col, fs, extra='') =>
-      `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Arial,Helvetica,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="auto" fill="${col}"${extra}>${label}</text>`;
+      `<text x="${r4(ox+cx)}" y="${r4(oy+cy)}" font-family="Helvetica,Arial,sans-serif" font-size="${r4(fs)}" font-weight="bold" text-anchor="middle" dominant-baseline="auto" fill="${col}"${extra}>${label}</text>`;
 
     // Offset vertical para simular centralização (equivale ao +0.35*fs do drawPDF)
     // dominant-baseline varia por navegador, então calculamos o Y explicitamente:
