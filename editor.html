@@ -255,7 +255,7 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
 .preview-area {
   background: var(--bg); display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 40px; gap: 16px; position: relative;
+  padding: 40px; gap: 16px; position: sticky; top: 0; height: calc(100vh - 56px); overflow: hidden;
 }
 .preview-label {
   position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
