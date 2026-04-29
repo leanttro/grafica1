@@ -44,7 +44,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
     pdf.setFont('helvetica', 'bold');
 
     // ── Anos ──
-    const anos = ['25','26','27','28'];
+    const anos = ['26','27','28','29'];
     const fsAno = Math.min(anosW * 0.55, hAno * 0.65) * 2.835;
     pdf.setFontSize(fsAno);
     pdf.setTextColor(dr,dg,db);
@@ -166,7 +166,7 @@ window.TemplateEngines['lacre3x1-barcode.html'] = {
 
     // Anos
     const fsAno = Math.min(anosW*0.55, hAno*0.65);
-    ['25','26','27','28'].forEach((a,i) =>
+    ['26','27','28','29'].forEach((a,i) =>
       s += txt(a, W-anosW/2, hAno*i+hAno/2, d, fsAno));
 
     // Meses
