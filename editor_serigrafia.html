@@ -842,9 +842,35 @@ function updatePreview() {
   state.texto    = state.vars['CHAVE_COR_TEXTO']    || '#000000';
   state.destaque = state.vars['CHAVE_COR_DESTAQUE'] || '#000000';
   state.logoDataUrl = state.vars['CHAVE_LOGO'] || '';
-  const iframe = document.getElementById('preview-iframe');
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open(); doc.write(buildHTML()); doc.close();
+
+  const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
+  if (engine && engine.drawSVG) {
+    const wCm = parseFloat(document.getElementById('lacre-w').value) || 1;
+    const hCm = parseFloat(document.getElementById('lacre-h').value) || 1;
+    const W = wCm * 10, H = hCm * 10;
+    const numCfg = getNumConfig();
+    const stateLocal = Object.assign({}, state);
+    stateLocal.vars = Object.assign({}, state.vars);
+    if (numCfg.ativo) {
+      stateLocal.numeroSequencial = numCfg.inicio;
+      stateLocal.numeroFormatado  = formatNum(numCfg.inicio, numCfg);
+      stateLocal.vars['CHAVE_NUMERO'] = stateLocal.numeroFormatado;
+    }
+    stateLocal.numCfg = numCfg;
+    const BORDER = 0.5;
+    const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
+    const svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ' + (W + BORDER*2) + ' ' + (H + BORDER*2) + '"><rect x="0" y="0" width="' + (W + BORDER*2) + '" height="' + (H + BORDER*2) + '" fill="#ffffff"/>' + svgBody + '</svg>';
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const iframe = document.getElementById('preview-iframe');
+    const prev = iframe.src;
+    iframe.src = url;
+    if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+  } else {
+    const iframe = document.getElementById('preview-iframe');
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open(); doc.write(buildHTML()); doc.close();
+  }
   atualizarPagesBadges();
   atualizarBarcodeRows();
 }
@@ -911,6 +937,34 @@ async function capturarCanvas(wCm, hCm) {
   const PX_PER_CM = 400 / 2.54;
   const wPx = Math.round(wCm * PX_PER_CM);
   const hPx = Math.round(hCm * PX_PER_CM);
+
+  const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
+  if (engine && engine.drawSVG) {
+    const W = wCm * 10, H = hCm * 10;
+    const numCfg = getNumConfig();
+    const stateLocal = Object.assign({}, state);
+    stateLocal.vars = Object.assign({}, state.vars);
+    if (numCfg.ativo) {
+      stateLocal.numeroSequencial = numCfg.inicio;
+      stateLocal.numeroFormatado  = formatNum(numCfg.inicio, numCfg);
+      stateLocal.vars['CHAVE_NUMERO'] = stateLocal.numeroFormatado;
+    }
+    stateLocal.numCfg = numCfg;
+    const BORDER = 0.5;
+    const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
+    const svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + wPx + '" height="' + hPx + '" viewBox="0 0 ' + (W + BORDER*2) + ' ' + (H + BORDER*2) + '"><rect x="0" y="0" width="' + (W + BORDER*2) + '" height="' + (H + BORDER*2) + '" fill="#ffffff"/>' + svgBody + '</svg>';
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    URL.revokeObjectURL(url);
+    const out = document.createElement('canvas');
+    out.width = wPx; out.height = hPx;
+    out.getContext('2d').drawImage(img, 0, 0, wPx, hPx);
+    return { canvas: out };
+  }
+
+  // Fallback: html2canvas sobre o iframe HTML
   const iframe    = document.getElementById('preview-iframe');
   const iframeWin = iframe.contentWindow;
   const iframeDoc = iframe.contentDocument || iframeWin.document;
@@ -1054,8 +1108,11 @@ async function baixarSerigrafiaPDF() {
 
     for (let pi = 0; pi < paginas.length; pi++) {
       const pg = paginas[pi];
+      // Numeração sequencial cria múltiplas páginas APENAS na página principal (temCorte)
+      // Páginas de cor pura (logo, destaque) sempre têm 1 página física
+      const totalPagsDessaCor = pg.temCorte ? totalPaginasNumeracao : 1;
 
-      for (let pagNum = 0; pagNum < totalPaginasNumeracao; pagNum++) {
+      for (let pagNum = 0; pagNum < totalPagsDessaCor; pagNum++) {
         if (pi === 0 && pagNum === 0) {
           // primeira página — já existe
         } else {
@@ -1068,7 +1125,9 @@ async function baixarSerigrafiaPDF() {
         const stateCorr = buildStateParaCor(pg);
         stateCorr.pdfRaw = pdfRaw;
 
-        const lacresNestaPagina = Math.min(totalLacresPorPagina, totalLacres - pagNum * totalLacresPorPagina);
+        const lacresNestaPagina = pg.temCorte
+          ? Math.min(totalLacresPorPagina, totalLacres - pagNum * totalLacresPorPagina)
+          : totalLacresPorPagina;
         let indiceNaPagina = 0;
 
         for (let r = 0; r < rows; r++) {
@@ -1078,14 +1137,23 @@ async function baixarSerigrafiaPDF() {
             const oy = oyGrade + r * (H + gapV);
 
             const stateLocal = Object.assign({}, stateCorr);
-            if (numCfg.ativo) {
+            stateLocal.vars = Object.assign({}, stateCorr.vars);
+            // Numeração e barcode apenas na página principal (com corte = template completo)
+            // Páginas de cor pura recebem numCfg com barcode=false para não duplicar
+            if (numCfg.ativo && pg.temCorte) {
               const indiceGlobal = pagNum * totalLacresPorPagina + indiceNaPagina;
               const numAtual = numCfg.inicio + indiceGlobal * numCfg.incremento;
               stateLocal.numeroSequencial = numAtual;
               stateLocal.numeroFormatado  = formatNum(numAtual, numCfg);
-              stateLocal.vars = Object.assign({}, stateCorr.vars, { CHAVE_NUMERO: stateLocal.numeroFormatado });
+              stateLocal.vars['CHAVE_NUMERO'] = stateLocal.numeroFormatado;
+              stateLocal.numCfg = numCfg;
+            } else {
+              // Em páginas de cor pura (logo, destaque sem corte) não renderiza numeração
+              stateLocal.numeroSequencial = null;
+              stateLocal.numeroFormatado  = '';
+              stateLocal.vars['CHAVE_NUMERO'] = '';
+              stateLocal.numCfg = Object.assign({}, numCfg, { ativo: false, barcode: false });
             }
-            stateLocal.numCfg = numCfg;
 
             await engine.drawPDF(pdf, ox, oy, W, H, stateLocal);
 
@@ -1174,6 +1242,7 @@ async function svgParaPngDataUrl(svgString, wPx, hPx) {
 
 function buildStateParaCor(pg) {
   const s = Object.assign({}, state);
+  s.vars = Object.assign({}, state.vars); // preserva LOGO_TAM, LOGO_X, LOGO_Y, CHAVE_INFO etc
   s.fundo = '#ffffff';
 
   const temTexto    = pg.layers.has('texto');
