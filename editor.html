@@ -267,13 +267,13 @@ select.color-hex { appearance: none; cursor: pointer; background-image: url("dat
   content: ''; display: block; width: 40px; height: 1px; background: var(--border);
 }
 .preview-frame {
-  border-radius: 4px; overflow: visible;
+  width: min(460px, 100%);
+  border-radius: 4px; overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   position: relative;
-  transition: width 0.2s ease, height 0.2s ease;
-  flex-shrink: 0;
+  transition: aspect-ratio 0.2s ease;
 }
-.preview-frame iframe { width: 100%; height: 100%; border: none; display: block; overflow: hidden; border-radius: 4px; }
+.preview-frame iframe { width: 100%; height: 100%; border: none; display: block; }
 .preview-note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
 .preview-loading {
@@ -1294,13 +1294,9 @@ function updatePreview() {
       stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
     }
     stateLocal.numCfg = numCfg;
-    const BORDER = 0.5;
-    const vbW = W + BORDER*2, vbH = H + BORDER*2;
+    const BORDER = 0.5; // 0.5mm white border (visual only)
     const svgBody = engine.drawSVG(W, H, BORDER, BORDER, stateLocal);
-    const frame = document.getElementById('preview-frame');
-    const fW = frame ? (parseInt(frame.style.width) || frame.offsetWidth || 460) : 460;
-    const fH = frame ? (parseInt(frame.style.height) || frame.offsetHeight || Math.round(460 * hCm / wCm)) : Math.round(460 * hCm / wCm);
-    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${fW}" height="${fH}" viewBox="0 0 ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet"><rect x="0" y="0" width="${vbW}" height="${vbH}" fill="#ffffff"/>${svgBody}</svg>`;
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="0 0 ${W + BORDER*2} ${H + BORDER*2}"><rect x="0" y="0" width="${W + BORDER*2}" height="${H + BORDER*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
     const iframe = document.getElementById('preview-iframe');
@@ -1436,22 +1432,7 @@ function calcMontagem() {
 function atualizarInfoMontagem() {
   const { wCm, hCm, cols, rows, total } = calcMontagem();
   const frame = document.getElementById('preview-frame');
-  if (frame) {
-    // Área disponível real: janela menos painel (360px) menos padding (40px × 2)
-    const availW = Math.max(200, window.innerWidth - 360 - 80);
-    const availH = Math.max(100, window.innerHeight - 56 - 80);
-    const ratio = wCm / hCm;
-    let pw, ph;
-    if (ratio >= availW / availH) {
-      pw = availW;
-      ph = Math.round(availW / ratio);
-    } else {
-      ph = availH;
-      pw = Math.round(availH * ratio);
-    }
-    frame.style.width  = pw + 'px';
-    frame.style.height = ph + 'px';
-  }
+  if (frame) frame.style.aspectRatio = `${wCm} / ${hCm}`;
   const el = document.getElementById('mont-info');
   if (cols <= 0 || rows <= 0) {
     el.textContent = '⚠️ Lacre maior que a área útil da folha';
@@ -1466,6 +1447,25 @@ async function capturarCanvas(wCm, hCm) {
   const hPx = Math.round(hCm * PX_PER_CM);
 
   const engine = window.TemplateEngines && window.TemplateEngines[state.templateFile];
+
+  // Preferência: drawCanvas direto (sem SVG/viewBox, igual ao PDF)
+  if (engine && engine.drawCanvas) {
+    const W = wCm * 10, H = hCm * 10;
+    const numCfg = getNumConfig();
+    const stateLocal = Object.assign({}, state);
+    if (numCfg.ativo) {
+      stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
+    }
+    stateLocal.numCfg = numCfg;
+    const out = document.createElement('canvas');
+    out.width = wPx; out.height = hPx;
+    const ctx = out.getContext('2d');
+    // S = pixels por mm
+    const S = wPx / W;
+    await engine.drawCanvas(ctx, 0, 0, W, H, S, stateLocal);
+    return { canvas: out };
+  }
+
   if (engine && engine.drawSVG) {
     const W = wCm * 10, H = hCm * 10;
     const numCfg = getNumConfig();
@@ -1474,28 +1474,19 @@ async function capturarCanvas(wCm, hCm) {
       stateLocal.vars = Object.assign({}, state.vars, { CHAVE_NUMERO: formatNum(numCfg.inicio, numCfg) });
     }
     stateLocal.numCfg = numCfg;
-    const BORDER_C = 0.5;
-    const vbW = W + BORDER_C * 2, vbH = H + BORDER_C * 2;
+    const BORDER_C = 0.5; // 0.5mm white border (visual only)
     const svgBody = engine.drawSVG(W, H, BORDER_C, BORDER_C, stateLocal);
-    // width/height em pixels explícitos — sem isso o browser renderiza 300x150 e drawImage distorce
-    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wPx}" height="${hPx}" viewBox="0 0 ${vbW} ${vbH}"><rect x="0" y="0" width="${vbW}" height="${vbH}" fill="#ffffff"/>${svgBody}</svg>`;
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wPx}" height="${hPx}" viewBox="0 0 ${W + BORDER_C*2} ${H + BORDER_C*2}"><rect x="0" y="0" width="${W + BORDER_C*2}" height="${H + BORDER_C*2}" fill="#ffffff"/>${svgBody}</svg>`;
     const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const out = document.createElement('canvas');
-        out.width  = wPx;
-        out.height = hPx;
-        const ctx = out.getContext('2d');
-        // Desenha exatamente wPx x hPx — o SVG já tem essas dimensões intrínsecas
-        ctx.drawImage(img, 0, 0, wPx, hPx);
-        resolve({ canvas: out });
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
+    const img  = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    URL.revokeObjectURL(url);
+    const out = document.createElement('canvas');
+    out.width = wPx; out.height = hPx;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(img, 0, 0, wPx, hPx);
+    return { canvas: out };
   }
 
   // Fallback: html2canvas sobre o iframe
