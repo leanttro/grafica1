@@ -776,12 +776,10 @@ function criarPathFaca(t, sangria_px, facaW_px, facaH_px, PX_PER_CM) {
 }
 
 // ─── Sangria por ZOOM/CROP centralizado ──────────────────────────────────────
-// Amplia a imagem levemente para preencher a sangria — mantém centro, sem espelhar
 function desenharComEspelho(ctx, img, facaW_px, facaH_px, sangria_px, arteW_px, arteH_px) {
-  // Escala para cobrir toda a área da arte (faca + sangria) mantendo proporção
   const scaleX = arteW_px / img.width;
   const scaleY = arteH_px / img.height;
-  const scale  = Math.max(scaleX, scaleY); // cover: preenche tudo
+  const scale  = Math.max(scaleX, scaleY);
 
   const drawW = img.width  * scale;
   const drawH = img.height * scale;
@@ -797,28 +795,22 @@ function desenharComStretch(ctx, img, facaW_px, facaH_px, sangria_px) {
   const iw = img.width;
   const ih = img.height;
   const SLICE = Math.max(2, Math.round(Math.min(iw, ih) * 0.015));
+  const over = 2;
 
-  // Centro
+  ctx.drawImage(img, 0, 0, SLICE, SLICE, 0, 0, sw + over, sw + over);
+  ctx.drawImage(img, iw - SLICE, 0, SLICE, SLICE, sw + facaW_px - over, 0, sw + over, sw + over);
+  ctx.drawImage(img, 0, ih - SLICE, SLICE, SLICE, 0, sw + facaH_px - over, sw + over, sw + over);
+  ctx.drawImage(img, iw - SLICE, ih - SLICE, SLICE, SLICE, sw + facaW_px - over, sw + facaH_px - over, sw + over, sw + over);
+
+  ctx.drawImage(img, 0, 0, SLICE, ih, 0, sw, sw + over, facaH_px);
+  ctx.drawImage(img, iw - SLICE, 0, SLICE, ih, sw + facaW_px - over, sw, sw + over, facaH_px);
+  ctx.drawImage(img, 0, 0, iw, SLICE, sw, 0, facaW_px, sw + over);
+  ctx.drawImage(img, 0, ih - SLICE, iw, SLICE, sw, sw + facaH_px - over, facaW_px, sw + over);
+
   ctx.drawImage(img, 0, 0, iw, ih, sw, sw, facaW_px, facaH_px);
-
-  // Borda esquerda
-  ctx.drawImage(img, 0, 0, SLICE, ih, 0, sw, sw, facaH_px);
-  // Borda direita
-  ctx.drawImage(img, iw - SLICE, 0, SLICE, ih, sw + facaW_px, sw, sw, facaH_px);
-  // Borda superior
-  ctx.drawImage(img, 0, 0, iw, SLICE, sw, 0, facaW_px, sw);
-  // Borda inferior
-  ctx.drawImage(img, 0, ih - SLICE, iw, SLICE, sw, sw + facaH_px, facaW_px, sw);
-
-  // Cantos
-  ctx.drawImage(img, 0, 0, SLICE, SLICE, 0, 0, sw, sw);
-  ctx.drawImage(img, iw - SLICE, 0, SLICE, SLICE, sw + facaW_px, 0, sw, sw);
-  ctx.drawImage(img, 0, ih - SLICE, SLICE, SLICE, 0, sw + facaH_px, sw, sw);
-  ctx.drawImage(img, iw - SLICE, ih - SLICE, SLICE, SLICE, sw + facaW_px, sw + facaH_px, sw, sw);
 }
 
 // ─── Função unificada: renderiza arte+sangria em um canvas offscreen ──────────
-// Usada tanto pelo PNG quanto pelo PDF
 function renderizarArteCanvas(canvas, facaW_px, facaH_px, sangria_px) {
   const arteW_px = facaW_px + sangria_px * 2;
   const arteH_px = facaH_px + sangria_px * 2;
@@ -856,7 +848,6 @@ async function baixarPNG() {
     const arteCanvas = document.createElement('canvas');
     renderizarArteCanvas(arteCanvas, facaW_px, facaH_px, sangria_px);
 
-    // Clip pela faca
     const outCanvas = document.createElement('canvas');
     outCanvas.width = arteW_px; outCanvas.height = arteH_px;
     const outCtx = outCanvas.getContext('2d');
@@ -873,7 +864,6 @@ async function baixarPNG() {
     outCtx.drawImage(arteCanvas, 0, 0);
     outCtx.restore();
 
-    // Recorta só a faca (sem sangria)
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = facaW_px; finalCanvas.height = facaH_px;
     finalCanvas.getContext('2d').drawImage(outCanvas, sangria_px, sangria_px, facaW_px, facaH_px, 0, 0, facaW_px, facaH_px);
