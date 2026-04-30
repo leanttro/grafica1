@@ -1,5 +1,8 @@
 import os
 import re
+import io
+import time
+import requests
 import fitz  # PyMuPDF - Requer: pip install PyMuPDF
 from flask import (
     Flask, send_from_directory, jsonify,
@@ -24,7 +27,19 @@ SYSTEM_HTML_FILES = {
     "editor_dtf.html",
     "editor_serigrafia.html",
     "editor_mouse.html",
+    "vetor.html",
 }
+
+# ── Upscale IA — configurações ────────────────────────────────────────────────
+# Chave da API Replicate (https://replicate.com)
+REPLICATE_API_KEY  = os.environ.get("REPLICATE_API_KEY", "")
+
+# Limite diário de usos por usuário (sessão)
+UPSCALE_DAILY_LIMIT = int(os.environ.get("UPSCALE_DAILY_LIMIT", "10"))
+
+# Dicionário em memória: { username: {"date": "YYYY-MM-DD", "count": int} }
+_upscale_usage: dict = {}
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 if not SECRET_KEY:
@@ -249,6 +264,149 @@ def mousepad():
     return inject_api_keys("editor_mouse.html")
 
 
+@app.route("/vetor")
+@login_required
+def vetor():
+    """Vetorizador de imagens."""
+    return send_from_directory(BASE_DIR, "vetor.html")
+
+
+# ── APIs do Vetorizador ────────────────────────────────────────────────────────
+
+def _get_today() -> str:
+    return time.strftime("%Y-%m-%d")
+
+
+def _get_usage(username: str) -> dict:
+    entry = _upscale_usage.get(username)
+    today = _get_today()
+    if not entry or entry["date"] != today:
+        entry = {"date": today, "count": 0}
+        _upscale_usage[username] = entry
+    return entry
+
+
+@app.route("/api/upscale-quota")
+@login_required
+def upscale_quota():
+    """Retorna quantos usos de upscale IA o usuário fez hoje."""
+    username = session["user"]
+    usage = _get_usage(username)
+    return jsonify({
+        "used":  usage["count"],
+        "limit": UPSCALE_DAILY_LIMIT,
+    })
+
+
+@app.route("/api/upscale", methods=["POST"])
+@login_required
+def upscale_ai():
+    """
+    Recebe uma imagem e um fator de escala (2 ou 4),
+    envia para a API Replicate (Real-ESRGAN) e devolve a imagem ampliada.
+    """
+    if not REPLICATE_API_KEY:
+        return Response("REPLICATE_API_KEY não configurada no servidor.", status=503)
+
+    username = session["user"]
+    usage = _get_usage(username)
+
+    if usage["count"] >= UPSCALE_DAILY_LIMIT:
+        return Response(
+            f"Limite diário de {UPSCALE_DAILY_LIMIT} usos de upscale IA atingido. "
+            "Tente novamente amanhã.",
+            status=429
+        )
+
+    if 'file' not in request.files:
+        return Response("Nenhum arquivo enviado.", status=400)
+
+    file  = request.files['file']
+    scale = request.form.get('scale', '4')
+    try:
+        scale = int(scale)
+        if scale not in (2, 4):
+            scale = 4
+    except ValueError:
+        scale = 4
+
+    try:
+        # Lê a imagem e converte para base64
+        import base64
+        img_bytes  = file.read()
+        b64_image  = base64.b64encode(img_bytes).decode()
+        mime       = file.mimetype or "image/png"
+        data_uri   = f"data:{mime};base64,{b64_image}"
+
+        headers = {
+            "Authorization": f"Token {REPLICATE_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        # Modelo: nightmareai/real-esrgan (upscale de imagens)
+        payload = {
+            "version": "42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+            "input": {
+                "image": data_uri,
+                "scale": scale,
+                "face_enhance": False,
+            },
+        }
+
+        # Cria a predição
+        r = requests.post(
+            "https://api.replicate.com/v1/predictions",
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
+        if not r.ok:
+            return Response(f"Erro Replicate: {r.text}", status=502)
+
+        pred = r.json()
+        pred_id = pred["id"]
+
+        # Polling até ficar pronto (máx 120s)
+        for _ in range(60):
+            time.sleep(2)
+            poll = requests.get(
+                f"https://api.replicate.com/v1/predictions/{pred_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if not poll.ok:
+                continue
+            data = poll.json()
+            status = data.get("status")
+            if status == "succeeded":
+                output_url = data["output"]
+                break
+            elif status in ("failed", "canceled"):
+                err = data.get("error", "Falha no upscale IA.")
+                return Response(err, status=502)
+        else:
+            return Response("Timeout aguardando upscale IA.", status=504)
+
+        # Baixa a imagem resultante e devolve ao browser
+        img_r = requests.get(output_url, timeout=30)
+        if not img_r.ok:
+            return Response("Erro ao baixar resultado do upscale.", status=502)
+
+        # Incrementa contador
+        usage["count"] += 1
+
+        return Response(
+            img_r.content,
+            status=200,
+            mimetype=img_r.headers.get("Content-Type", "image/png"),
+        )
+
+    except Exception as e:
+        return Response(f"Erro interno: {str(e)}", status=500)
+
+
+# ── API de conversão PDF → SVG ─────────────────────────────────────────────────
+
 @app.route("/api/convert-pdf-to-svg", methods=["POST"])
 @login_required
 def convert_pdf_to_svg():
@@ -314,6 +472,7 @@ if __name__ == "__main__":
     print(f"  Serigrafia:http://127.0.0.1:{PORT}/serigrafia")
     print(f"  DTF:       http://127.0.0.1:{PORT}/dtf")
     print(f"  Mouse Pad: http://127.0.0.1:{PORT}/mousepad")
+    print(f"  Vetor:     http://127.0.0.1:{PORT}/vetor")
     users = load_users()
     print(f"  Usuários carregados: {list(users.keys()) or '(nenhum)'}")
     print("  Pressione Ctrl+C para encerrar.")
