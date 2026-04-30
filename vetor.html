@@ -354,29 +354,70 @@ select.inp { appearance: none; cursor: pointer; background-image: url("data:imag
 
   <!-- Vectorization settings -->
   <div>
-    <div class="section-title">Vetorização (Potrace)</div>
+    <div class="section-title">Vetorização</div>
     <div style="display:flex; flex-direction:column; gap:12px">
+
+      <!-- Mode selector -->
       <div class="field-group">
-        <label>Threshold (limiar P&B)</label>
-        <div class="slider-row">
-          <input type="range" id="threshold" min="0" max="255" value="128" oninput="document.getElementById('threshold-val').textContent=this.value">
-          <span class="slider-val" id="threshold-val">128</span>
+        <label>Modo</label>
+        <div class="method-selector">
+          <button class="method-btn active" id="btn-mode-pb" onclick="selectVecMode('pb')">P&B</button>
+          <button class="method-btn" id="btn-mode-multi" onclick="selectVecMode('multi')">Multicor</button>
         </div>
       </div>
+
+      <!-- P&B options -->
+      <div id="vec-pb-opts">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="field-group">
+            <label>Threshold (limiar P&B)</label>
+            <div class="slider-row">
+              <input type="range" id="threshold" min="0" max="255" value="128" oninput="document.getElementById('threshold-val').textContent=this.value">
+              <span class="slider-val" id="threshold-val">128</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Cor do vetor</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">
+                <input type="color" id="vec-color" value="#000000" style="position:absolute;inset:-4px;width:calc(100%+8px);height:calc(100%+8px);border:none;cursor:pointer;padding:0;opacity:1">
+              </div>
+              <input type="text" class="inp" id="vec-color-hex" value="#000000" maxlength="7" style="flex:1">
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Fundo transparente</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="invert-check" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
+              <span style="font-size:12px;color:var(--muted)">Inverter (capturar claro em vez de escuro)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multicor options -->
+      <div id="vec-multi-opts" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="field-group">
+            <label>Número de cores</label>
+            <div class="slider-row">
+              <input type="range" id="color-count" min="2" max="12" step="1" value="6" oninput="document.getElementById('color-count-val').textContent=this.value">
+              <span class="slider-val" id="color-count-val">6</span>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Paleta detectada</label>
+            <div id="palette-preview" style="display:flex;gap:4px;flex-wrap:wrap;min-height:24px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared options -->
       <div class="field-group">
         <label>Tolerância de curva</label>
         <div class="slider-row">
           <input type="range" id="tolerance" min="0.1" max="2" step="0.1" value="1" oninput="document.getElementById('tolerance-val').textContent=parseFloat(this.value).toFixed(1)">
           <span class="slider-val" id="tolerance-val">1.0</span>
-        </div>
-      </div>
-      <div class="field-group">
-        <label>Cor do vetor</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">
-            <input type="color" id="vec-color" value="#000000" style="position:absolute;inset:-4px;width:calc(100%+8px);height:calc(100%+8px);border:none;cursor:pointer;padding:0;opacity:1">
-          </div>
-          <input type="text" class="inp" id="vec-color-hex" value="#000000" maxlength="7" style="flex:1">
         </div>
       </div>
       <div class="field-group">
@@ -458,13 +499,23 @@ select.inp { appearance: none; cursor: pointer; background-image: url("data:imag
 // ── Estado ──────────────────────────────────────────────────────────────────
 const state = {
   file: null,
-  originalImg: null,   // HTMLImageElement original
-  upscaledCanvas: null, // Canvas após upscale
-  svgResult: null,     // string SVG vetorizado
-  method: 'canvas',    // 'canvas' | 'ai' | 'none'
+  originalImg: null,
+  upscaledCanvas: null,
+  svgResult: null,
+  method: 'canvas',
+  vecMode: 'pb',
   quotaUsed: 0,
   quotaLimit: 0,
 };
+
+function selectVecMode(m) {
+  state.vecMode = m;
+  ['pb','multi'].forEach(x => {
+    document.getElementById('btn-mode-' + x).className = 'method-btn' + (x === m ? ' active' : '');
+  });
+  document.getElementById('vec-pb-opts').style.display    = m === 'pb'    ? '' : 'none';
+  document.getElementById('vec-multi-opts').style.display = m === 'multi' ? '' : 'none';
+}
 
 // ── Quota (AI) ───────────────────────────────────────────────────────────────
 async function loadQuota() {
@@ -658,23 +709,6 @@ async function upscaleAI(file, scale) {
 }
 
 // ── Potrace (JS implementation) ───────────────────────────────────────────────
-// Pure-JS Potrace-inspired bitmap tracing
-function canvasToBitmap(canvas, threshold) {
-  const ctx = canvas.getContext('2d');
-  const { width: W, height: H } = canvas;
-  const idata = ctx.getImageData(0, 0, W, H);
-  const data  = idata.data;
-  const bm    = new Uint8Array(W * H);
-  for (let i = 0; i < W * H; i++) {
-    const r = data[i*4], g = data[i*4+1], b = data[i*4+2], a = data[i*4+3];
-    // ignore transparent
-    if (a < 10) { bm[i] = 0; continue; }
-    const lum = 0.299*r + 0.587*g + 0.114*b;
-    bm[i] = lum < threshold ? 1 : 0;
-  }
-  return { bm, W, H };
-}
-
 // Marching-squares contour tracing → simple SVG path generator
 function traceBitmap(bm, W, H, tolerance, minArea) {
   const visited = new Uint8Array(W * H);
@@ -798,6 +832,93 @@ function rdp(points, epsilon) {
   return [points[0], points[points.length-1]];
 }
 
+// ── K-Means color quantization ────────────────────────────────────────────────
+function quantizeColors(canvas, k) {
+  const ctx = canvas.getContext('2d');
+  const { width: W, height: H } = canvas;
+  const idata = ctx.getImageData(0, 0, W, H).data;
+
+  // Sample pixels (skip transparent)
+  const samples = [];
+  const step = Math.max(1, Math.floor(W * H / 4000));
+  for (let i = 0; i < W * H; i += step) {
+    const a = idata[i*4+3];
+    if (a < 30) continue;
+    samples.push([idata[i*4], idata[i*4+1], idata[i*4+2]]);
+  }
+  if (samples.length === 0) return [];
+
+  // Init centroids via k-means++
+  const centroids = [samples[Math.floor(Math.random() * samples.length)]];
+  while (centroids.length < k) {
+    const dists = samples.map(s => {
+      let minD = Infinity;
+      for (const c of centroids) {
+        const d = (s[0]-c[0])**2 + (s[1]-c[1])**2 + (s[2]-c[2])**2;
+        if (d < minD) minD = d;
+      }
+      return minD;
+    });
+    const total = dists.reduce((a,b) => a+b, 0);
+    let r = Math.random() * total, idx = 0;
+    for (; idx < dists.length-1 && r > dists[idx]; idx++) r -= dists[idx];
+    centroids.push(samples[idx]);
+  }
+
+  // Iterate k-means (10 rounds)
+  for (let iter = 0; iter < 10; iter++) {
+    const sums = Array.from({length: k}, () => [0,0,0,0]);
+    for (const s of samples) {
+      let best = 0, bestD = Infinity;
+      for (let j = 0; j < k; j++) {
+        const d = (s[0]-centroids[j][0])**2 + (s[1]-centroids[j][1])**2 + (s[2]-centroids[j][2])**2;
+        if (d < bestD) { bestD = d; best = j; }
+      }
+      sums[best][0] += s[0]; sums[best][1] += s[1]; sums[best][2] += s[2]; sums[best][3]++;
+    }
+    for (let j = 0; j < k; j++) {
+      if (sums[j][3] > 0) {
+        centroids[j] = [sums[j][0]/sums[j][3], sums[j][1]/sums[j][3], sums[j][2]/sums[j][3]];
+      }
+    }
+  }
+
+  return centroids.map(c => [Math.round(c[0]), Math.round(c[1]), Math.round(c[2])]);
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+// Build a mask canvas for a single quantized color
+function buildColorMask(canvas, centroids, colorIdx) {
+  const ctx = canvas.getContext('2d');
+  const { width: W, height: H } = canvas;
+  const idata = ctx.getImageData(0, 0, W, H).data;
+  const bm = new Uint8Array(W * H);
+  const c = centroids[colorIdx];
+  for (let i = 0; i < W * H; i++) {
+    const a = idata[i*4+3];
+    if (a < 30) continue;
+    const r = idata[i*4], g = idata[i*4+1], b = idata[i*4+2];
+    // Find closest centroid
+    let best = 0, bestD = Infinity;
+    for (let j = 0; j < centroids.length; j++) {
+      const d = (r-centroids[j][0])**2 + (g-centroids[j][1])**2 + (b-centroids[j][2])**2;
+      if (d < bestD) { bestD = d; best = j; }
+    }
+    bm[i] = best === colorIdx ? 1 : 0;
+  }
+  return { bm, W, H };
+}
+
+function showPalette(centroids) {
+  const el = document.getElementById('palette-preview');
+  el.innerHTML = centroids.map(c =>
+    `<div title="${rgbToHex(...c)}" style="width:22px;height:22px;border-radius:4px;background:${rgbToHex(...c)};border:1px solid rgba(255,255,255,0.12)"></div>`
+  ).join('');
+}
+
 // ── Main vectorize ────────────────────────────────────────────────────────────
 async function vetorizar() {
   if (!state.file || !state.originalImg) return;
@@ -835,7 +956,6 @@ async function vetorizar() {
       setStatus('loading', `Upscale IA ${scale}× concluído · ${sourceCanvas.width}×${sourceCanvas.height}px`);
 
     } else {
-      // no upscale
       sourceCanvas = document.createElement('canvas');
       sourceCanvas.width  = state.originalImg.naturalWidth;
       sourceCanvas.height = state.originalImg.naturalHeight;
@@ -843,30 +963,77 @@ async function vetorizar() {
       state.upscaledCanvas = sourceCanvas;
     }
 
-    // 2. Vetorizar
-    showSpinner('Vetorizando…');
-    setStatus('loading', 'Vetorizando…');
-
-    const threshold = parseInt(document.getElementById('threshold').value);
     const tolerance = parseFloat(document.getElementById('tolerance').value);
     const minArea   = parseInt(document.getElementById('min-area').value);
-    const color     = document.getElementById('vec-color').value;
+    const { width: W, height: H } = sourceCanvas;
 
-    const { bm, W, H } = canvasToBitmap(sourceCanvas, threshold);
-    const pathData = traceBitmap(bm, W, H, tolerance, minArea);
+    let svg;
 
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+    if (state.vecMode === 'multi') {
+      // ── Multicor ──
+      showSpinner('Quantizando cores…');
+      setStatus('loading', 'Detectando paleta…');
+      const k = parseInt(document.getElementById('color-count').value);
+      const centroids = quantizeColors(sourceCanvas, k);
+      showPalette(centroids);
+
+      showSpinner('Vetorizando camadas…');
+      setStatus('loading', 'Vetorizando camadas de cor…');
+
+      const layers = [];
+      for (let ci = 0; ci < centroids.length; ci++) {
+        const { bm } = buildColorMask(sourceCanvas, centroids, ci);
+        const pathData = traceBitmap(bm, W, H, tolerance, minArea);
+        if (pathData.length > 0) {
+          layers.push({ color: rgbToHex(...centroids[ci]), paths: pathData });
+        }
+      }
+
+      const totalPaths = layers.reduce((s, l) => s + l.paths.length, 0);
+      svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+${layers.map(l => `  <g fill="${l.color}" stroke="none">
+    ${l.paths.map(d => `<path d="${d}"/>`).join('\n    ')}
+  </g>`).join('\n')}
+</svg>`;
+
+      state.svgResult = svg;
+      setStatus('ok', `Vetor multicor · ${layers.length} cores · ${totalPaths} paths · ${W}×${H}px`);
+
+    } else {
+      // ── P&B ──
+      showSpinner('Vetorizando…');
+      setStatus('loading', 'Vetorizando…');
+
+      const threshold = parseInt(document.getElementById('threshold').value);
+      const color     = document.getElementById('vec-color').value;
+      const invert    = document.getElementById('invert-check').checked;
+
+      const ctx = sourceCanvas.getContext('2d');
+      const idata = ctx.getImageData(0, 0, W, H).data;
+      const bm = new Uint8Array(W * H);
+      for (let i = 0; i < W * H; i++) {
+        const a = idata[i*4+3];
+        if (a < 10) { bm[i] = 0; continue; }
+        const lum = 0.299*idata[i*4] + 0.587*idata[i*4+1] + 0.114*idata[i*4+2];
+        const dark = lum < threshold ? 1 : 0;
+        bm[i] = invert ? 1 - dark : dark;
+      }
+
+      const pathData = traceBitmap(bm, W, H, tolerance, minArea);
+
+      svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <g fill="${color}" stroke="none">
     ${pathData.map(d => `<path d="${d}"/>`).join('\n    ')}
   </g>
 </svg>`;
 
-    state.svgResult = svg;
-    setStatus('ok', `Vetor pronto · ${pathData.length} path${pathData.length !== 1 ? 's' : ''} · ${W}×${H}px`);
-    enableDownloads();
+      state.svgResult = svg;
+      setStatus('ok', `Vetor pronto · ${pathData.length} path${pathData.length !== 1 ? 's' : ''} · ${W}×${H}px`);
+    }
 
-    // Show result
+    enableDownloads();
     showInPane('right', 'Vetor', svg);
     if (currentTab !== 'split') setTab('vetor');
 
