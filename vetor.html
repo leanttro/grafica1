@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vetorizador — Leanttro</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f0f10;
+  --surface: #18181b;
+  --surface2: #222226;
+  --border: #2e2e32;
+  --text: #f0f0f1;
+  --muted: #71717a;
+  --accent: #2563eb;
+  --accent-glow: rgba(37,99,235,0.18);
+  --accent2: #16a34a;
+  --accent2-glow: rgba(22,163,74,0.18);
+  --accent3: #9333ea;
+  --accent3-glow: rgba(147,51,234,0.18);
+  --radius: 8px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows: 56px 1fr;
+}
+
+/* ── Topbar ── */
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+.topbar-brand { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.topbar-brand span { color: var(--muted); font-weight: 400; }
+.topbar-pill {
+  font-size: 10px; font-weight: 700;
+  background: var(--accent3-glow); color: var(--accent3);
+  border: 1px solid rgba(147,51,234,0.3);
+  padding: 3px 9px; border-radius: 99px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-home {
+  font-size: 12px; color: var(--muted); text-decoration: none;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface2);
+  transition: border-color 0.15s, color 0.15s;
+}
+.topbar-home:hover { border-color: #444; color: var(--text); }
+
+/* ── Panel ── */
+.panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.section-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+
+/* Upload area */
+.upload-area {
+  width: 100%; min-height: 120px;
+  background: var(--surface2);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative; overflow: hidden;
+  padding: 20px;
+}
+.upload-area:hover, .upload-area.drag { border-color: var(--accent); background: var(--accent-glow); }
+.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-icon { color: var(--muted); }
+.upload-label { font-size: 13px; font-weight: 500; color: var(--muted); }
+.upload-sub { font-size: 11px; color: var(--border); }
+.upload-area.has-file .upload-label { color: var(--accent); }
+
+/* Upscale method selector */
+.method-selector { display: flex; gap: 6px; }
+.method-btn {
+  flex: 1; padding: 9px 8px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--muted);
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  font-family: var(--sans); text-align: center;
+  transition: all 0.15s;
+}
+.method-btn:hover { border-color: #444; color: var(--text); }
+.method-btn.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+.method-btn.active-ai { border-color: var(--accent3); background: var(--accent3-glow); color: var(--accent3); }
+
+/* Slider */
+.slider-row { display: flex; align-items: center; gap: 10px; }
+input[type="range"] {
+  flex: 1; appearance: none; height: 4px;
+  background: var(--border); border-radius: 2px; outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 14px; height: 14px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+.slider-val {
+  font-size: 12px; font-family: var(--mono); color: var(--text);
+  min-width: 28px; text-align: right;
+}
+
+/* Input text */
+.inp {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  padding: 8px 12px; outline: none; transition: border-color 0.15s;
+}
+.inp:focus { border-color: var(--accent); }
+select.inp { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+
+/* AI quota badge */
+.quota-badge {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  font-size: 12px;
+}
+.quota-label { color: var(--muted); }
+.quota-val { font-family: var(--mono); font-weight: 600; color: var(--text); }
+.quota-val.low { color: #f87171; }
+.quota-val.ok { color: #4ade80; }
+
+.ai-section { display: flex; flex-direction: column; gap: 10px; }
+
+/* Buttons */
+.btn-primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; background: var(--accent); border: none;
+  border-radius: var(--radius); color: #fff; font-size: 14px;
+  font-weight: 600; cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.15s; width: 100%;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary.purple { background: var(--accent3); }
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 13px;
+  font-weight: 500; cursor: pointer; font-family: var(--sans);
+  transition: border-color 0.15s; width: 100%;
+}
+.btn-secondary:hover { border-color: #555; }
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.actions { display: flex; flex-direction: column; gap: 8px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Status */
+.status-bar {
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+  display: flex; align-items: center; gap: 6px; min-height: 18px;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0;
+}
+.status-dot.active { background: var(--accent); animation: pulse 1.2s infinite; }
+.status-dot.ok { background: var(--accent2); animation: none; }
+.status-dot.error { background: #f87171; animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.error-msg {
+  font-size: 12px; color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--radius); padding: 10px 12px;
+  display: none;
+}
+
+/* ── Preview area ── */
+.preview-area {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.preview-toolbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+}
+.preview-tabs { display: flex; gap: 4px; }
+.tab-btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; font-family: var(--sans);
+  background: transparent; color: var(--muted); transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.preview-info { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-left: auto; }
+
+.preview-canvas {
+  flex: 1; overflow: hidden;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--border);
+}
+.preview-canvas.single { grid-template-columns: 1fr; }
+
+.preview-pane {
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.pane-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted); padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.pane-content {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: auto; padding: 20px;
+  background: repeating-conic-gradient(#1a1a1e 0% 25%, #141416 0% 50%) 0 0 / 16px 16px;
+}
+.pane-content img, .pane-content canvas {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.pane-content svg {
+  max-width: 100%; max-height: 100%;
+}
+
+.pane-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; color: var(--muted); font-size: 13px;
+  width: 100%; height: 100%;
+  min-height: 200px;
+}
+.pane-empty svg { opacity: 0.2; }
+
+/* ── Spinner overlay ── */
+.spinner-overlay {
+  position: fixed; inset: 0; background: rgba(15,15,16,0.8);
+  display: none; align-items: center; justify-content: center;
+  z-index: 999; flex-direction: column; gap: 14px;
+}
+.spinner-overlay.show { display: flex; }
+.spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-label { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    Leanttro <span>/ Vetorizador</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-pill">Beta</div>
+    <a href="/" class="topbar-home">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </a>
+  </div>
+</div>
+
+<!-- Panel -->
+<div class="panel">
+
+  <!-- Upload -->
+  <div>
+    <div class="section-title">Imagem</div>
+    <div class="upload-area" id="upload-area">
+      <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp">
+      <svg class="upload-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div class="upload-label" id="upload-label">Clique ou arraste a imagem</div>
+      <div class="upload-sub">PNG, JPG, WEBP</div>
+    </div>
+  </div>
+
+  <!-- Upscale -->
+  <div>
+    <div class="section-title">Upscale antes de vetorizar</div>
+    <div class="method-selector">
+      <button class="method-btn active" id="btn-canvas" onclick="selectMethod('canvas')">Canvas</button>
+      <button class="method-btn" id="btn-ai" onclick="selectMethod('ai')">IA (API)</button>
+      <button class="method-btn" id="btn-none" onclick="selectMethod('none')">Sem upscale</button>
+    </div>
+  </div>
+
+  <!-- Canvas upscale options -->
+  <div id="canvas-opts">
+    <div class="field-group">
+      <label>Escala</label>
+      <div class="slider-row">
+        <input type="range" id="canvas-scale" min="1" max="4" step="1" value="2" oninput="document.getElementById('canvas-scale-val').textContent=this.value+'×'">
+        <span class="slider-val" id="canvas-scale-val">2×</span>
+      </div>
+    </div>
+    <div class="field-group" style="margin-top:10px">
+      <label>Método de interpolação</label>
+      <select class="inp" id="interp-method">
+        <option value="pixelated">Pixelated (mais nítido)</option>
+        <option value="smooth" selected>Smooth (suavizado)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- AI upscale options -->
+  <div id="ai-opts" class="ai-section" style="display:none">
+    <div class="quota-badge">
+      <span class="quota-label">Usos hoje</span>
+      <span class="quota-val ok" id="quota-display">— / —</span>
+    </div>
+    <div class="field-group">
+      <label>Escala IA</label>
+      <select class="inp" id="ai-scale">
+        <option value="2">2×</option>
+        <option value="4" selected>4×</option>
+      </select>
+    </div>
+    <div class="error-msg" id="ai-error"></div>
+  </div>
+
+  <div style="height:1px; background:var(--border)"></div>
+
+  <!-- Vectorization settings -->
+  <div>
+    <div class="section-title">Vetorização (Potrace)</div>
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div class="field-group">
+        <label>Threshold (limiar P&B)</label>
+        <div class="slider-row">
+          <input type="range" id="threshold" min="0" max="255" value="128" oninput="document.getElementById('threshold-val').textContent=this.value">
+          <span class="slider-val" id="threshold-val">128</span>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Tolerância de curva</label>
+        <div class="slider-row">
+          <input type="range" id="tolerance" min="0.1" max="2" step="0.1" value="1" oninput="document.getElementById('tolerance-val').textContent=parseFloat(this.value).toFixed(1)">
+          <span class="slider-val" id="tolerance-val">1.0</span>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Cor do vetor</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border);overflow:hidden;position:relative;flex-shrink:0">
+            <input type="color" id="vec-color" value="#000000" style="position:absolute;inset:-4px;width:calc(100%+8px);height:calc(100%+8px);border:none;cursor:pointer;padding:0;opacity:1">
+          </div>
+          <input type="text" class="inp" id="vec-color-hex" value="#000000" maxlength="7" style="flex:1">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Área mínima ignorada (px)</label>
+        <div class="slider-row">
+          <input type="range" id="min-area" min="0" max="100" value="8" oninput="document.getElementById('min-area-val').textContent=this.value">
+          <span class="slider-val" id="min-area-val">8</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:1px; background:var(--border)"></div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Aguardando imagem…</span>
+    </div>
+    <button class="btn-primary" id="btn-vetorizar" onclick="vetorizar()" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Vetorizar
+    </button>
+    <div class="row-2">
+      <button class="btn-secondary" id="btn-svg" onclick="baixarSVG()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        SVG
+      </button>
+      <button class="btn-secondary" id="btn-pdf" onclick="baixarPDF()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview area -->
+<div class="preview-area">
+  <div class="preview-toolbar">
+    <div class="preview-tabs">
+      <button class="tab-btn active" id="tab-split" onclick="setTab('split')">Comparar</button>
+      <button class="tab-btn" id="tab-original" onclick="setTab('original')">Original</button>
+      <button class="tab-btn" id="tab-upscale" onclick="setTab('upscale')">Upscaled</button>
+      <button class="tab-btn" id="tab-vetor" onclick="setTab('vetor')">Vetor</button>
+    </div>
+    <div class="preview-info" id="preview-info">Nenhuma imagem carregada</div>
+  </div>
+
+  <div class="preview-canvas" id="preview-canvas">
+    <div class="preview-pane" id="pane-left">
+      <div class="pane-label">Original</div>
+      <div class="pane-content" id="content-left">
+        <div class="pane-empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Imagem aparece aqui
+        </div>
+      </div>
+    </div>
+    <div class="preview-pane" id="pane-right">
+      <div class="pane-label" id="right-label">Vetor</div>
+      <div class="pane-content" id="content-right">
+        <div class="pane-empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Vetor aparece aqui
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Spinner -->
+<div class="spinner-overlay" id="spinner">
+  <div class="spinner"></div>
+  <div class="spinner-label" id="spinner-label">Processando…</div>
+</div>
+
+<script>
+// ── Estado ──────────────────────────────────────────────────────────────────
+const state = {
+  file: null,
+  originalImg: null,   // HTMLImageElement original
+  upscaledCanvas: null, // Canvas após upscale
+  svgResult: null,     // string SVG vetorizado
+  method: 'canvas',    // 'canvas' | 'ai' | 'none'
+  quotaUsed: 0,
+  quotaLimit: 0,
+};
+
+// ── Quota (AI) ───────────────────────────────────────────────────────────────
+async function loadQuota() {
+  try {
+    const r = await fetch('/api/upscale-quota');
+    if (!r.ok) return;
+    const d = await r.json();
+    state.quotaUsed  = d.used;
+    state.quotaLimit = d.limit;
+    const el = document.getElementById('quota-display');
+    el.textContent = `${d.used} / ${d.limit}`;
+    el.className = 'quota-val ' + (d.used >= d.limit ? 'low' : 'ok');
+  } catch(e) { /* silently fail */ }
+}
+
+// ── Method selector ──────────────────────────────────────────────────────────
+function selectMethod(m) {
+  state.method = m;
+  ['canvas','ai','none'].forEach(x => {
+    const btn = document.getElementById('btn-' + x);
+    btn.className = 'method-btn' + (x === m ? (x === 'ai' ? ' active-ai' : ' active') : '');
+  });
+  document.getElementById('canvas-opts').style.display = m === 'canvas' ? '' : 'none';
+  document.getElementById('ai-opts').style.display     = m === 'ai'     ? '' : 'none';
+  if (m === 'ai') loadQuota();
+}
+
+// ── Upload ───────────────────────────────────────────────────────────────────
+const fileInput   = document.getElementById('file-input');
+const uploadArea  = document.getElementById('upload-area');
+const uploadLabel = document.getElementById('upload-label');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault(); uploadArea.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file) {
+  state.file = file;
+  state.svgResult = null;
+  disableDownloads();
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.originalImg = img;
+      showOriginal(img);
+      setStatus('ok', `${file.name} · ${img.naturalWidth}×${img.naturalHeight}px`);
+      document.getElementById('btn-vetorizar').disabled = false;
+      uploadArea.classList.add('has-file');
+      uploadLabel.textContent = file.name;
+      document.getElementById('preview-info').textContent = `${img.naturalWidth}×${img.naturalHeight}px`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Preview tabs ─────────────────────────────────────────────────────────────
+let currentTab = 'split';
+
+function setTab(t) {
+  currentTab = t;
+  ['split','original','upscale','vetor'].forEach(x => {
+    document.getElementById('tab-' + x).className = 'tab-btn' + (x === t ? ' active' : '');
+  });
+  const pc = document.getElementById('preview-canvas');
+  const paneRight = document.getElementById('pane-right');
+
+  if (t === 'split') {
+    pc.className = 'preview-canvas';
+    paneRight.style.display = '';
+    renderSplit();
+  } else if (t === 'original') {
+    pc.className = 'preview-canvas single';
+    paneRight.style.display = 'none';
+    if (state.originalImg) showInPane('left', 'Original', renderImg(state.originalImg.src));
+  } else if (t === 'upscale') {
+    pc.className = 'preview-canvas single';
+    paneRight.style.display = 'none';
+    if (state.upscaledCanvas) showInPane('left', 'Upscaled', `<canvas id="up-disp"></canvas>`);
+    else showEmpty('left', 'Upscale ainda não realizado');
+    if (state.upscaledCanvas) {
+      setTimeout(() => {
+        const c = document.getElementById('up-disp');
+        if (!c) return;
+        c.width = state.upscaledCanvas.width;
+        c.height = state.upscaledCanvas.height;
+        c.getContext('2d').drawImage(state.upscaledCanvas, 0, 0);
+      }, 0);
+    }
+  } else if (t === 'vetor') {
+    pc.className = 'preview-canvas single';
+    paneRight.style.display = 'none';
+    if (state.svgResult) showInPane('left', 'Vetor SVG', state.svgResult);
+    else showEmpty('left', 'Vetorização ainda não realizada');
+  }
+}
+
+function renderSplit() {
+  if (state.originalImg) showInPane('left', 'Original', renderImg(state.originalImg.src));
+  else showEmpty('left', 'Original');
+
+  if (state.svgResult) {
+    document.getElementById('right-label').textContent = 'Vetor';
+    showInPane('right', 'Vetor', state.svgResult);
+  } else {
+    showEmpty('right', 'Vetor aparece aqui');
+  }
+}
+
+function showInPane(side, label, content) {
+  document.getElementById('pane-' + side).querySelector('.pane-label').textContent = label;
+  document.getElementById('content-' + side).innerHTML = content;
+}
+function showEmpty(side, msg) {
+  document.getElementById('content-' + side).innerHTML = `<div class="pane-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>${msg}</div>`;
+}
+function renderImg(src) {
+  return `<img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+}
+function showOriginal(img) {
+  showInPane('left', 'Original', renderImg(img.src));
+  showEmpty('right', 'Vetor aparece aqui');
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function setStatus(type, msg) {
+  const dot = document.getElementById('status-dot');
+  document.getElementById('status-text').textContent = msg;
+  dot.className = 'status-dot ' + (type === 'loading' ? 'active' : type === 'ok' ? 'ok' : type === 'error' ? 'error' : '');
+}
+
+function disableDownloads() {
+  document.getElementById('btn-svg').disabled = true;
+  document.getElementById('btn-pdf').disabled = true;
+}
+function enableDownloads() {
+  document.getElementById('btn-svg').disabled = false;
+  document.getElementById('btn-pdf').disabled = false;
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+function showSpinner(msg) {
+  document.getElementById('spinner-label').textContent = msg || 'Processando…';
+  document.getElementById('spinner').classList.add('show');
+}
+function hideSpinner() {
+  document.getElementById('spinner').classList.remove('show');
+}
+
+// ── Canvas upscale ────────────────────────────────────────────────────────────
+function upscaleCanvas(img, scale, method) {
+  const w = img.naturalWidth  * scale;
+  const h = img.naturalHeight * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = method === 'smooth';
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas;
+}
+
+// ── AI upscale (via backend) ──────────────────────────────────────────────────
+async function upscaleAI(file, scale) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('scale', scale);
+
+  const r = await fetch('/api/upscale', { method: 'POST', body: fd });
+  if (!r.ok) {
+    const msg = await r.text();
+    throw new Error(msg || 'Erro no upscale IA');
+  }
+  const blob = await r.blob();
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+// ── Potrace (JS implementation) ───────────────────────────────────────────────
+// Pure-JS Potrace-inspired bitmap tracing
+function canvasToBitmap(canvas, threshold) {
+  const ctx = canvas.getContext('2d');
+  const { width: W, height: H } = canvas;
+  const idata = ctx.getImageData(0, 0, W, H);
+  const data  = idata.data;
+  const bm    = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const r = data[i*4], g = data[i*4+1], b = data[i*4+2], a = data[i*4+3];
+    // ignore transparent
+    if (a < 10) { bm[i] = 0; continue; }
+    const lum = 0.299*r + 0.587*g + 0.114*b;
+    bm[i] = lum < threshold ? 1 : 0;
+  }
+  return { bm, W, H };
+}
+
+// Marching-squares contour tracing → simple SVG path generator
+function traceBitmap(bm, W, H, tolerance, minArea) {
+  const visited = new Uint8Array(W * H);
+  const paths   = [];
+
+  function get(x, y) {
+    if (x < 0 || y < 0 || x >= W || y >= H) return 0;
+    return bm[y * W + x];
+  }
+
+  // Find connected components via flood-fill
+  function floodFill(sx, sy) {
+    const pixels = [];
+    const stack  = [[sx, sy]];
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      if (visited[y*W+x] || !bm[y*W+x]) continue;
+      visited[y*W+x] = 1;
+      pixels.push([x, y]);
+      stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+    return pixels;
+  }
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (bm[y*W+x] && !visited[y*W+x]) {
+        const pixels = floodFill(x, y);
+        if (pixels.length >= minArea) {
+          paths.push(pixelsToPath(pixels, tolerance));
+        }
+      }
+    }
+  }
+  return paths;
+}
+
+function pixelsToPath(pixels, tolerance) {
+  // Convex hull approximation for each blob → simplified polygon → smooth with tolerance
+  if (pixels.length === 1) {
+    const [x, y] = pixels[0];
+    return `M${x},${y}h1v1h-1z`;
+  }
+
+  // Bounding box + outline tracing
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const set = new Set(pixels.map(([x,y]) => `${x},${y}`));
+  pixels.forEach(([x,y]) => {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  });
+
+  // Trace outer boundary using Moore neighborhood
+  const boundary = [];
+  // Find topmost-leftmost pixel
+  const sorted = [...pixels].sort((a,b) => a[1]-b[1] || a[0]-b[0]);
+  let [cx, cy] = sorted[0];
+  let dir = 0; // 0=right, 1=down, 2=left, 3=up
+  const dx = [1,0,-1,0], dy = [0,1,0,-1];
+  let steps = 0;
+  const maxSteps = pixels.length * 4 + 8;
+  const seen = new Set();
+
+  do {
+    boundary.push([cx, cy]);
+    const key = `${cx},${cy},${dir}`;
+    if (seen.has(key) && boundary.length > 2) break;
+    seen.add(key);
+
+    // Try to turn left first, then go straight, then turn right
+    let found = false;
+    for (let i = 0; i < 4; i++) {
+      const nd = (dir + 3 + i) % 4; // turn left first
+      const nx = cx + dx[nd], ny = cy + dy[nd];
+      if (set.has(`${nx},${ny}`)) {
+        cx = nx; cy = ny; dir = nd; found = true; break;
+      }
+    }
+    if (!found || ++steps > maxSteps) break;
+  } while (!(cx === sorted[0][0] && cy === sorted[0][1]));
+
+  if (boundary.length < 3) {
+    const [x, y] = pixels[0];
+    return `M${minX},${minY}H${maxX+1}V${maxY+1}H${minX}z`;
+  }
+
+  // Simplify with Ramer–Douglas–Peucker
+  const simplified = rdp(boundary, tolerance);
+
+  let d = `M${simplified[0][0]},${simplified[0][1]}`;
+  for (let i = 1; i < simplified.length; i++) {
+    d += `L${simplified[i][0]},${simplified[i][1]}`;
+  }
+  d += 'z';
+  return d;
+}
+
+function rdp(points, epsilon) {
+  if (points.length <= 2) return points;
+  let maxDist = 0, maxIdx = 0;
+  const [x1,y1] = points[0], [x2,y2] = points[points.length-1];
+  const len = Math.hypot(x2-x1, y2-y1);
+  for (let i = 1; i < points.length - 1; i++) {
+    const [px,py] = points[i];
+    let dist;
+    if (len === 0) {
+      dist = Math.hypot(px-x1, py-y1);
+    } else {
+      dist = Math.abs((y2-y1)*px - (x2-x1)*py + x2*y1 - y2*x1) / len;
+    }
+    if (dist > maxDist) { maxDist = dist; maxIdx = i; }
+  }
+  if (maxDist > epsilon) {
+    const l = rdp(points.slice(0, maxIdx+1), epsilon);
+    const r = rdp(points.slice(maxIdx), epsilon);
+    return [...l.slice(0,-1), ...r];
+  }
+  return [points[0], points[points.length-1]];
+}
+
+// ── Main vectorize ────────────────────────────────────────────────────────────
+async function vetorizar() {
+  if (!state.file || !state.originalImg) return;
+
+  setStatus('loading', 'Preparando…');
+  document.getElementById('btn-vetorizar').disabled = true;
+  disableDownloads();
+  state.svgResult = null;
+
+  try {
+    let sourceCanvas;
+
+    // 1. Upscale
+    if (state.method === 'canvas') {
+      showSpinner('Fazendo upscale no canvas…');
+      const scale  = parseInt(document.getElementById('canvas-scale').value);
+      const method = document.getElementById('interp-method').value;
+      sourceCanvas = upscaleCanvas(state.originalImg, scale, method);
+      state.upscaledCanvas = sourceCanvas;
+      setStatus('loading', `Upscale ${scale}× concluído · ${sourceCanvas.width}×${sourceCanvas.height}px`);
+
+    } else if (state.method === 'ai') {
+      showSpinner('Enviando para upscale IA…');
+      if (state.quotaUsed >= state.quotaLimit && state.quotaLimit > 0) {
+        throw new Error('Limite diário de upscale IA atingido.');
+      }
+      const scale = parseInt(document.getElementById('ai-scale').value);
+      const upscImg = await upscaleAI(state.file, scale);
+      sourceCanvas = document.createElement('canvas');
+      sourceCanvas.width  = upscImg.naturalWidth;
+      sourceCanvas.height = upscImg.naturalHeight;
+      sourceCanvas.getContext('2d').drawImage(upscImg, 0, 0);
+      state.upscaledCanvas = sourceCanvas;
+      await loadQuota();
+      setStatus('loading', `Upscale IA ${scale}× concluído · ${sourceCanvas.width}×${sourceCanvas.height}px`);
+
+    } else {
+      // no upscale
+      sourceCanvas = document.createElement('canvas');
+      sourceCanvas.width  = state.originalImg.naturalWidth;
+      sourceCanvas.height = state.originalImg.naturalHeight;
+      sourceCanvas.getContext('2d').drawImage(state.originalImg, 0, 0);
+      state.upscaledCanvas = sourceCanvas;
+    }
+
+    // 2. Vetorizar
+    showSpinner('Vetorizando…');
+    setStatus('loading', 'Vetorizando…');
+
+    const threshold = parseInt(document.getElementById('threshold').value);
+    const tolerance = parseFloat(document.getElementById('tolerance').value);
+    const minArea   = parseInt(document.getElementById('min-area').value);
+    const color     = document.getElementById('vec-color').value;
+
+    const { bm, W, H } = canvasToBitmap(sourceCanvas, threshold);
+    const pathData = traceBitmap(bm, W, H, tolerance, minArea);
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <g fill="${color}" stroke="none">
+    ${pathData.map(d => `<path d="${d}"/>`).join('\n    ')}
+  </g>
+</svg>`;
+
+    state.svgResult = svg;
+    setStatus('ok', `Vetor pronto · ${pathData.length} path${pathData.length !== 1 ? 's' : ''} · ${W}×${H}px`);
+    enableDownloads();
+
+    // Show result
+    showInPane('right', 'Vetor', svg);
+    if (currentTab !== 'split') setTab('vetor');
+
+  } catch(e) {
+    setStatus('error', 'Erro: ' + e.message);
+    const errEl = document.getElementById('ai-error');
+    if (state.method === 'ai') {
+      errEl.style.display = 'block';
+      errEl.textContent = e.message;
+    }
+  } finally {
+    hideSpinner();
+    document.getElementById('btn-vetorizar').disabled = false;
+  }
+}
+
+// ── Downloads ─────────────────────────────────────────────────────────────────
+function baixarSVG() {
+  if (!state.svgResult) return;
+  const a = document.createElement('a');
+  const name = (state.file?.name || 'vetor').replace(/\.[^.]+$/, '');
+  a.download = name + '_vetor.svg';
+  a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(state.svgResult);
+  a.click();
+}
+
+async function baixarPDF() {
+  if (!state.svgResult) return;
+  showSpinner('Gerando PDF…');
+  try {
+    const { jsPDF } = window.jspdf;
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(state.svgResult, 'image/svg+xml');
+    const svgEl  = svgDoc.documentElement;
+    const W = parseFloat(svgEl.getAttribute('width'));
+    const H = parseFloat(svgEl.getAttribute('height'));
+
+    // Convert to mm at 96dpi
+    const wMm = W * 25.4 / 96;
+    const hMm = H * 25.4 / 96;
+
+    const pdf = new jsPDF({
+      orientation: wMm > hMm ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [wMm, hMm],
+    });
+
+    // Render SVG to canvas, then add as image
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res; img.onerror = rej;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(state.svgResult);
+    });
+    ctx.drawImage(img, 0, 0);
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, wMm, hMm);
+
+    const name = (state.file?.name || 'vetor').replace(/\.[^.]+$/, '');
+    pdf.save(name + '_vetor.pdf');
+  } catch(e) {
+    alert('Erro ao gerar PDF: ' + e.message);
+  } finally {
+    hideSpinner();
+  }
+}
+
+// ── Color sync ────────────────────────────────────────────────────────────────
+document.getElementById('vec-color').addEventListener('input', e => {
+  document.getElementById('vec-color-hex').value = e.target.value;
+});
+document.getElementById('vec-color-hex').addEventListener('input', e => {
+  const v = e.target.value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    document.getElementById('vec-color').value = v;
+  }
+});
+</script>
+</body>
+</html>
