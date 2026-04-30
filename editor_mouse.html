@@ -350,6 +350,21 @@ body {
         Limpar
       </button>
     </div>
+
+    <div style="margin-top:8px; display:flex; gap:6px;">
+      <button class="btn-upscale btn-secondary" style="flex:1;font-size:11px;padding:7px;color:#a78bfa;border-color:#a78bfa;" onclick="melhorarImagem(2)" title="Ampliar resolução 2× com nitidez — roda no navegador">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:3px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        IA Upscale 2×
+      </button>
+      <button class="btn-upscale btn-secondary" style="flex:1;font-size:11px;padding:7px;color:#a78bfa;border-color:#a78bfa;" onclick="melhorarImagem(3)" title="Ampliar resolução 3× com nitidez — roda no navegador">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:3px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        IA Upscale 3×
+      </button>
+    </div>
+    <button class="btn-secondary" style="width:100%;font-size:10px;padding:5px;margin-top:4px;" onclick="restaurarOriginal()">
+      ↩ Restaurar imagem original
+    </button>
+    <div id="img-tool-status" style="font-size:10px;color:var(--muted);margin-top:4px;min-height:14px;"></div>
   </div>
 
   <!-- Modo -->
@@ -447,6 +462,7 @@ const state = {
   sangriaTipo: 'espelho', // 'espelho' | 'stretch'  (usado só quando modo=exact)
   imgSrc: null,
   img: null,
+  imgOriginalSrc: null,
 };
 
 // ─── Definições de templates ──────────────────────────────────────────────────
@@ -530,12 +546,91 @@ function setSangriaTipo(tipo) {
   renderPreview();
 }
 
+
+// ─── Melhorar imagem (Upscale) ────────────────────────────────────────────────
+async function melhorarImagem(fator) {
+  const statusEl = document.getElementById('img-tool-status');
+  if (!state.imgSrc) { statusEl.textContent = 'Nenhuma imagem carregada.'; return; }
+
+  const btns = document.querySelectorAll('.btn-upscale');
+  btns.forEach(b => b.disabled = true);
+  statusEl.textContent = 'Processando…';
+
+  try {
+    const img = new Image();
+    img.src = state.imgSrc;
+    await new Promise(r => { img.onload = r; img.onerror = r; });
+
+    const W = img.naturalWidth  * fator;
+    const H = img.naturalHeight * fator;
+
+    const c1 = document.createElement('canvas');
+    c1.width = W; c1.height = H;
+    const ctx1 = c1.getContext('2d');
+    ctx1.imageSmoothingEnabled = true;
+    ctx1.imageSmoothingQuality = 'high';
+    ctx1.drawImage(img, 0, 0, W, H);
+
+    const src = ctx1.getImageData(0, 0, W, H);
+    const dst = ctx1.createImageData(W, H);
+    const s = src.data, d = dst.data;
+    const k = [0,-1,0,-1,5,-1,0,-1,0];
+    for (let y = 1; y < H-1; y++) {
+      for (let x = 1; x < W-1; x++) {
+        const i = (y*W+x)*4;
+        for (let c = 0; c < 3; c++) {
+          let v = 0;
+          for (let ky = -1; ky <= 1; ky++)
+            for (let kx = -1; kx <= 1; kx++)
+              v += s[((y+ky)*W+(x+kx))*4+c] * k[(ky+1)*3+(kx+1)];
+          d[i+c] = Math.max(0, Math.min(255, v));
+        }
+        d[i+3] = s[i+3];
+      }
+    }
+    ctx1.putImageData(dst, 0, 0);
+
+    const resultado = c1.toDataURL('image/png');
+    state.imgSrc = resultado;
+    const novaImg = new Image();
+    novaImg.onload = () => {
+      state.img = novaImg;
+      const zone = document.getElementById('upload-zone');
+      zone.innerHTML = `<img src="${resultado}" alt="arte">`;
+      zone.classList.add('has-image');
+      renderPreview();
+    };
+    novaImg.src = resultado;
+    statusEl.textContent = `✓ Imagem ampliada ${fator}× (${W}×${H}px)`;
+  } catch(e) {
+    console.error(e);
+    statusEl.textContent = 'Erro: ' + (e.message || 'falha no upscale');
+  }
+  btns.forEach(b => b.disabled = false);
+}
+
+function restaurarOriginal() {
+  if (!state.imgOriginalSrc) return;
+  state.imgSrc = state.imgOriginalSrc;
+  const img = new Image();
+  img.onload = () => {
+    state.img = img;
+    const zone = document.getElementById('upload-zone');
+    zone.innerHTML = `<img src="${state.imgOriginalSrc}" alt="arte">`;
+    zone.classList.add('has-image');
+    renderPreview();
+  };
+  img.src = state.imgOriginalSrc;
+  document.getElementById('img-tool-status').textContent = 'Imagem original restaurada.';
+}
+
 // ─── Upload de imagem ─────────────────────────────────────────────────────────
 function carregarImagem(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
   reader.onload = e => {
     state.imgSrc = e.target.result;
+    state.imgOriginalSrc = e.target.result;
     const img = new Image();
     img.onload = () => {
       state.img = img;
@@ -560,7 +655,7 @@ function onDrop(e) {
 }
 
 function limparImagem() {
-  state.img = null; state.imgSrc = null;
+  state.img = null; state.imgSrc = null; state.imgOriginalSrc = null;
   const zone = document.getElementById('upload-zone');
   zone.classList.remove('has-image');
   zone.innerHTML = `
